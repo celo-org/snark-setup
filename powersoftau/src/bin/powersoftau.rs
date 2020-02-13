@@ -1,8 +1,9 @@
 use gumdrop::Options;
 use powersoftau::cli_common::{
-    beacon, compute_constrained, new_constrained, transform, verify, Command, PowersOfTauOpts,
+    contribute, new_constrained, transform, verify, Command, PowersOfTauOpts,
 };
 use powersoftau::parameters::CeremonyParams;
+use powersoftau::utils::{beacon_randomness, get_rng, user_system_randomness};
 
 use bellman_ce::pairing::bn256::Bn256;
 use std::path::PathBuf;
@@ -33,19 +34,16 @@ fn main() {
                 new_constrained(&challenge_fname, &parameters);
             }
             // contribute to the randomness
-            compute_constrained(&challenge_fname, &opt.response_fname, &parameters)
+            let rng = get_rng(&user_system_randomness());
+            contribute(&challenge_fname, &opt.response_fname, &parameters, rng)
         }
         Command::Beacon(opt) => {
             // use the beacon's randomness
             // Place block hash here (block number #564321)
             let beacon_hash: [u8; 32] =
                 hex!("0000000000000000000a558a61ddc8ee4e488d647a747fe4dcc362fe2026c620");
-            beacon(
-                &opt.challenge_fname,
-                &opt.response_fname,
-                &parameters,
-                beacon_hash,
-            );
+            let rng = get_rng(&beacon_randomness(beacon_hash));
+            contribute(&opt.challenge_fname, &opt.response_fname, &parameters, rng);
         }
         Command::Transform(opt) => {
             // we receive a previous participation, verify it, and generate a new challenge from it

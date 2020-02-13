@@ -1,14 +1,11 @@
 mod new_constrained;
 pub use new_constrained::new_constrained;
 
-mod compute_constrained;
-pub use compute_constrained::compute_constrained;
+mod contribute;
+pub use contribute::contribute;
 
 mod transform;
 pub use transform::transform;
-
-mod beacon;
-pub use beacon::beacon;
 
 mod verify;
 pub use verify::verify;

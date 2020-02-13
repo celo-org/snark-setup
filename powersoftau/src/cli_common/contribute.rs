@@ -4,88 +4,27 @@ use crate::{
     parameters::{CeremonyParams, CheckForCorrectness, UseCompression},
     utils::calculate_hash,
 };
-
 use bellman_ce::pairing::Engine;
-use memmap::MmapOptions;
+use memmap::*;
+use rand::Rng;
 use std::fs::OpenOptions;
-
-use std::io::Write;
+use std::io::{Read, Write};
 
 const INPUT_IS_COMPRESSED: UseCompression = UseCompression::No;
 const COMPRESS_THE_OUTPUT: UseCompression = UseCompression::Yes;
 const CHECK_INPUT_CORRECTNESS: CheckForCorrectness = CheckForCorrectness::No;
 
-#[allow(clippy::modulo_one)]
-pub fn beacon<T: Engine>(
+pub fn contribute<T: Engine>(
     challenge_filename: &str,
     response_filename: &str,
     parameters: &CeremonyParams<T>,
-    mut beacon_hash: [u8; 32],
+    mut rng: impl Rng,
 ) {
-    println!(
-        "Will contribute a random beacon to accumulator for 2^{} powers of tau",
-        parameters.size,
-    );
-    println!(
-        "In total will generate up to {} powers",
-        parameters.powers_g1_length,
-    );
-
-    // Create an RNG based on the outcome of the random beacon
-    let mut rng = {
-        use byteorder::{BigEndian, ReadBytesExt};
-        use crypto::digest::Digest;
-        use crypto::sha2::Sha256;
-        use rand::chacha::ChaChaRng;
-        use rand::SeedableRng;
-
-        // Performs 2^n hash iterations over it
-        const N: u64 = 10;
-
-        for i in 0..(1u64 << N) {
-            // Print 1024 of the interstitial states
-            // so that verification can be
-            // parallelized
-
-            if i % (1u64 << (N - 10)) == 0 {
-                print!("{}: ", i);
-                for b in beacon_hash.iter() {
-                    print!("{:02x}", b);
-                }
-                println!();
-            }
-
-            let mut h = Sha256::new();
-            h.input(&beacon_hash);
-            h.result(&mut beacon_hash);
-        }
-
-        print!("Final result of beacon: ");
-        for b in beacon_hash.iter() {
-            print!("{:02x}", b);
-        }
-        println!();
-
-        let mut digest = &beacon_hash[..];
-
-        let mut seed = [0u32; 8];
-        for s in &mut seed {
-            *s = digest
-                .read_u32::<BigEndian>()
-                .expect("digest is large enough for this to work");
-        }
-
-        ChaChaRng::from_seed(&seed)
-    };
-
-    println!("Done creating a beacon RNG");
-
     // Try to load challenge file from disk.
     let reader = OpenOptions::new()
         .read(true)
         .open(challenge_filename)
-        .expect("unable open challenge file in this directory");
-
+        .expect("unable open challenge file");
     {
         let metadata = reader
             .metadata()
@@ -116,7 +55,7 @@ pub fn beacon<T: Engine>(
         .write(true)
         .create_new(true)
         .open(response_filename)
-        .expect("unable to create response file in this directory");
+        .expect("unable to create response file");
 
     let required_output_length = match COMPRESS_THE_OUTPUT {
         UseCompression::Yes => parameters.contribution_size,
@@ -135,10 +74,14 @@ pub fn beacon<T: Engine>(
 
     println!("Calculating previous contribution hash...");
 
+    assert!(
+        UseCompression::No == INPUT_IS_COMPRESSED,
+        "Hashing the compressed file in not yet defined"
+    );
     let current_accumulator_hash = calculate_hash(&readable_map);
 
     {
-        println!("Contributing on top of the hash:");
+        println!("`challenge` file contains decompressed points and has a hash:");
         for line in current_accumulator_hash.as_slice().chunks(16) {
             print!("\t");
             for section in line.chunks(4) {
@@ -159,6 +102,28 @@ pub fn beacon<T: Engine>(
             .expect("unable to write hash to response file");
     }
 
+    {
+        let mut challenge_hash = [0; 64];
+        let mut memory_slice = readable_map
+            .get(0..64)
+            .expect("must read point data from file");
+        memory_slice
+            .read_exact(&mut challenge_hash)
+            .expect("couldn't read hash of challenge file from response file");
+
+        println!("`challenge` file claims (!!! Must not be blindly trusted) that it was based on the original contribution with a hash:");
+        for line in challenge_hash.chunks(16) {
+            print!("\t");
+            for section in line.chunks(4) {
+                for b in section {
+                    print!("{:02x}", b);
+                }
+                print!(" ");
+            }
+            println!();
+        }
+    }
+
     // Construct our keypair using the RNG we created above
     let (pubkey, privkey) = keypair(&mut rng, current_accumulator_hash.as_ref());
 
@@ -176,12 +141,15 @@ pub fn beacon<T: Engine>(
         &parameters,
     )
     .expect("must transform with the key");
+
     println!("Finishing writing your contribution to response file...");
 
     // Write the public key
     pubkey
         .write(&mut writable_map, COMPRESS_THE_OUTPUT, &parameters)
         .expect("unable to write public key");
+
+    writable_map.flush().expect("must flush a memory map");
 
     // Get the hash of the contribution, so the user can compare later
     let output_readonly = writable_map
