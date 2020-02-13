@@ -2,7 +2,7 @@ use crate::{
     batched_accumulator::BatchedAccumulator,
     keypair::PublicKey,
     parameters::{CeremonyParams, CheckForCorrectness, UseCompression},
-    utils::calculate_hash,
+    utils::{calculate_hash, print_hash},
 };
 use bellman_ce::pairing::Engine;
 use memmap::*;
@@ -90,16 +90,7 @@ pub fn transform<T: Engine>(
     let current_accumulator_hash = calculate_hash(&challenge_readable_map);
 
     println!("Hash of the `challenge` file for verification:");
-    for line in current_accumulator_hash.as_slice().chunks(16) {
-        print!("\t");
-        for section in line.chunks(4) {
-            for b in section {
-                print!("{:02x}", b);
-            }
-            print!(" ");
-        }
-        println!();
-    }
+    print_hash(&current_accumulator_hash);
 
     // Check the hash chain - a new response must be based on the previous challenge!
     {
@@ -112,16 +103,7 @@ pub fn transform<T: Engine>(
             .expect("couldn't read hash of challenge file from response file");
 
         println!("`response` was based on the hash:");
-        for line in response_challenge_hash.chunks(16) {
-            print!("\t");
-            for section in line.chunks(4) {
-                for b in section {
-                    print!("{:02x}", b);
-                }
-                print!(" ");
-            }
-            println!();
-        }
+        print_hash(&response_challenge_hash);
 
         if &response_challenge_hash[..] != current_accumulator_hash.as_slice() {
             panic!("Hash chain failure. This is not the right response.");
@@ -131,16 +113,7 @@ pub fn transform<T: Engine>(
     let response_hash = calculate_hash(&response_readable_map);
 
     println!("Hash of the response file for verification:");
-    for line in response_hash.as_slice().chunks(16) {
-        print!("\t");
-        for section in line.chunks(4) {
-            for b in section {
-                print!("{:02x}", b);
-            }
-            print!(" ");
-        }
-        println!();
-    }
+    print_hash(&response_hash);
 
     // get the contributor's public key
     let public_key = PublicKey::read(
@@ -228,18 +201,7 @@ pub fn transform<T: Engine>(
         let recompressed_hash = calculate_hash(&new_challenge_readable_map);
 
         println!("Here's the BLAKE2b hash of the decompressed participant's response as new_challenge file:");
-
-        for line in recompressed_hash.as_slice().chunks(16) {
-            print!("\t");
-            for section in line.chunks(4) {
-                for b in section {
-                    print!("{:02x}", b);
-                }
-                print!(" ");
-            }
-            println!();
-        }
-
+        print_hash(&recompressed_hash);
         println!("Done! new challenge file contains the new challenge file. The other files");
         println!("were left alone.");
     }

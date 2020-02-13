@@ -5,7 +5,7 @@ use powersoftau::{
     batched_accumulator::BatchedAccumulator,
     cli_common::{curve_from_str, proving_system_from_str, CurveKind, ProvingSystem},
     parameters::{CeremonyParams, CheckForCorrectness, UseCompression},
-    utils::{calculate_hash, reduced_hash},
+    utils::{calculate_hash, reduced_hash, print_hash},
 };
 use std::{fs::OpenOptions, io::Write};
 
@@ -111,16 +111,7 @@ fn reduce_powers<E: Engine>(
         .expect("unable to write reduced hash to the reduced_challenge");
 
     println!("Reduced hash for a reduced challenge:");
-    for line in hash.as_slice().chunks(16) {
-        print!("\t");
-        for section in line.chunks(4) {
-            for b in section {
-                print!("{:02x}", b);
-            }
-            print!(" ");
-        }
-        println!();
-    }
+    print_hash(&hash);
 
     reduced_accumulator
         .serialize(&mut writable_map, UseCompression::No, &parameters)
@@ -133,17 +124,6 @@ fn reduce_powers<E: Engine>(
     let contribution_hash = calculate_hash(&output_readonly);
 
     println!("Reduced contribution is formed with a hash:");
-
-    for line in contribution_hash.as_slice().chunks(16) {
-        print!("\t");
-        for section in line.chunks(4) {
-            for b in section {
-                print!("{:02x}", b);
-            }
-            print!(" ");
-        }
-        println!();
-    }
-
+    print_hash(&contribution_hash);
     println!("Wrote a reduced accumulator to `./challenge`");
 }
