@@ -2,7 +2,7 @@ use crate::{
     batched_accumulator::BatchedAccumulator,
     keypair::keypair,
     parameters::{CeremonyParams, CheckForCorrectness, UseCompression},
-    utils::calculate_hash,
+    utils::{calculate_hash, print_hash},
 };
 use bellman_ce::pairing::Engine;
 use memmap::*;
@@ -82,16 +82,7 @@ pub fn contribute<T: Engine>(
 
     {
         println!("`challenge` file contains decompressed points and has a hash:");
-        for line in current_accumulator_hash.as_slice().chunks(16) {
-            print!("\t");
-            for section in line.chunks(4) {
-                for b in section {
-                    print!("{:02x}", b);
-                }
-                print!(" ");
-            }
-            println!();
-        }
+        print_hash(&current_accumulator_hash);
 
         (&mut writable_map[0..])
             .write_all(current_accumulator_hash.as_slice())
@@ -112,16 +103,7 @@ pub fn contribute<T: Engine>(
             .expect("couldn't read hash of challenge file from response file");
 
         println!("`challenge` file claims (!!! Must not be blindly trusted) that it was based on the original contribution with a hash:");
-        for line in challenge_hash.chunks(16) {
-            print!("\t");
-            for section in line.chunks(4) {
-                for b in section {
-                    print!("{:02x}", b);
-                }
-                print!(" ");
-            }
-            println!();
-        }
+        print_hash(&challenge_hash);
     }
 
     // Construct our keypair using the RNG we created above
@@ -162,17 +144,6 @@ pub fn contribute<T: Engine>(
               Your contribution has been written to response file\n\n\
               The BLAKE2b hash of response file is:\n"
     );
-
-    for line in contribution_hash.as_slice().chunks(16) {
-        print!("\t");
-        for section in line.chunks(4) {
-            for b in section {
-                print!("{:02x}", b);
-            }
-            print!(" ");
-        }
-        println!();
-    }
-
+    print_hash(&contribution_hash);
     println!("Thank you for your participation, much appreciated! :)");
 }

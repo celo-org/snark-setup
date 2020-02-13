@@ -16,6 +16,19 @@ use crypto::sha2::Sha256;
 
 use super::parameters::UseCompression;
 
+pub fn print_hash(hash: &[u8]) {
+    for line in hash.chunks(16) {
+        print!("\t");
+        for section in line.chunks(4) {
+            for b in section {
+                print!("{:02x}", b);
+            }
+            print!(" ");
+        }
+        println!();
+    }
+}
+
 // Create an RNG based on a mixture of system randomness and user provided randomness
 pub fn user_system_randomness() -> Vec<u8> {
     let mut system_rng = OsRng::new().unwrap();
