@@ -1,15 +1,9 @@
-pub mod batched_accumulator;
-mod cli_common;
-pub mod keypair;
-pub mod parameters;
-pub mod utils;
-
-use cli_common::{
+use gumdrop::Options;
+use powersoftau::cli_common::{
     beacon, compute_constrained, new_constrained, transform, verify, Command, PowersOfTauOpts,
 };
-use gumdrop::Options;
+use powersoftau::parameters::CeremonyParams;
 
-use crate::parameters::CeremonyParams;
 use bellman_ce::pairing::bn256::Bn256;
 use std::path::PathBuf;
 use std::process;
