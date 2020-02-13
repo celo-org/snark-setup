@@ -2,10 +2,10 @@
 /// and then contributes to entropy in parts as well
 use bellman_ce::pairing::ff::{Field, PrimeField};
 use bellman_ce::pairing::*;
+use itertools::{Itertools, MinMaxResult::MinMax};
 use log::{error, info};
 
 use generic_array::GenericArray;
-use itertools::Itertools;
 
 use std::io::{self, Read, Write};
 use std::sync::{Arc, Mutex};
@@ -23,7 +23,7 @@ pub enum AccumulatorState {
     Transformed,
 }
 
-/// The `Accumulator` is an object that participants of the ceremony contribute
+/// The `BatchedAccumulator` is an object that participants of the ceremony contribute
 /// randomness to. This object contains powers of trapdoor `tau` in G1 and in G2 over
 /// fixed generators, and additionally in G1 over two other generators of exponents
 /// `alpha` and `beta` over those fixed generators. In other words:
@@ -283,7 +283,6 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
         check_output_for_correctness: CheckForCorrectness,
         parameters: &'a CeremonyParams<E>,
     ) -> bool {
-        use itertools::MinMaxResult::MinMax;
         assert_eq!(digest.len(), 64);
 
         let tau_g2_s = compute_g2_s::<E>(&digest, &key.tau_g1.0, &key.tau_g1.1, 0);
@@ -543,8 +542,6 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
         check_input_for_correctness: CheckForCorrectness,
         parameters: &'a CeremonyParams<E>,
     ) -> io::Result<()> {
-        use itertools::MinMaxResult::MinMax;
-
         let mut accumulator = Self::empty(parameters);
 
         for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
@@ -620,8 +617,6 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
         compression: UseCompression,
         parameters: &'a CeremonyParams<E>,
     ) -> io::Result<BatchedAccumulator<'a, E>> {
-        use itertools::MinMaxResult::MinMax;
-
         let mut accumulator = Self::empty(parameters);
 
         let mut tau_powers_g1 = vec![];
@@ -720,8 +715,6 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
         compression: UseCompression,
         parameters: &CeremonyParams<E>,
     ) -> io::Result<()> {
-        use itertools::MinMaxResult::MinMax;
-
         for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
             if let MinMax(start, end) = chunk.minmax() {
                 let mut tmp_acc = BatchedAccumulator::<E> {
@@ -1178,8 +1171,6 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
 
         let mut accumulator = Self::empty(parameters);
 
-        use itertools::MinMaxResult::MinMax;
-
         for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
             if let MinMax(start, end) = chunk.minmax() {
                 let size = end - start + 1;
@@ -1293,8 +1284,6 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
         compress_the_output: UseCompression,
         parameters: &'a CeremonyParams<E>,
     ) -> io::Result<()> {
-        use itertools::MinMaxResult::MinMax;
-
         // Write the first Tau powers in chunks where every initial element is a G1 or G2 `one`
         for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
             if let MinMax(start, end) = chunk.minmax() {
