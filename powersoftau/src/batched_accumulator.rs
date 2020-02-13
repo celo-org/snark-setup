@@ -174,102 +174,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
 
         position + self.parameters.hash_size
     }
-}
 
-/// Verifies a transformation of the `BatchedAccumulator` with the `PublicKey`, given a 64-byte transcript `digest`.
-pub fn verify_transform<E: Engine>(
-    before: &BatchedAccumulator<E>,
-    after: &BatchedAccumulator<E>,
-    key: &PublicKey<E>,
-    digest: &[u8],
-) -> bool {
-    assert_eq!(digest.len(), 64);
-
-    let tau_g2_s = compute_g2_s::<E>(&digest, &key.tau_g1.0, &key.tau_g1.1, 0);
-    let alpha_g2_s = compute_g2_s::<E>(&digest, &key.alpha_g1.0, &key.alpha_g1.1, 1);
-    let beta_g2_s = compute_g2_s::<E>(&digest, &key.beta_g1.0, &key.beta_g1.1, 2);
-
-    // Check the proofs-of-knowledge for tau/alpha/beta
-
-    // g1^s / g1^(s*x) = g2^s / g2^(s*x)
-    if !same_ratio(key.tau_g1, (tau_g2_s, key.tau_g2)) {
-        return false;
-    }
-    if !same_ratio(key.alpha_g1, (alpha_g2_s, key.alpha_g2)) {
-        return false;
-    }
-    if !same_ratio(key.beta_g1, (beta_g2_s, key.beta_g2)) {
-        return false;
-    }
-
-    // Check the correctness of the generators for tau powers
-    if after.tau_powers_g1[0] != E::G1Affine::one() {
-        return false;
-    }
-    if after.tau_powers_g2[0] != E::G2Affine::one() {
-        return false;
-    }
-
-    // Did the participant multiply the previous tau by the new one?
-    if !same_ratio(
-        (before.tau_powers_g1[1], after.tau_powers_g1[1]),
-        (tau_g2_s, key.tau_g2),
-    ) {
-        return false;
-    }
-
-    // Did the participant multiply the previous alpha by the new one?
-    if !same_ratio(
-        (before.alpha_tau_powers_g1[0], after.alpha_tau_powers_g1[0]),
-        (alpha_g2_s, key.alpha_g2),
-    ) {
-        return false;
-    }
-
-    // Did the participant multiply the previous beta by the new one?
-    if !same_ratio(
-        (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
-        (beta_g2_s, key.beta_g2),
-    ) {
-        return false;
-    }
-    if !same_ratio(
-        (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
-        (before.beta_g2, after.beta_g2),
-    ) {
-        return false;
-    }
-
-    // Are the powers of tau correct?
-    if !same_ratio(
-        power_pairs(&after.tau_powers_g1),
-        (after.tau_powers_g2[0], after.tau_powers_g2[1]),
-    ) {
-        return false;
-    }
-    if !same_ratio(
-        power_pairs(&after.tau_powers_g2),
-        (after.tau_powers_g1[0], after.tau_powers_g1[1]),
-    ) {
-        return false;
-    }
-    if !same_ratio(
-        power_pairs(&after.alpha_tau_powers_g1),
-        (after.tau_powers_g2[0], after.tau_powers_g2[1]),
-    ) {
-        return false;
-    }
-    if !same_ratio(
-        power_pairs(&after.beta_tau_powers_g1),
-        (after.tau_powers_g2[0], after.tau_powers_g2[1]),
-    ) {
-        return false;
-    }
-
-    true
-}
-
-impl<'a, E: Engine> BatchedAccumulator<'a, E> {
     /// Verifies a transformation of the `Accumulator` with the `PublicKey`, given a 64-byte transcript `digest`.
     #[allow(clippy::too_many_arguments, clippy::cognitive_complexity)]
     pub fn verify_transformation(
@@ -1330,4 +1235,97 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
 
         Ok(())
     }
+}
+
+/// Verifies a transformation of the `BatchedAccumulator` with the `PublicKey`, given a 64-byte transcript `digest`.
+pub fn verify_transform<E: Engine>(
+    before: &BatchedAccumulator<E>,
+    after: &BatchedAccumulator<E>,
+    key: &PublicKey<E>,
+    digest: &[u8],
+) -> bool {
+    assert_eq!(digest.len(), 64);
+
+    let tau_g2_s = compute_g2_s::<E>(&digest, &key.tau_g1.0, &key.tau_g1.1, 0);
+    let alpha_g2_s = compute_g2_s::<E>(&digest, &key.alpha_g1.0, &key.alpha_g1.1, 1);
+    let beta_g2_s = compute_g2_s::<E>(&digest, &key.beta_g1.0, &key.beta_g1.1, 2);
+
+    // Check the proofs-of-knowledge for tau/alpha/beta
+
+    // g1^s / g1^(s*x) = g2^s / g2^(s*x)
+    if !same_ratio(key.tau_g1, (tau_g2_s, key.tau_g2)) {
+        return false;
+    }
+    if !same_ratio(key.alpha_g1, (alpha_g2_s, key.alpha_g2)) {
+        return false;
+    }
+    if !same_ratio(key.beta_g1, (beta_g2_s, key.beta_g2)) {
+        return false;
+    }
+
+    // Check the correctness of the generators for tau powers
+    if after.tau_powers_g1[0] != E::G1Affine::one() {
+        return false;
+    }
+    if after.tau_powers_g2[0] != E::G2Affine::one() {
+        return false;
+    }
+
+    // Did the participant multiply the previous tau by the new one?
+    if !same_ratio(
+        (before.tau_powers_g1[1], after.tau_powers_g1[1]),
+        (tau_g2_s, key.tau_g2),
+    ) {
+        return false;
+    }
+
+    // Did the participant multiply the previous alpha by the new one?
+    if !same_ratio(
+        (before.alpha_tau_powers_g1[0], after.alpha_tau_powers_g1[0]),
+        (alpha_g2_s, key.alpha_g2),
+    ) {
+        return false;
+    }
+
+    // Did the participant multiply the previous beta by the new one?
+    if !same_ratio(
+        (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
+        (beta_g2_s, key.beta_g2),
+    ) {
+        return false;
+    }
+    if !same_ratio(
+        (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
+        (before.beta_g2, after.beta_g2),
+    ) {
+        return false;
+    }
+
+    // Are the powers of tau correct?
+    if !same_ratio(
+        power_pairs(&after.tau_powers_g1),
+        (after.tau_powers_g2[0], after.tau_powers_g2[1]),
+    ) {
+        return false;
+    }
+    if !same_ratio(
+        power_pairs(&after.tau_powers_g2),
+        (after.tau_powers_g1[0], after.tau_powers_g1[1]),
+    ) {
+        return false;
+    }
+    if !same_ratio(
+        power_pairs(&after.alpha_tau_powers_g1),
+        (after.tau_powers_g2[0], after.tau_powers_g2[1]),
+    ) {
+        return false;
+    }
+    if !same_ratio(
+        power_pairs(&after.beta_tau_powers_g1),
+        (after.tau_powers_g2[0], after.tau_powers_g2[1]),
+    ) {
+        return false;
+    }
+
+    true
 }
