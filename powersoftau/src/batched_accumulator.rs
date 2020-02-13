@@ -6,7 +6,6 @@ use log::{error, info};
 
 use generic_array::GenericArray;
 use itertools::Itertools;
-use memmap::{Mmap, MmapMut};
 
 use std::io::{self, Read, Write};
 use std::sync::{Arc, Mutex};
@@ -92,8 +91,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
     /// TAU_POWERS_LENGTH of G1 points for beta
     /// One G2 point for beta
     /// Public key appended to the end of file, but it's irrelevant for an accumulator itself
-
-    fn calculate_mmap_position(
+    fn calculate_position(
         &self,
         index: usize,
         element_type: ElementType,
@@ -275,8 +273,8 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
     /// Verifies a transformation of the `Accumulator` with the `PublicKey`, given a 64-byte transcript `digest`.
     #[allow(clippy::too_many_arguments, clippy::cognitive_complexity)]
     pub fn verify_transformation(
-        input_map: &Mmap,
-        output_map: &Mmap,
+        input: &[u8],
+        output: &[u8],
         key: &PublicKey<E>,
         digest: &[u8],
         input_is_compressed: UseCompression,
@@ -323,7 +321,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     chunk_size,
                     input_is_compressed,
                     check_input_for_correctness,
-                    &input_map,
+                    &input,
                 )
                 .expect("must read a first chunk from `challenge`");
             after
@@ -332,7 +330,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     chunk_size,
                     output_is_compressed,
                     check_output_for_correctness,
-                    &output_map,
+                    &output,
                 )
                 .expect("must read a first chunk from `response`");
 
@@ -401,7 +399,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                         size,
                         input_is_compressed,
                         check_input_for_correctness,
-                        &input_map,
+                        &input,
                     )
                     .unwrap_or_else(|_| {
                         panic!(format!(
@@ -415,7 +413,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                         size,
                         output_is_compressed,
                         check_output_for_correctness,
-                        &output_map,
+                        &output,
                     )
                     .unwrap_or_else(|_| {
                         panic!(format!(
@@ -479,7 +477,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                         size,
                         input_is_compressed,
                         check_input_for_correctness,
-                        &input_map,
+                        &input,
                     )
                     .unwrap_or_else(|_| {
                         panic!(format!(
@@ -493,7 +491,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                         size,
                         output_is_compressed,
                         check_output_for_correctness,
-                        &output_map,
+                        &output,
                     )
                     .unwrap_or_else(|_| {
                         panic!(format!(
@@ -540,8 +538,8 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
     }
 
     pub fn decompress(
-        input_map: &Mmap,
-        output_map: &mut MmapMut,
+        input: &[u8],
+        output: &mut [u8],
         check_input_for_correctness: CheckForCorrectness,
         parameters: &'a CeremonyParams<E>,
     ) -> io::Result<()> {
@@ -558,7 +556,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                         size,
                         UseCompression::Yes,
                         check_input_for_correctness,
-                        &input_map,
+                        &input,
                     )
                     .unwrap_or_else(|_| {
                         panic!(format!(
@@ -566,7 +564,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                             start, end
                         ))
                     });
-                accumulator.write_chunk(start, UseCompression::No, output_map)?;
+                accumulator.write_chunk(start, UseCompression::No, output)?;
             } else {
                 panic!("Chunk does not have a min and max");
             }
@@ -583,7 +581,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                         size,
                         UseCompression::Yes,
                         check_input_for_correctness,
-                        &input_map,
+                        &input,
                     )
                     .unwrap_or_else(|_| {
                         panic!(format!(
@@ -607,7 +605,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     "during rest of tau g1 generation beta*tau in g1 must be empty"
                 );
 
-                accumulator.write_chunk(start, UseCompression::No, output_map)?;
+                accumulator.write_chunk(start, UseCompression::No, output)?;
             } else {
                 panic!("Chunk does not have a min and max");
             }
@@ -617,7 +615,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
     }
 
     pub fn deserialize(
-        input_map: &Mmap,
+        input: &[u8],
         check_input_for_correctness: CheckForCorrectness,
         compression: UseCompression,
         parameters: &'a CeremonyParams<E>,
@@ -641,7 +639,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                         size,
                         compression,
                         check_input_for_correctness,
-                        &input_map,
+                        &input,
                     )
                     .unwrap_or_else(|_| {
                         panic!(format!(
@@ -672,7 +670,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                         size,
                         compression,
                         check_input_for_correctness,
-                        &input_map,
+                        &input,
                     )
                     .unwrap_or_else(|_| {
                         panic!(format!(
@@ -718,7 +716,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
 
     pub fn serialize(
         &mut self,
-        output_map: &mut MmapMut,
+        output: &mut [u8],
         compression: UseCompression,
         parameters: &CeremonyParams<E>,
     ) -> io::Result<()> {
@@ -735,7 +733,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     hash: self.hash,
                     parameters,
                 };
-                tmp_acc.write_chunk(start, compression, output_map)?;
+                tmp_acc.write_chunk(start, compression, output)?;
             } else {
                 panic!("Chunk does not have a min and max");
             }
@@ -754,7 +752,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     hash: self.hash,
                     parameters,
                 };
-                tmp_acc.write_chunk(start, compression, output_map)?;
+                tmp_acc.write_chunk(start, compression, output)?;
             } else {
                 panic!("Chunk does not have a min and max");
             }
@@ -769,7 +767,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
         size: usize,
         compression: UseCompression,
         checked: CheckForCorrectness,
-        input_map: &Mmap,
+        input: &[u8],
     ) -> Result<(), DeserializationError> {
         self.tau_powers_g1 = match compression {
             UseCompression::Yes => self
@@ -779,7 +777,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     ElementType::TauG1,
                     compression,
                     checked,
-                    &input_map,
+                    &input,
                 )?,
             UseCompression::No => self
                 .read_points_chunk::<<E::G1Affine as CurveAffine>::Uncompressed>(
@@ -788,7 +786,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     ElementType::TauG1,
                     compression,
                     checked,
-                    &input_map,
+                    &input,
                 )?,
         };
 
@@ -800,7 +798,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     ElementType::TauG2,
                     compression,
                     checked,
-                    &input_map,
+                    &input,
                 )?,
             UseCompression::No => self
                 .read_points_chunk::<<E::G2Affine as CurveAffine>::Uncompressed>(
@@ -809,7 +807,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     ElementType::TauG2,
                     compression,
                     checked,
-                    &input_map,
+                    &input,
                 )?,
         };
 
@@ -821,7 +819,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     ElementType::AlphaG1,
                     compression,
                     checked,
-                    &input_map,
+                    &input,
                 )?,
             UseCompression::No => self
                 .read_points_chunk::<<E::G1Affine as CurveAffine>::Uncompressed>(
@@ -830,7 +828,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     ElementType::AlphaG1,
                     compression,
                     checked,
-                    &input_map,
+                    &input,
                 )?,
         };
 
@@ -842,7 +840,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     ElementType::BetaG1,
                     compression,
                     checked,
-                    &input_map,
+                    &input,
                 )?,
             UseCompression::No => self
                 .read_points_chunk::<<E::G1Affine as CurveAffine>::Uncompressed>(
@@ -851,7 +849,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     ElementType::BetaG1,
                     compression,
                     checked,
-                    &input_map,
+                    &input,
                 )?,
         };
 
@@ -863,7 +861,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     ElementType::BetaG2,
                     compression,
                     checked,
-                    &input_map,
+                    &input,
                 )?;
 
                 points[0]
@@ -875,7 +873,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     ElementType::BetaG2,
                     compression,
                     checked,
-                    &input_map,
+                    &input,
                 )?;
 
                 points[0]
@@ -892,7 +890,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
         element_type: ElementType,
         compression: UseCompression,
         checked: CheckForCorrectness,
-        input_map: &Mmap,
+        input: &[u8],
     ) -> Result<Vec<ENC::Affine>, DeserializationError> {
         // Read the encoded elements
         let mut res = vec![ENC::empty(); size];
@@ -914,9 +912,9 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     }
                 }
             };
-            let position = self.calculate_mmap_position(index, element_type, compression);
+            let position = self.calculate_position(index, element_type, compression);
             let element_size = self.get_size(element_type, compression);
-            let mut memory_slice = input_map
+            let mut memory_slice = input
                 .get(position..position + element_size)
                 .expect("must read point data from file");
             memory_slice.read_exact(encoded.as_mut())?;
@@ -1004,31 +1002,31 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
         chunk_start: usize,
         compression: UseCompression,
         element_type: ElementType,
-        output_map: &mut MmapMut,
+        output: &mut [u8],
     ) -> io::Result<()> {
         match element_type {
             ElementType::TauG1 => {
                 for (i, c) in self.tau_powers_g1.clone().iter().enumerate() {
                     let index = chunk_start + i;
-                    self.write_point(index, c, compression, element_type.clone(), output_map)?;
+                    self.write_point(index, c, compression, element_type.clone(), output)?;
                 }
             }
             ElementType::TauG2 => {
                 for (i, c) in self.tau_powers_g2.clone().iter().enumerate() {
                     let index = chunk_start + i;
-                    self.write_point(index, c, compression, element_type.clone(), output_map)?;
+                    self.write_point(index, c, compression, element_type.clone(), output)?;
                 }
             }
             ElementType::AlphaG1 => {
                 for (i, c) in self.alpha_tau_powers_g1.clone().iter().enumerate() {
                     let index = chunk_start + i;
-                    self.write_point(index, c, compression, element_type.clone(), output_map)?;
+                    self.write_point(index, c, compression, element_type.clone(), output)?;
                 }
             }
             ElementType::BetaG1 => {
                 for (i, c) in self.beta_tau_powers_g1.clone().iter().enumerate() {
                     let index = chunk_start + i;
-                    self.write_point(index, c, compression, element_type.clone(), output_map)?;
+                    self.write_point(index, c, compression, element_type.clone(), output)?;
                 }
             }
             ElementType::BetaG2 => {
@@ -1038,12 +1036,10 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     &self.beta_g2.clone(),
                     compression,
                     element_type.clone(),
-                    output_map,
+                    output,
                 )?
             }
         };
-
-        output_map.flush()?;
 
         Ok(())
     }
@@ -1054,11 +1050,12 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
         p: &C,
         compression: UseCompression,
         element_type: ElementType,
-        output_map: &mut MmapMut,
+        output: &mut [u8],
     ) -> io::Result<()>
     where
         C: CurveAffine<Engine = E, Scalar = E::Fr>,
     {
+        let output = output.as_mut();
         match element_type {
             ElementType::TauG1 => {
                 if index >= self.parameters.powers_g1_length {
@@ -1077,14 +1074,14 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
 
         match compression {
             UseCompression::Yes => {
-                let position = self.calculate_mmap_position(index, element_type, compression);
+                let position = self.calculate_position(index, element_type, compression);
                 // let size = self.get_size(element_type, compression);
-                (&mut output_map[position..]).write_all(p.into_compressed().as_ref())?;
+                (&mut output[position..]).write_all(p.into_compressed().as_ref())?;
             }
             UseCompression::No => {
-                let position = self.calculate_mmap_position(index, element_type, compression);
+                let position = self.calculate_position(index, element_type, compression);
                 // let size = self.get_size(element_type, compression);
-                (&mut output_map[position..]).write_all(p.into_uncompressed().as_ref())?;
+                (&mut output[position..]).write_all(p.into_uncompressed().as_ref())?;
             }
         };
 
@@ -1096,14 +1093,14 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
         &mut self,
         chunk_start: usize,
         compression: UseCompression,
-        output_map: &mut MmapMut,
+        output: &mut [u8],
     ) -> io::Result<()> {
-        self.write_all(chunk_start, compression, ElementType::TauG1, output_map)?;
+        self.write_all(chunk_start, compression, ElementType::TauG1, output)?;
         if chunk_start < self.parameters.powers_length {
-            self.write_all(chunk_start, compression, ElementType::TauG2, output_map)?;
-            self.write_all(chunk_start, compression, ElementType::AlphaG1, output_map)?;
-            self.write_all(chunk_start, compression, ElementType::BetaG1, output_map)?;
-            self.write_all(chunk_start, compression, ElementType::BetaG2, output_map)?;
+            self.write_all(chunk_start, compression, ElementType::TauG2, output)?;
+            self.write_all(chunk_start, compression, ElementType::AlphaG1, output)?;
+            self.write_all(chunk_start, compression, ElementType::BetaG1, output)?;
+            self.write_all(chunk_start, compression, ElementType::BetaG2, output)?;
         }
 
         Ok(())
@@ -1116,8 +1113,8 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
     /// correctly, but we may want to enforce it if a ceremony coordinator does not recompress the previous
     /// contribution into the new challenge file
     pub fn transform(
-        input_map: &Mmap,
-        output_map: &mut MmapMut,
+        input: &[u8],
+        output: &mut [u8],
         input_is_compressed: UseCompression,
         compress_the_output: UseCompression,
         check_input_for_correctness: CheckForCorrectness,
@@ -1192,7 +1189,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                         size,
                         input_is_compressed,
                         check_input_for_correctness,
-                        &input_map,
+                        &input,
                     )
                     .expect("must read a first chunk");
 
@@ -1231,7 +1228,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     !accumulator.beta_g2.is_zero(),
                     "your contribution happened to produce a point at infinity, please re-run"
                 );
-                accumulator.write_chunk(start, compress_the_output, output_map)?;
+                accumulator.write_chunk(start, compress_the_output, output)?;
                 info!("Done processing {} powers of tau", end);
             } else {
                 panic!("Chunk does not have a min and max");
@@ -1249,7 +1246,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                         size,
                         input_is_compressed,
                         check_input_for_correctness,
-                        &input_map,
+                        &input,
                     )
                     .expect("must read a first chunk");
                 assert_eq!(
@@ -1279,7 +1276,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                 batch_exp::<E, _>(&mut accumulator.tau_powers_g1, &taupowers[0..], None);
                 //accumulator.beta_g2 = accumulator.beta_g2.mul(key.beta).into_affine();
                 //assert!(!accumulator.beta_g2.is_zero(), "your contribution happened to produce a point at infinity, please re-run");
-                accumulator.write_chunk(start, compress_the_output, output_map)?;
+                accumulator.write_chunk(start, compress_the_output, output)?;
 
                 info!("Done processing {} powers of tau", end);
             } else {
@@ -1292,7 +1289,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
 
     /// Transforms the accumulator with a private key.
     pub fn generate_initial(
-        output_map: &mut MmapMut,
+        output: &mut [u8],
         compress_the_output: UseCompression,
         parameters: &'a CeremonyParams<E>,
     ) -> io::Result<()> {
@@ -1312,7 +1309,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     parameters,
                 };
 
-                accumulator.write_chunk(start, compress_the_output, output_map)?;
+                accumulator.write_chunk(start, compress_the_output, output)?;
                 info!("Done processing {} powers of tau", end);
             } else {
                 panic!("Chunk does not have a min and max");
@@ -1335,7 +1332,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     parameters,
                 };
 
-                accumulator.write_chunk(start, compress_the_output, output_map)?;
+                accumulator.write_chunk(start, compress_the_output, output)?;
                 info!("Done processing {} powers of tau", end);
             } else {
                 panic!("Chunk does not have a min and max");
