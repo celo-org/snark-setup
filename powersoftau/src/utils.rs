@@ -6,7 +6,6 @@ use generic_array::GenericArray;
 use rand::chacha::ChaChaRng;
 use rand::{OsRng, Rand, Rng, SeedableRng};
 
-use memmap::Mmap;
 use std::io::{self, Write};
 use std::sync::Arc;
 use typenum::consts::U64;
@@ -134,7 +133,7 @@ impl<W: Write> Write for HashWriter<W> {
 /// used a specially formed writer to write to the file and calculate a hash on the fly, but memory-constrained
 /// implementation now writes without a particular order, so plain recalculation at the end
 /// of the procedure is more efficient
-pub fn calculate_hash(input_map: &Mmap) -> GenericArray<u8, U64> {
+pub fn calculate_hash(input_map: &[u8]) -> GenericArray<u8, U64> {
     let chunk_size = 1 << 30; // read by 1GB from map
     let mut hasher = Blake2b::default();
     for chunk in input_map.chunks(chunk_size) {
