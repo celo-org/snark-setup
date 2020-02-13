@@ -1,7 +1,0 @@
-/target/
-**/*.rs.bk
-transcript
-challenge*
-response*
-phase1radix2m*
-tmp_*

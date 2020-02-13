@@ -533,7 +533,8 @@ dependencies = [
 [[package]]
 name = "pairing_ce"
 version = "0.19.0"
-source = "git+https://github.com/gakonst/pairing?branch=expose-points#86e37d35c1708684d45f1ded9b17c35e20bad4cf"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d7ef4228c818c67b67d3b9ea3940dcb88183f31f49cbd4ff8f6b89c03e8c9a3"
 dependencies = [
  "byteorder",
  "ff_ce",

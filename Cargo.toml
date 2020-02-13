@@ -5,5 +5,4 @@ members = [
 ]
 
 [patch.crates-io]
-pairing_ce = { git = "https://github.com/gakonst/pairing", branch = "expose-points"  }
 bellman_ce = { git = "https://github.com/matter-labs/bellman", branch = "master"  }
