@@ -1389,14 +1389,14 @@ mod tests {
     fn random_accumulator<'a, E: PairingEngine>(
         parameters: &'a CeremonyParams<E>,
     ) -> BatchedAccumulator<'a, E> {
-        let g1_size = parameters.powers_g1_length;
-        let g2_size = parameters.powers_length;
+        let tau_g1_size = parameters.powers_g1_length;
+        let other_size = parameters.powers_length;
         let rng = &mut thread_rng();
         BatchedAccumulator {
-            tau_powers_g1: random_point_vec(g1_size, rng),
-            tau_powers_g2: random_point_vec(g2_size, rng),
-            alpha_tau_powers_g1: random_point_vec(g1_size, rng),
-            beta_tau_powers_g1: random_point_vec(g1_size, rng),
+            tau_powers_g1: random_point_vec(tau_g1_size, rng),
+            tau_powers_g2: random_point_vec(other_size, rng),
+            alpha_tau_powers_g1: random_point_vec(other_size, rng),
+            beta_tau_powers_g1: random_point_vec(other_size, rng),
             beta_g2: random_point(rng),
             hash: blank_hash(),
             parameters,
