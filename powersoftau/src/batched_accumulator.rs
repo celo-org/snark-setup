@@ -1329,3 +1329,78 @@ pub fn verify_transform<E: Engine>(
 
     true
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parameters::CurveParams;
+    use rand::{thread_rng, Rng, Rand};
+    use bellman_ce::pairing::{
+        bls12_381::Bls12 as Bls12_381,
+        bn256::Bn256,
+    };
+    use bellman_ce::pairing::Engine as PairingEngine;
+
+    #[test]
+    fn serializer() {
+        serialize_accumulator_curve::<Bls12_381>(UseCompression::Yes);
+        serialize_accumulator_curve::<Bls12_381>(UseCompression::No);
+
+        serialize_accumulator_curve::<Bn256>(UseCompression::Yes);
+        serialize_accumulator_curve::<Bn256>(UseCompression::No);
+    }
+
+    fn serialize_accumulator_curve<E: PairingEngine>(compress: UseCompression) {
+        // create a small accumulator with some random state
+        let curve = CurveParams::<E>::new();
+        let parameters = CeremonyParams::new_with_curve(curve, 2, 4);
+        let mut accumulator = random_accumulator::<E>(&parameters);
+
+        let expected_challenge_length = match compress {
+            UseCompression::Yes => parameters.contribution_size - parameters.public_key_size,
+            UseCompression::No => parameters.accumulator_size,
+        };
+        let mut buffer = vec![0; expected_challenge_length];
+
+        // serialize it and ensure that the recovered version matches the original
+        accumulator
+            .serialize(&mut buffer, compress, &parameters)
+            .unwrap();
+        let deserialized =
+            BatchedAccumulator::deserialize(&buffer, CheckForCorrectness::Yes, compress, &parameters).unwrap();
+
+        assert_eq!(deserialized.tau_powers_g1, accumulator.tau_powers_g1);
+        assert_eq!(deserialized.tau_powers_g2, accumulator.tau_powers_g2);
+        assert_eq!(deserialized.alpha_tau_powers_g1, accumulator.alpha_tau_powers_g1);
+        assert_eq!(deserialized.beta_tau_powers_g1, accumulator.beta_tau_powers_g1);
+        assert_eq!(deserialized.beta_g2, accumulator.beta_g2);
+    }
+
+    // Helpers
+
+    fn random_point<C: CurveAffine>(rng: &mut impl Rng) -> C {
+        C::Projective::rand(rng).into_affine()
+    }
+
+    fn random_point_vec<C: CurveAffine>(size: usize, rng: &mut impl Rng) -> Vec<C> {
+        (0..size).map(|_| random_point(rng)).collect()
+    }
+
+    fn random_accumulator<'a, E: PairingEngine>(
+        parameters: &'a CeremonyParams<E>,
+    ) -> BatchedAccumulator<'a, E> {
+        let g1_size = parameters.powers_g1_length;
+        let g2_size = parameters.powers_length;
+        let rng = &mut thread_rng();
+        BatchedAccumulator {
+            tau_powers_g1: random_point_vec(g1_size, rng),
+            tau_powers_g2: random_point_vec(g2_size, rng),
+            alpha_tau_powers_g1: random_point_vec(g1_size, rng),
+            beta_tau_powers_g1: random_point_vec(g1_size, rng),
+            beta_g2: random_point(rng),
+            hash: blank_hash(),
+            parameters,
+        }
+    }
+}
+
