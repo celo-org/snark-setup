@@ -7,9 +7,6 @@ pub use contribute::contribute;
 mod transform;
 pub use transform::transform;
 
-mod verify;
-pub use verify::verify;
-
 use gumdrop::Options;
 use std::default::Default;
 
@@ -64,9 +61,7 @@ pub enum Command {
     Beacon(ContributeOpts),
     // this receives a challenge + response file, verifies it and generates a new challenge
     #[options(help = "verify the contributions so far and generate a new challenge")]
-    Transform(TransformOpts),
-    #[options(help = "verify that the transcript was generated correctly")]
-    Verify(VerifyOpts),
+    VerifyAndTransform(VerifyAndTransformOpts),
 }
 
 // Options for the Contribute command
@@ -83,7 +78,7 @@ pub struct ContributeOpts {
 }
 
 #[derive(Debug, Options, Clone)]
-pub struct TransformOpts {
+pub struct VerifyAndTransformOpts {
     help: bool,
     #[options(help = "the provided challenge file", default = "challenge")]
     pub challenge_fname: String,
@@ -97,13 +92,6 @@ pub struct TransformOpts {
         default = "new_challenge"
     )]
     pub new_challenge_fname: String,
-}
-
-#[derive(Debug, Options, Clone)]
-pub struct VerifyOpts {
-    help: bool,
-    #[options(help = "the ceremony's transcript", default = "transcript")]
-    pub transcript_fname: String,
 }
 
 pub fn curve_from_str(src: &str) -> Result<CurveKind, String> {
