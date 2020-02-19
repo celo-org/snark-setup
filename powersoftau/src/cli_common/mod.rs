@@ -1,5 +1,5 @@
-mod new_constrained;
-pub use new_constrained::new_constrained;
+mod new_challenge;
+pub use new_challenge::new_challenge;
 
 mod contribute;
 pub use contribute::contribute;
@@ -49,8 +49,11 @@ pub struct PowersOfTauOpts {
 // The supported commands
 #[derive(Debug, Options, Clone)]
 pub enum Command {
-    // this checks if a challenge file is already present and if not it creates it
-    // equivalent of `new_constrained` + `compute_constrained`. Generates a response
+    // this creates a new challenge
+    #[options(
+        help = "creates a new challenge for the ceremony"
+    )]
+    New(NewOpts),
     #[options(
         help = "contribute to ceremony by producing a response to a challenge (or create a new challenge if this is the first contribution)"
     )]
@@ -66,10 +69,21 @@ pub enum Command {
 
 // Options for the Contribute command
 #[derive(Debug, Options, Clone)]
+pub struct NewOpts {
+    help: bool,
+    #[options(
+        help = "the challenge file name to be created",
+        default = "challenge"
+    )]
+    pub challenge_fname: String,
+}
+
+// Options for the Contribute command
+#[derive(Debug, Options, Clone)]
 pub struct ContributeOpts {
     help: bool,
     #[options(
-        help = "the provided challenge file (will create a new one if you are the first participant in the ceremony",
+        help = "the provided challenge file",
         default = "challenge"
     )]
     pub challenge_fname: String,

@@ -11,7 +11,7 @@ set -e
 SIZE=10
 BATCH=256
 
-# since the `challenge1` file does not exist, this will also create it
+cargo run --release --bin powersoftau -- --batch-size $BATCH --power $SIZE new --challenge-fname challenge1
 yes | cargo run --release --bin powersoftau -- --batch-size $BATCH --power $SIZE contribute --challenge-fname challenge1 --response-fname response1
 cargo run --release --bin powersoftau -- --batch-size $BATCH --power $SIZE verify-and-transform --challenge-fname challenge1 --response-fname response1 --new-challenge-fname challenge2
 
