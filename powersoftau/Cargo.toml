@@ -28,3 +28,4 @@ gumdrop = "0.7.0"
 
 zexe_algebra = { package = "algebra", git = "https://github.com/gakonst/zexe", branch = "serialize-uncompressed" }
 rayon = "1.3.0"
+parking_lot = "0.10.0"

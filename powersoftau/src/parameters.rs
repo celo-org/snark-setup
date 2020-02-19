@@ -69,7 +69,7 @@ impl<E> CurveParams<E> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// The parameters used for the trusted setup ceremony
 pub struct CeremonyParams<E> {
-    /// The type of the curve being used (currently only supports BN256)
+    /// The type of the curve being used
     pub curve: CurveParams<E>,
     /// The number of Powers of Tau G1 elements which will be accumulated
     pub powers_g1_length: usize,
