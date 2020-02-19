@@ -60,29 +60,6 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
         }
     }
 
-    fn g1_size(&self, compression: UseCompression) -> usize {
-        match compression {
-            UseCompression::Yes => self.parameters.curve.g1_compressed,
-            UseCompression::No => self.parameters.curve.g1,
-        }
-    }
-
-    fn g2_size(&self, compression: UseCompression) -> usize {
-        match compression {
-            UseCompression::Yes => self.parameters.curve.g2_compressed,
-            UseCompression::No => self.parameters.curve.g2,
-        }
-    }
-
-    fn get_size(&self, element_type: ElementType, compression: UseCompression) -> usize {
-        match element_type {
-            ElementType::AlphaG1 | ElementType::BetaG1 | ElementType::TauG1 => {
-                self.g1_size(compression)
-            }
-            ElementType::BetaG2 | ElementType::TauG2 => self.g2_size(compression),
-        }
-    }
-
     /// File expected structure
     /// HASH_SIZE bytes for the hash of the contribution
     /// TAU_POWERS_G1_LENGTH of G1 points
@@ -97,8 +74,8 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
         element_type: ElementType,
         compression: UseCompression,
     ) -> usize {
-        let g1_size = self.g1_size(compression);
-        let g2_size = self.g2_size(compression);
+        let g1_size = self.parameters.curve.g1_size(compression);
+        let g2_size = self.parameters.curve.g2_size(compression);
         let required_tau_g1_power = self.parameters.powers_g1_length;
         let required_power = self.parameters.powers_length;
         let parameters = &self.parameters;
@@ -811,7 +788,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                 }
             };
             let position = self.calculate_position(index, element_type, compression);
-            let element_size = self.get_size(element_type, compression);
+            let element_size = self.parameters.curve.get_size(element_type, compression);
             let mut memory_slice = input
                 .get(position..position + element_size)
                 .expect("must read point data from file");
@@ -973,12 +950,10 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
         match compression {
             UseCompression::Yes => {
                 let position = self.calculate_position(index, element_type, compression);
-                // let size = self.get_size(element_type, compression);
                 (&mut output[position..]).write_all(p.into_compressed().as_ref())?;
             }
             UseCompression::No => {
                 let position = self.calculate_position(index, element_type, compression);
-                // let size = self.get_size(element_type, compression);
                 (&mut output[position..]).write_all(p.into_uncompressed().as_ref())?;
             }
         };
@@ -1334,12 +1309,9 @@ pub fn verify_transform<E: Engine>(
 mod tests {
     use super::*;
     use crate::parameters::CurveParams;
-    use rand::{thread_rng, Rng, Rand};
-    use bellman_ce::pairing::{
-        bls12_381::Bls12 as Bls12_381,
-        bn256::Bn256,
-    };
     use bellman_ce::pairing::Engine as PairingEngine;
+    use bellman_ce::pairing::{bls12_381::Bls12 as Bls12_381, bn256::Bn256};
+    use rand::{thread_rng, Rand, Rng};
 
     #[test]
     fn serializer() {
@@ -1366,13 +1338,24 @@ mod tests {
         accumulator
             .serialize(&mut buffer, compress, &parameters)
             .unwrap();
-        let deserialized =
-            BatchedAccumulator::deserialize(&buffer, CheckForCorrectness::Yes, compress, &parameters).unwrap();
+        let deserialized = BatchedAccumulator::deserialize(
+            &buffer,
+            CheckForCorrectness::Yes,
+            compress,
+            &parameters,
+        )
+        .unwrap();
 
         assert_eq!(deserialized.tau_powers_g1, accumulator.tau_powers_g1);
         assert_eq!(deserialized.tau_powers_g2, accumulator.tau_powers_g2);
-        assert_eq!(deserialized.alpha_tau_powers_g1, accumulator.alpha_tau_powers_g1);
-        assert_eq!(deserialized.beta_tau_powers_g1, accumulator.beta_tau_powers_g1);
+        assert_eq!(
+            deserialized.alpha_tau_powers_g1,
+            accumulator.alpha_tau_powers_g1
+        );
+        assert_eq!(
+            deserialized.beta_tau_powers_g1,
+            accumulator.beta_tau_powers_g1
+        );
         assert_eq!(deserialized.beta_g2, accumulator.beta_g2);
     }
 
@@ -1403,4 +1386,3 @@ mod tests {
         }
     }
 }
-

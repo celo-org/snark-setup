@@ -5,7 +5,7 @@ use powersoftau::{
     batched_accumulator::BatchedAccumulator,
     cli_common::{curve_from_str, proving_system_from_str, CurveKind, ProvingSystem},
     parameters::{CeremonyParams, CheckForCorrectness, UseCompression},
-    utils::{calculate_hash, reduced_hash, print_hash},
+    utils::{calculate_hash, print_hash, reduced_hash},
 };
 use std::{fs::OpenOptions, io::Write};
 
