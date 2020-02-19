@@ -51,7 +51,7 @@ fn main() {
     prepare_phase2(&opts.response_fname, &parameters);
 }
 
-fn prepare_phase2<E: Engine>(response_filename: &str, parameters: &CeremonyParams<E>) {
+fn prepare_phase2<E: Engine + Sync>(response_filename: &str, parameters: &CeremonyParams<E>) {
     // Try to load response file from disk.
     let reader = OpenOptions::new()
         .read(true)

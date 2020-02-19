@@ -14,7 +14,7 @@ const INPUT_IS_COMPRESSED: UseCompression = UseCompression::No;
 const COMPRESS_THE_OUTPUT: UseCompression = UseCompression::Yes;
 const CHECK_INPUT_CORRECTNESS: CheckForCorrectness = CheckForCorrectness::No;
 
-pub fn contribute<T: Engine>(
+pub fn contribute<T: Engine + Sync>(
     challenge_filename: &str,
     response_filename: &str,
     parameters: &CeremonyParams<T>,

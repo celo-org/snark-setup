@@ -30,7 +30,7 @@ pub fn print_hash(hash: &[u8]) {
 }
 
 /// Exponentiate a large number of points, with an optional coefficient to be applied to the
-/// exponent.
+/// exponent. Panics if provided arguments have different length.
 pub fn batch_exp<C: CurveAffine>(bases: &mut [C], exps: &[C::Scalar], coeff: Option<&C::Scalar>) {
     // ensure the 2 vectors have the same length
     assert_eq!(bases.len(), exps.len());

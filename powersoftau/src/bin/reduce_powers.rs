@@ -48,7 +48,7 @@ fn main() {
     );
 }
 
-fn reduce_powers<E: Engine>(
+fn reduce_powers<E: Engine + Sync>(
     challenge_filename: &str,
     reduced_challenge_filename: &str,
     original_circuit_power: usize,
