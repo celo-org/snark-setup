@@ -774,7 +774,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                 // return empty vector if we are out of bounds
                 // (we should not throw an error though!)
                 if self.is_out_of_bounds(element_type, index) {
-                    return None
+                    return None;
                 }
 
                 // get the slice corresponding to the element
@@ -862,7 +862,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         match element_type {
             ElementType::TauG1 => {
                 if index >= self.parameters.powers_g1_length {
-                    return true
+                    return true;
                 }
             }
             ElementType::AlphaG1
@@ -870,7 +870,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
             | ElementType::BetaG2
             | ElementType::TauG2 => {
                 if index >= self.parameters.powers_length {
-                    return true
+                    return true;
                 }
             }
         };
@@ -890,7 +890,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
     {
         let output = output.as_mut();
         if self.is_out_of_bounds(element_type, index) {
-            return Ok(())
+            return Ok(());
         }
 
         match compression {
@@ -931,7 +931,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
     /// WARNING: Contributor does not have to check that values from challenge file were serialized
     /// correctly, but we may want to enforce it if a ceremony coordinator does not recompress the previous
     /// contribution into the new challenge file
-    pub fn transform(
+    pub fn contribute(
         input: &[u8],
         output: &mut [u8],
         input_is_compressed: UseCompression,

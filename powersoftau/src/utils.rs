@@ -36,19 +36,30 @@ pub fn batch_exp<C: CurveAffine>(bases: &mut [C], exps: &[C::Scalar], coeff: Opt
     assert_eq!(bases.len(), exps.len());
     // raise the base to the exponent and assign it back to the base
     // this will return the points as projective
-    bases.par_iter_mut().enumerate().for_each(|(i, base)| {
-        let mut exp = exps[i];
+    let mut points: Vec<_> = bases
+        .par_iter_mut()
+        .enumerate()
+        .map(|(i, base)| {
+            let mut exp = exps[i];
 
-        // If a coefficient was provided, multiply the exponent
-        // by that coefficient
-        if let Some(coeff) = coeff {
-            exp.mul_assign(coeff);
-        }
+            // If a coefficient was provided, multiply the exponent
+            // by that coefficient
+            if let Some(coeff) = coeff {
+                exp.mul_assign(coeff);
+            }
 
-        // Raise the base to the exponent (additive notation so it is executed
-        // via a multiplication)
-        *base = base.mul(exp).into_affine()
-    })
+            // Raise the base to the exponent (additive notation so it is executed
+            // via a multiplication)
+            base.mul(exp)
+        })
+        .collect();
+
+    // normalize the batch and cast to affine
+    C::Projective::batch_normalization(&mut points);
+    bases
+        .par_iter_mut()
+        .zip(points)
+        .for_each(|(base, proj)| *base = proj.into_affine());
 }
 
 // Create an RNG based on a mixture of system randomness and user provided randomness

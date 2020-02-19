@@ -113,7 +113,7 @@ pub fn contribute<T: Engine + Sync>(
     println!("Computing and writing your contribution, this could take a while...");
 
     // this computes a transformation and writes it
-    BatchedAccumulator::transform(
+    BatchedAccumulator::contribute(
         &readable_map,
         &mut writable_map,
         INPUT_IS_COMPRESSED,
@@ -122,7 +122,7 @@ pub fn contribute<T: Engine + Sync>(
         &privkey,
         &parameters,
     )
-    .expect("must transform with the key");
+    .expect("must contribute with the key");
 
     println!("Finishing writing your contribution to response file...");
 
