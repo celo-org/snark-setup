@@ -256,12 +256,21 @@ mod tests {
         utils::test_helpers::random_point_vec,
     };
     use rand::{thread_rng, Rng};
-    use zexe_algebra::curves::{bls12_377::Bls12_377, bls12_381::Bls12_381};
+    use zexe_algebra::curves::{bls12_377::Bls12_377, bls12_381::Bls12_381, sw6::SW6};
 
     #[test]
-    fn test_pubkey_serialization() {
-        test_pubkey_serialization_curve::<Bls12_377>();
+    fn test_pubkey_serialization_bls12_381() {
         test_pubkey_serialization_curve::<Bls12_381>();
+    }
+
+    #[test]
+    fn test_pubkey_serialization_bls12_377() {
+        test_pubkey_serialization_curve::<Bls12_377>();
+    }
+
+    #[test]
+    fn test_pubkey_serialization_sw6() {
+        test_pubkey_serialization_curve::<SW6>();
     }
 
     fn test_pubkey_serialization_curve<E: PairingEngine>() {
@@ -279,13 +288,23 @@ mod tests {
         assert_eq!(v.len(), public_key_size);
 
         // Deserialize it and check that it matches
-        let deserialized = PublicKey::<E>::deserialize(&mut &v[..], curve.g1, curve.g2).unwrap();
+        let deserialized = PublicKey::<E>::deserialize(&v[..], curve.g1, curve.g2).unwrap();
         assert!(pk == deserialized);
     }
 
     #[test]
-    fn test_point_serialization() {
-        test_point_serialization_curve::<Bls12_381>()
+    fn test_point_serialization_bls12_381() {
+        test_point_serialization_curve::<Bls12_381>();
+    }
+
+    #[test]
+    fn test_point_serialization_bls12_377() {
+        test_point_serialization_curve::<Bls12_377>();
+    }
+
+    #[test]
+    fn test_point_serialization_sw6() {
+        test_point_serialization_curve::<SW6>();
     }
 
     fn test_point_serialization_curve<E: PairingEngine>() {

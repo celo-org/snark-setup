@@ -7,7 +7,8 @@ use powersoftau::utils::{beacon_randomness, get_rng, user_system_randomness};
 
 use std::process;
 use zexe_algebra::{
-    curves::bls12_377::Bls12_377, curves::bls12_381::Bls12_381, PairingEngine as Engine,
+    curves::{bls12_377::Bls12_377, bls12_381::Bls12_381, sw6::SW6},
+    PairingEngine as Engine,
 };
 
 #[macro_use]
@@ -18,6 +19,7 @@ fn main() {
     match opts.curve_kind {
         CurveKind::Bls12_381 => execute_cmd::<Bls12_381>(opts),
         CurveKind::Bls12_377 => execute_cmd::<Bls12_377>(opts),
+        CurveKind::SW6 => execute_cmd::<SW6>(opts),
     };
 }
 

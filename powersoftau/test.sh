@@ -8,9 +8,9 @@ rm tmp_*
 
 set -e
 
-SIZE=10
-BATCH=256
-CURVE="bls12_377"
+SIZE=8
+BATCH=20
+CURVE="sw6"
 
 cargo run --release --bin powersoftau -- --curve-kind $CURVE --batch-size $BATCH --power $SIZE new --challenge-fname challenge1
 yes | cargo run --release --bin powersoftau -- --curve-kind $CURVE --batch-size $BATCH --power $SIZE contribute --challenge-fname challenge1 --response-fname response1

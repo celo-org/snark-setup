@@ -14,6 +14,7 @@ use std::default::Default;
 pub enum CurveKind {
     Bls12_381,
     Bls12_377,
+    SW6,
 }
 
 #[derive(Debug, Clone)]
@@ -105,6 +106,7 @@ pub fn curve_from_str(src: &str) -> Result<CurveKind, String> {
     let curve = match src.to_lowercase().as_str() {
         "bls12_381" => CurveKind::Bls12_381,
         "bls12_377" => CurveKind::Bls12_377,
+        "sw6" => CurveKind::SW6,
         _ => return Err("unsupported curve.".to_string()),
     };
     Ok(curve)

@@ -1,7 +1,7 @@
 use std::fmt;
 use std::io;
 use std::marker::PhantomData;
-use zexe_algebra::{to_bytes, PairingEngine, SerializationError, ToBytes, Zero};
+use zexe_algebra::{CanonicalSerialize, PairingEngine, SerializationError, Zero};
 
 /// The sizes of the group elements of a curve
 #[derive(Clone, PartialEq, Eq, Default, Debug)]
@@ -20,16 +20,18 @@ pub struct CurveParams<E> {
 impl<E: PairingEngine> CurveParams<E> {
     pub fn new() -> CurveParams<E> {
         let g1 = <E as PairingEngine>::G1Affine::zero();
+        let mut g1_bytes_compressed = vec![0; <E as PairingEngine>::G1Affine::buffer_size()];
+        g1.serialize(&[], &mut g1_bytes_compressed)
+            .expect("could not serialize G1 element");
+        let g1_compressed = g1_bytes_compressed.len();
+        let g1_size = 2 * g1_compressed;
+
         let g2 = <E as PairingEngine>::G2Affine::zero();
-
-        let g1_bytes = to_bytes!(g1).expect("could not convert G1 to bytes");
-        let g2_bytes = to_bytes!(g2).expect("could not convert G2 to bytes");
-
-        let g1_size = g1_bytes.len() - 1; // the byte representation contains the is_zero flag, so we strip that off
-        let g2_size = g2_bytes.len() - 1; // the byte representation contains the is_zero flag, so we strip that off
-
-        let g1_compressed = g1_size / 2;
-        let g2_compressed = g2_size / 2;
+        let mut g2_bytes_compressed = vec![0; <E as PairingEngine>::G2Affine::buffer_size()];
+        g2.serialize(&[], &mut g2_bytes_compressed)
+            .expect("could not serialize G2 element");
+        let g2_compressed = g2_bytes_compressed.len();
+        let g2_size = 2 * g2_compressed;
 
         CurveParams {
             g1: g1_size,
@@ -235,10 +237,10 @@ mod tests {
     use zexe_algebra::curves::{bls12_377::Bls12_377, bls12_381::Bls12_381, sw6::SW6};
 
     #[test]
-    fn bls12_params() {
+    fn params_sizes() {
         curve_params_test::<Bls12_377>(96, 192, 48, 96);
         curve_params_test::<Bls12_381>(96, 192, 48, 96);
-        curve_params_test::<SW6>(208, 624, 104, 312);
+        curve_params_test::<SW6>(196, 588, 98, 294);
     }
 
     fn curve_params_test<E: PairingEngine>(

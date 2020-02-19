@@ -686,7 +686,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                 // get the slice corresponding to the element
                 let position = match self.calculate_position(index, element_type, compression) {
                     Ok(p) => p,
-                    Err(e) => return Some(Err(e.into())),
+                    Err(e) => return Some(Err(e)),
                 };
                 let chunk = &input[position..position + element_size];
                 // read to a point
@@ -1033,12 +1033,25 @@ mod tests {
         utils::test_helpers::{random_point, random_point_vec, random_point_vec_batched},
     };
     use rand::thread_rng;
-    use zexe_algebra::curves::bls12_381::Bls12_381;
+    use zexe_algebra::curves::{bls12_377::Bls12_377, bls12_381::Bls12_381, sw6::SW6};
 
     #[test]
-    fn serializer() {
+    fn serializer_bls12_381() {
         serialize_accumulator_curve::<Bls12_381>(UseCompression::Yes);
         serialize_accumulator_curve::<Bls12_381>(UseCompression::No);
+    }
+
+    #[test]
+    fn serializer_bls12_377() {
+        serialize_accumulator_curve::<Bls12_377>(UseCompression::Yes);
+        serialize_accumulator_curve::<Bls12_377>(UseCompression::No);
+    }
+
+    #[test]
+    #[ignore] // this takes very long to run
+    fn serializer_sw6() {
+        serialize_accumulator_curve::<SW6>(UseCompression::Yes);
+        serialize_accumulator_curve::<SW6>(UseCompression::No);
     }
 
     fn serialize_accumulator_curve<E: Engine + Sync>(compress: UseCompression) {
@@ -1079,13 +1092,29 @@ mod tests {
     }
 
     #[test]
-    fn read_write_chunk() {
+    fn read_write_chunk_bls_12_381() {
         // ensure that serializing and deserializing works for varying batch sizes and powers
         // todo: add benchmarks to this so that we can figure out optimal batch sizes for each curve
         read_write_chunk_curve::<Bls12_381>(3, 6, UseCompression::Yes);
         read_write_chunk_curve::<Bls12_381>(5, 2, UseCompression::Yes);
         read_write_chunk_curve::<Bls12_381>(3, 6, UseCompression::No);
         read_write_chunk_curve::<Bls12_381>(5, 2, UseCompression::No);
+    }
+
+    #[test]
+    fn read_write_chunk_bls_12_377() {
+        read_write_chunk_curve::<Bls12_377>(3, 6, UseCompression::Yes);
+        read_write_chunk_curve::<Bls12_377>(5, 2, UseCompression::Yes);
+        read_write_chunk_curve::<Bls12_377>(3, 6, UseCompression::No);
+        read_write_chunk_curve::<Bls12_377>(5, 2, UseCompression::No);
+    }
+
+    #[test]
+    fn read_write_chunk_sw6() {
+        read_write_chunk_curve::<SW6>(3, 6, UseCompression::Yes);
+        read_write_chunk_curve::<SW6>(5, 2, UseCompression::Yes);
+        read_write_chunk_curve::<SW6>(3, 6, UseCompression::No);
+        read_write_chunk_curve::<SW6>(5, 2, UseCompression::No);
     }
 
     fn read_write_chunk_curve<E: Engine + Sync>(
@@ -1297,7 +1326,7 @@ mod tests {
         test_position(acc, 0, ElementType::BetaG2, UseCompression::No, expected);
         test_position(
             acc,
-            1000000000,
+            1_000_000_000,
             ElementType::BetaG2,
             UseCompression::No,
             expected,
@@ -1313,7 +1342,7 @@ mod tests {
         test_position(acc, 0, ElementType::BetaG2, UseCompression::Yes, expected);
         test_position(
             acc,
-            100000000,
+            1_000_000_000,
             ElementType::BetaG2,
             UseCompression::Yes,
             expected,
