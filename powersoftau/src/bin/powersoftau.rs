@@ -1,7 +1,5 @@
 use gumdrop::Options;
-use powersoftau::cli_common::{
-    contribute, new_constrained, transform, Command, PowersOfTauOpts,
-};
+use powersoftau::cli_common::{contribute, new_constrained, transform, Command, PowersOfTauOpts};
 use powersoftau::parameters::CeremonyParams;
 use powersoftau::utils::{beacon_randomness, get_rng, user_system_randomness};
 

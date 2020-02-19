@@ -15,7 +15,8 @@ use super::keypair::{PrivateKey, PublicKey};
 use super::parameters::{
     CeremonyParams, CheckForCorrectness, DeserializationError, ElementType, UseCompression,
 };
-use super::utils::{blank_hash, compute_g2_s, power_pairs, same_ratio};
+use super::utils::{batch_exp, blank_hash, compute_g2_s, power_pairs, same_ratio};
+use rayon::prelude::*;
 
 pub enum AccumulatorState {
     Empty,
@@ -994,61 +995,6 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
         key: &PrivateKey<E>,
         parameters: &'a CeremonyParams<E>,
     ) -> io::Result<()> {
-        /// Exponentiate a large number of points, with an optional coefficient to be applied to the
-        /// exponent.
-        fn batch_exp<EE: Engine, C: CurveAffine<Engine = EE, Scalar = EE::Fr>>(
-            bases: &mut [C],
-            exp: &[C::Scalar],
-            coeff: Option<&C::Scalar>,
-        ) {
-            assert_eq!(bases.len(), exp.len());
-            let mut projective = vec![C::Projective::zero(); bases.len()];
-            let chunk_size = bases.len() / num_cpus::get();
-
-            // Perform wNAF over multiple cores, placing results into `projective`.
-            crossbeam::scope(|scope| {
-                for ((bases, exp), projective) in bases
-                    .chunks_mut(chunk_size)
-                    .zip(exp.chunks(chunk_size))
-                    .zip(projective.chunks_mut(chunk_size))
-                {
-                    scope.spawn(move || {
-                        let mut wnaf = Wnaf::new();
-
-                        for ((base, exp), projective) in
-                            bases.iter_mut().zip(exp.iter()).zip(projective.iter_mut())
-                        {
-                            let mut exp = *exp;
-                            if let Some(coeff) = coeff {
-                                exp.mul_assign(coeff);
-                            }
-
-                            *projective =
-                                wnaf.base(base.into_projective(), 1).scalar(exp.into_repr());
-                        }
-                    });
-                }
-            });
-
-            // Perform batch normalization
-            crossbeam::scope(|scope| {
-                for projective in projective.chunks_mut(chunk_size) {
-                    scope.spawn(move || {
-                        C::Projective::batch_normalization(projective);
-                    });
-                }
-            });
-
-            // Turn it all back into affine points
-            for (projective, affine) in projective.iter().zip(bases.iter_mut()) {
-                *affine = projective.into_affine();
-                assert!(
-                    !affine.is_zero(),
-                    "your contribution happened to produce a point at infinity, please re-run"
-                );
-            }
-        }
-
         let mut accumulator = Self::empty(parameters);
 
         for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
@@ -1082,14 +1028,14 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     }
                 });
 
-                batch_exp::<E, _>(&mut accumulator.tau_powers_g1, &taupowers[0..], None);
-                batch_exp::<E, _>(&mut accumulator.tau_powers_g2, &taupowers[0..], None);
-                batch_exp::<E, _>(
+                batch_exp(&mut accumulator.tau_powers_g1, &taupowers[0..], None);
+                batch_exp(&mut accumulator.tau_powers_g2, &taupowers[0..], None);
+                batch_exp(
                     &mut accumulator.alpha_tau_powers_g1,
                     &taupowers[0..],
                     Some(&key.alpha),
                 );
-                batch_exp::<E, _>(
+                batch_exp(
                     &mut accumulator.beta_tau_powers_g1,
                     &taupowers[0..],
                     Some(&key.beta),
@@ -1144,7 +1090,7 @@ impl<'a, E: Engine> BatchedAccumulator<'a, E> {
                     }
                 });
 
-                batch_exp::<E, _>(&mut accumulator.tau_powers_g1, &taupowers[0..], None);
+                batch_exp(&mut accumulator.tau_powers_g1, &taupowers[0..], None);
                 //accumulator.beta_g2 = accumulator.beta_g2.mul(key.beta).into_affine();
                 //assert!(!accumulator.beta_g2.is_zero(), "your contribution happened to produce a point at infinity, please re-run");
                 accumulator.write_chunk(start, compress_the_output, output)?;
