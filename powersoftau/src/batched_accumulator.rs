@@ -412,67 +412,35 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         let mut tau_powers_g2 = vec![];
         let mut alpha_tau_powers_g1 = vec![];
         let mut beta_tau_powers_g1 = vec![];
-        let mut beta_g2 = vec![];
+        let mut beta_g2 = E::G2Affine::zero();
 
-        for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
-            if let MinMax(start, end) = chunk.minmax() {
-                let size = end - start + 1;
-                accumulator.read_chunk(
-                    start,
-                    size,
-                    compression,
-                    check_input_for_correctness,
-                    &input,
-                )?;
+        for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
+            let (start, end) = if let MinMax(start, end) = chunk.minmax() {
+                (start, end)
+            } else {
+                return Err(Error::InvalidChunk)
+            };
+
+            let size = end - start + 1;
+            accumulator.read_chunk(
+                start,
+                size,
+                compression,
+                check_input_for_correctness,
+                &input,
+            )?;
+
+            // We only get Tau G2 and Alpha/Beta G1 elements up to `powers_length`
+            if start < parameters.powers_length {
                 tau_powers_g1.extend_from_slice(&accumulator.tau_powers_g1);
                 tau_powers_g2.extend_from_slice(&accumulator.tau_powers_g2);
                 alpha_tau_powers_g1.extend_from_slice(&accumulator.alpha_tau_powers_g1);
                 beta_tau_powers_g1.extend_from_slice(&accumulator.beta_tau_powers_g1);
                 if start == 0 {
-                    beta_g2.extend_from_slice(&[accumulator.beta_g2]);
+                    beta_g2 = accumulator.beta_g2;
                 }
             } else {
-                return Err(Error::InvalidChunk);
-            }
-        }
-
-        for chunk in
-            &(parameters.powers_length..parameters.powers_g1_length).chunks(parameters.batch_size)
-        {
-            if let MinMax(start, end) = chunk.minmax() {
-                let size = end - start + 1;
-                accumulator.read_chunk(
-                    start,
-                    size,
-                    compression,
-                    check_input_for_correctness,
-                    &input,
-                )?;
-
-                if !accumulator.tau_powers_g2.is_empty() {
-                    return Err(Error::InvalidLength {
-                        expected: 0,
-                        got: accumulator.tau_powers_g2.len(),
-                    });
-                }
-
-                if !accumulator.alpha_tau_powers_g1.is_empty() {
-                    return Err(Error::InvalidLength {
-                        expected: 0,
-                        got: accumulator.alpha_tau_powers_g1.len(),
-                    });
-                }
-
-                if !accumulator.beta_tau_powers_g1.is_empty() {
-                    return Err(Error::InvalidLength {
-                        expected: 0,
-                        got: accumulator.beta_tau_powers_g1.len(),
-                    });
-                }
-
                 tau_powers_g1.extend_from_slice(&accumulator.tau_powers_g1);
-            } else {
-                return Err(Error::InvalidChunk);
             }
         }
 
@@ -481,7 +449,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
             tau_powers_g2,
             alpha_tau_powers_g1,
             beta_tau_powers_g1,
-            beta_g2: beta_g2[0],
+            beta_g2,
             hash: blank_hash(),
             parameters,
         })
