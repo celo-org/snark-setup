@@ -1,7 +1,7 @@
 /// Memory constrained accumulator that checks parts of the initial information in parts that fit to memory
 /// and then contributes to entropy in parts as well
 use itertools::{Itertools, MinMaxResult::MinMax};
-use log::{error, info};
+use log::info;
 use parking_lot::RwLock;
 use std::sync::Arc;
 use zexe_algebra::{AffineCurve, Field, PairingEngine as Engine, ProjectiveCurve, Zero};
@@ -14,7 +14,7 @@ use super::keypair::{PrivateKey, PublicKey};
 use super::parameters::{
     CeremonyParams, CheckForCorrectness, ElementType, Error, UseCompression, VerificationError,
 };
-use super::utils::{batch_exp, blank_hash, compute_g2_s, power_pairs, same_ratio};
+use super::utils::{batch_exp, blank_hash, check_same_ratio, compute_g2_s, power_pairs};
 
 use rayon::prelude::*;
 use std::ops::MulAssign;
@@ -140,7 +140,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         check_input_for_correctness: CheckForCorrectness,
         check_output_for_correctness: CheckForCorrectness,
         parameters: &'a CeremonyParams<E>,
-    ) -> bool {
+    ) -> Result<()> {
         assert_eq!(digest.len(), 64);
 
         let tau_g2_s = compute_g2_s::<E>(&digest, &key.tau_g1.0, &key.tau_g1.1, 0);
@@ -154,14 +154,12 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
         // Check the proofs-of-knowledge for tau/alpha/beta
         let check_ratios = &[
-            (key.tau_g1, tau_g2_check),
-            (key.alpha_g1, alpha_g2_check),
-            (key.beta_g1, beta_g2_check),
+            (key.tau_g1, tau_g2_check, "Tau G1<>G2"),
+            (key.alpha_g1, alpha_g2_check, "Alpha G1<>G2"),
+            (key.beta_g1, beta_g2_check, "Beta G1<>G2"),
         ];
-        for (a, b) in check_ratios {
-            if !same_ratio(a, b) {
-                return false;
-            }
+        for (a, b, err) in check_ratios {
+            check_same_ratio(a, b, err)?;
         }
 
         // Load accumulators AND perform computations
@@ -172,31 +170,27 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
         {
             let chunk_size = 2;
-            before
-                .read_chunk(
-                    0,
-                    chunk_size,
-                    input_is_compressed,
-                    check_input_for_correctness,
-                    &input,
-                )
-                .expect("must read a first chunk from `challenge`");
-            after
-                .read_chunk(
-                    0,
-                    chunk_size,
-                    output_is_compressed,
-                    check_output_for_correctness,
-                    &output,
-                )
-                .expect("must read a first chunk from `response`");
+            before.read_chunk(
+                0,
+                chunk_size,
+                input_is_compressed,
+                check_input_for_correctness,
+                &input,
+            )?;
+            after.read_chunk(
+                0,
+                chunk_size,
+                output_is_compressed,
+                check_output_for_correctness,
+                &output,
+            )?;
 
             // Check the correctness of the generators for tau powers
             if after.tau_powers_g1[0] != E::G1Affine::prime_subgroup_generator() {
-                return false;
+                return Err(VerificationError::InvalidGenerator(ElementType::TauG1).into());
             }
             if after.tau_powers_g2[0] != E::G2Affine::prime_subgroup_generator() {
-                return false;
+                return Err(VerificationError::InvalidGenerator(ElementType::TauG2).into());
             }
 
             let check_ratios = &[
@@ -204,29 +198,31 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                 (
                     (before.tau_powers_g1[1], after.tau_powers_g1[1]),
                     tau_g2_check,
+                    "Before-After: Tau[1] G1<>G2",
                 ),
                 // Did the participant multiply the previous alpha by the new one?
                 (
                     (before.alpha_tau_powers_g1[0], after.alpha_tau_powers_g1[0]),
                     alpha_g2_check,
+                    "Before-After: Alpha[0] G1<>G2",
                 ),
                 // Did the participant multiply the previous beta by the new one?
                 (
                     (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
                     beta_g2_check,
+                    "Before-After: Beta[0] G1<>G2",
                 ),
                 // todo: since we're checking with the same G1 elements above, can't we remove the same_ratio
                 // call and replace it with an assertion that the G2 elements are the same as above?
                 (
                     (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
                     &(before.beta_g2, after.beta_g2),
+                    "Before-After: Beta[0] G1<>G2",
                 ),
             ];
 
-            for (a, b) in check_ratios {
-                if !same_ratio(a, b) {
-                    return false;
-                }
+            for (a, b, err) in check_ratios {
+                check_same_ratio(a, b, err)?;
             }
         }
 
@@ -242,49 +238,49 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
             if let MinMax(start, end) = chunk.minmax() {
                 // extra 1 to ensure intersection between chunks and ensure we don't overflow
                 let size = end - start + 1 + if end == tau_powers_length - 1 { 0 } else { 1 };
-                before
-                    .read_chunk(
-                        start,
-                        size,
-                        input_is_compressed,
-                        check_input_for_correctness,
-                        &input,
-                    )
-                    .unwrap_or_else(|_| {
-                        panic!(format!(
-                            "must read a chunk from {} to {} from `challenge`",
-                            start, end
-                        ))
-                    });
-                after
-                    .read_chunk(
-                        start,
-                        size,
-                        output_is_compressed,
-                        check_output_for_correctness,
-                        &output,
-                    )
-                    .unwrap_or_else(|_| {
-                        panic!(format!(
-                            "must read a chunk from {} to {} from `response`",
-                            start, end
-                        ))
-                    });
+                before.read_chunk(
+                    start,
+                    size,
+                    input_is_compressed,
+                    check_input_for_correctness,
+                    &input,
+                )?;
+                after.read_chunk(
+                    start,
+                    size,
+                    output_is_compressed,
+                    check_output_for_correctness,
+                    &output,
+                )?;
 
                 // Check that the powers of tau are correct
                 let check_pairs = &[
-                    (power_pairs(&after.tau_powers_g1), g2_check),
-                    (power_pairs(&after.alpha_tau_powers_g1), g2_check),
-                    (power_pairs(&after.beta_tau_powers_g1), g2_check),
+                    (
+                        power_pairs(&after.tau_powers_g1),
+                        g2_check,
+                        "PowerPairs TauG1",
+                    ),
+                    (
+                        power_pairs(&after.alpha_tau_powers_g1),
+                        g2_check,
+                        "PowerPairs AlphaG1",
+                    ),
+                    (
+                        power_pairs(&after.beta_tau_powers_g1),
+                        g2_check,
+                        "PowerPairs BetaG1",
+                    ),
                     // we change the order because the tuple is of the form (G1, G2)
                     // the pairing is a commutative operation, so it doesn't affect the result
-                    (*g1_check, &power_pairs(&after.tau_powers_g2)),
+                    (
+                        *g1_check,
+                        &power_pairs(&after.tau_powers_g2),
+                        "PowerPairs TauG2",
+                    ),
                 ];
 
-                for (a, b) in check_pairs {
-                    if !same_ratio(a, b) {
-                        return false;
-                    }
+                for (a, b, err) in check_pairs {
+                    check_same_ratio(a, b, err)?;
                 }
 
                 if end == tau_powers_length - 1 {
@@ -307,34 +303,20 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                     } else {
                         1
                     };
-                before
-                    .read_chunk(
-                        start,
-                        size,
-                        input_is_compressed,
-                        check_input_for_correctness,
-                        &input,
-                    )
-                    .unwrap_or_else(|_| {
-                        panic!(format!(
-                            "must read a chunk from {} to {} from `challenge`",
-                            start, end
-                        ))
-                    });
-                after
-                    .read_chunk(
-                        start,
-                        size,
-                        output_is_compressed,
-                        check_output_for_correctness,
-                        &output,
-                    )
-                    .unwrap_or_else(|_| {
-                        panic!(format!(
-                            "must read a chunk from {} to {} from `response`",
-                            start, end
-                        ))
-                    });
+                before.read_chunk(
+                    start,
+                    size,
+                    input_is_compressed,
+                    check_input_for_correctness,
+                    &input,
+                )?;
+                after.read_chunk(
+                    start,
+                    size,
+                    output_is_compressed,
+                    check_output_for_correctness,
+                    &output,
+                )?;
 
                 assert_eq!(
                     before.tau_powers_g2.len(),
@@ -348,10 +330,11 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                 );
 
                 // Are the powers of tau correct?
-                if !same_ratio(&power_pairs(&after.tau_powers_g1), g2_check) {
-                    error!("Invalid ratio power_pairs(&after.tau_powers_g1), (tau_powers_g2_0, tau_powers_g2_1) in extra TauG1 contribution");
-                    return false;
-                }
+                check_same_ratio(
+                    &power_pairs(&after.tau_powers_g1),
+                    g2_check,
+                    "PowerPairs Tau G1",
+                )?;
                 if start == parameters.powers_length {
                     tau_powers_last_first_chunks[1] = after.tau_powers_g1[0];
                 }
@@ -361,12 +344,13 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
             }
         }
 
-        if !same_ratio(&power_pairs(&tau_powers_last_first_chunks), g2_check) {
-            error!("Invalid ratio power_pairs(&after.tau_powers_g1), (tau_powers_g2_0, tau_powers_g2_1) in TauG1 contribution intersection");
-            return false;
-        }
+        check_same_ratio(
+            &power_pairs(&tau_powers_last_first_chunks),
+            g2_check,
+            "LastChunk PowerPairs Tau G1",
+        )?;
 
-        true
+        Ok(())
     }
 
     pub fn decompress(
@@ -805,15 +789,13 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
             if let MinMax(start, end) = chunk.minmax() {
                 let size = end - start + 1;
-                accumulator
-                    .read_chunk(
-                        start,
-                        size,
-                        input_is_compressed,
-                        check_input_for_correctness,
-                        &input,
-                    )
-                    .expect("must read a first chunk");
+                accumulator.read_chunk(
+                    start,
+                    size,
+                    input_is_compressed,
+                    check_input_for_correctness,
+                    &input,
+                )?;
 
                 // Construct the powers of tau
                 let mut taupowers = vec![E::Fr::zero(); size];
@@ -862,15 +844,13 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         {
             if let MinMax(start, end) = chunk.minmax() {
                 let size = end - start + 1;
-                accumulator
-                    .read_chunk(
-                        start,
-                        size,
-                        input_is_compressed,
-                        check_input_for_correctness,
-                        &input,
-                    )
-                    .expect("must read a first chunk");
+                accumulator.read_chunk(
+                    start,
+                    size,
+                    input_is_compressed,
+                    check_input_for_correctness,
+                    &input,
+                )?;
                 assert_eq!(
                     accumulator.tau_powers_g2.len(),
                     0,

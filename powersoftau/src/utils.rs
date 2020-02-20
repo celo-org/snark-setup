@@ -3,6 +3,7 @@ use generic_array::GenericArray;
 use rand::{rngs::OsRng, thread_rng, Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
 
+use super::parameters::VerificationError;
 use crypto::digest::Digest as CryptoDigest;
 use crypto::sha2::Sha256;
 use rayon::prelude::*;
@@ -320,6 +321,17 @@ pub fn reduced_hash(old_power: u8, new_power: u8) -> GenericArray<u8, U64> {
 /// x1/x2 = y1/y2 => x1*y2 = x2*y1
 pub fn same_ratio<G: PairingCurve>(g1: &(G, G), g2: &(G::PairWith, G::PairWith)) -> bool {
     g1.0.pairing_with(&g2.1) == g1.1.pairing_with(&g2.0)
+}
+
+pub fn check_same_ratio<G: PairingCurve>(
+    g1: &(G, G),
+    g2: &(G::PairWith, G::PairWith),
+    err: &'static str,
+) -> Result<(), VerificationError> {
+    if g1.0.pairing_with(&g2.1) != g1.1.pairing_with(&g2.0) {
+        return Err(VerificationError::InvalidRatio(err));
+    }
+    Ok(())
 }
 
 // TODO: Figure out if we can make this infallible?

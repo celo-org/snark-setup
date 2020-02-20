@@ -188,7 +188,7 @@ pub enum Error {
 
 #[derive(Debug, Error)]
 pub enum VerificationError {
-    #[error("Invalid ratio! {0}")]
+    #[error("Invalid ratio! Context: {0}")]
     /// The ratio check via the pairing of the provided elements failed
     InvalidRatio(&'static str),
     #[error("Invalid generator for {0} powers")]
