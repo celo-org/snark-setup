@@ -147,24 +147,24 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         let alpha_g2_s = compute_g2_s::<E>(&digest, &key.alpha_g1.0, &key.alpha_g1.1, 1);
         let beta_g2_s = compute_g2_s::<E>(&digest, &key.beta_g1.0, &key.beta_g1.1, 2);
 
-        // Check the proofs-of-knowledge for tau/alpha/beta
+        // put in tuple form for convenience
+        let tau_g2_check = &(tau_g2_s, key.tau_g2);
+        let alpha_g2_check = &(alpha_g2_s, key.alpha_g2);
+        let beta_g2_check = &(beta_g2_s, key.beta_g2);
 
-        // g1^s / g1^(s*x) = g2^s / g2^(s*x)
-        if !same_ratio(&key.tau_g1, &(tau_g2_s, key.tau_g2)) {
-            error!("Invalid ratio key.tau_g1, (tau_g2_s, key.tau_g2)");
-            return false;
-        }
-        if !same_ratio(&key.alpha_g1, &(alpha_g2_s, key.alpha_g2)) {
-            error!("Invalid ratio key.alpha_g1, (alpha_g2_s, key.alpha_g2)");
-            return false;
-        }
-        if !same_ratio(&key.beta_g1, &(beta_g2_s, key.beta_g2)) {
-            error!("Invalid ratio key.beta_g1, (beta_g2_s, key.beta_g2)");
-            return false;
+        // Check the proofs-of-knowledge for tau/alpha/beta
+        let check_ratios = &[
+            (key.tau_g1, tau_g2_check),
+            (key.alpha_g1, alpha_g2_check),
+            (key.beta_g1, beta_g2_check),
+        ];
+        for (a, b) in check_ratios {
+            if !same_ratio(a, b) {
+                return false;
+            }
         }
 
         // Load accumulators AND perform computations
-
         let mut before = Self::empty(parameters);
         let mut after = Self::empty(parameters);
 
@@ -193,53 +193,45 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
             // Check the correctness of the generators for tau powers
             if after.tau_powers_g1[0] != E::G1Affine::prime_subgroup_generator() {
-                error!("tau_powers_g1[0] != 1");
                 return false;
             }
             if after.tau_powers_g2[0] != E::G2Affine::prime_subgroup_generator() {
-                error!("tau_powers_g2[0] != 1");
                 return false;
             }
 
-            // Did the participant multiply the previous tau by the new one?
-            if !same_ratio(
-                &(before.tau_powers_g1[1], after.tau_powers_g1[1]),
-                &(tau_g2_s, key.tau_g2),
-            ) {
-                error!("Invalid ratio (before.tau_powers_g1[1], after.tau_powers_g1[1]), (tau_g2_s, key.tau_g2)");
-                return false;
-            }
+            let check_ratios = &[
+                // Did the participant multiply the previous tau by the new one?
+                (
+                    (before.tau_powers_g1[1], after.tau_powers_g1[1]),
+                    tau_g2_check,
+                ),
+                // Did the participant multiply the previous alpha by the new one?
+                (
+                    (before.alpha_tau_powers_g1[0], after.alpha_tau_powers_g1[0]),
+                    alpha_g2_check,
+                ),
+                // Did the participant multiply the previous beta by the new one?
+                (
+                    (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
+                    beta_g2_check,
+                ),
+                // todo: since we're checking with the same G1 elements above, can't we remove the same_ratio
+                // call and replace it with an assertion that the G2 elements are the same as above?
+                (
+                    (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
+                    &(before.beta_g2, after.beta_g2),
+                ),
+            ];
 
-            // Did the participant multiply the previous alpha by the new one?
-            if !same_ratio(
-                &(before.alpha_tau_powers_g1[0], after.alpha_tau_powers_g1[0]),
-                &(alpha_g2_s, key.alpha_g2),
-            ) {
-                error!("Invalid ratio (before.alpha_tau_powers_g1[0], after.alpha_tau_powers_g1[0]), (alpha_g2_s, key.alpha_g2)");
-                return false;
-            }
-
-            // Did the participant multiply the previous beta by the new one?
-            if !same_ratio(
-                &(before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
-                &(beta_g2_s, key.beta_g2),
-            ) {
-                error!("Invalid ratio (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]), (beta_g2_s, key.beta_g2)");
-                return false;
-            }
-            if !same_ratio(
-                &(before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
-                &(before.beta_g2, after.beta_g2),
-            ) {
-                error!("Invalid ratio (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]), (before.beta_g2, after.beta_g2)");
-                return false;
+            for (a, b) in check_ratios {
+                if !same_ratio(a, b) {
+                    return false;
+                }
             }
         }
 
-        let tau_powers_g2_0 = after.tau_powers_g2[0];
-        let tau_powers_g2_1 = after.tau_powers_g2[1];
-        let tau_powers_g1_0 = after.tau_powers_g1[0];
-        let tau_powers_g1_1 = after.tau_powers_g1[1];
+        let g1_check = &(after.tau_powers_g1[0], after.tau_powers_g1[1]);
+        let g2_check = &(after.tau_powers_g2[0], after.tau_powers_g2[1]);
 
         // Read by parts and just verify same ratios. Cause of two fixed variables above with tau_powers_g2_1 = tau_powers_g2_0 ^ s
         // one does not need to care about some overlapping
@@ -279,35 +271,22 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                         ))
                     });
 
-                // Are the powers of tau correct?
-                if !same_ratio(
-                    &power_pairs(&after.tau_powers_g1),
-                    &(tau_powers_g2_0, tau_powers_g2_1),
-                ) {
-                    error!("Invalid ratio power_pairs(&after.tau_powers_g1), (tau_powers_g2_0, tau_powers_g2_1)");
-                    return false;
+                // Check that the powers of tau are correct
+                let check_pairs = &[
+                    (power_pairs(&after.tau_powers_g1), g2_check),
+                    (power_pairs(&after.alpha_tau_powers_g1), g2_check),
+                    (power_pairs(&after.beta_tau_powers_g1), g2_check),
+                    // we change the order because the tuple is of the form (G1, G2)
+                    // the pairing is a commutative operation, so it doesn't affect the result
+                    (*g1_check, &power_pairs(&after.tau_powers_g2)),
+                ];
+
+                for (a, b) in check_pairs {
+                    if !same_ratio(a, b) {
+                        return false;
+                    }
                 }
-                if !same_ratio(
-                    &power_pairs(&after.tau_powers_g2),
-                    &(tau_powers_g1_0, tau_powers_g1_1),
-                ) {
-                    error!("Invalid ratio power_pairs(&after.tau_powers_g2), (tau_powers_g1_0, tau_powers_g1_1)");
-                    return false;
-                }
-                if !same_ratio(
-                    &power_pairs(&after.alpha_tau_powers_g1),
-                    &(tau_powers_g2_0, tau_powers_g2_1),
-                ) {
-                    error!("Invalid ratio power_pairs(&after.alpha_tau_powers_g1), (tau_powers_g2_0, tau_powers_g2_1)");
-                    return false;
-                }
-                if !same_ratio(
-                    &power_pairs(&after.beta_tau_powers_g1),
-                    &(tau_powers_g2_0, tau_powers_g2_1),
-                ) {
-                    error!("Invalid ratio power_pairs(&after.beta_tau_powers_g1), (tau_powers_g2_0, tau_powers_g2_1)");
-                    return false;
-                }
+
                 if end == tau_powers_length - 1 {
                     tau_powers_last_first_chunks[0] = after.tau_powers_g1[size - 1];
                 }
@@ -369,10 +348,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                 );
 
                 // Are the powers of tau correct?
-                if !same_ratio(
-                    &power_pairs(&after.tau_powers_g1),
-                    &(tau_powers_g2_0, tau_powers_g2_1),
-                ) {
+                if !same_ratio(&power_pairs(&after.tau_powers_g1), g2_check) {
                     error!("Invalid ratio power_pairs(&after.tau_powers_g1), (tau_powers_g2_0, tau_powers_g2_1) in extra TauG1 contribution");
                     return false;
                 }
@@ -385,10 +361,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
             }
         }
 
-        if !same_ratio(
-            &power_pairs(&tau_powers_last_first_chunks),
-            &(tau_powers_g2_0, tau_powers_g2_1),
-        ) {
+        if !same_ratio(&power_pairs(&tau_powers_last_first_chunks), g2_check) {
             error!("Invalid ratio power_pairs(&after.tau_powers_g1), (tau_powers_g2_0, tau_powers_g2_1) in TauG1 contribution intersection");
             return false;
         }
