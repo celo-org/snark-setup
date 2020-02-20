@@ -3,6 +3,7 @@ use generic_array::GenericArray;
 use rand::{rngs::OsRng, thread_rng, Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
 
+use super::parameters::Error;
 use super::parameters::VerificationError;
 use crypto::digest::Digest as CryptoDigest;
 use crypto::sha2::Sha256;
@@ -14,8 +15,8 @@ use std::ops::MulAssign;
 use std::sync::Arc;
 use typenum::consts::U64;
 use zexe_algebra::{
-    AffineCurve, BigInteger, Field, One, PairingCurve, PairingEngine, PrimeField, ProjectiveCurve,
-    ToBytes, UniformRand, Zero,
+    AffineCurve, BigInteger, CanonicalSerialize, Field, One, PairingCurve, PairingEngine,
+    PrimeField, ProjectiveCurve, UniformRand, Zero,
 };
 
 /// Generate the powers by raising the key's `tau` to all powers
@@ -351,21 +352,23 @@ pub fn check_same_ratio<G: PairingCurve>(
     Ok(())
 }
 
-// TODO: Figure out if we can make this infallible?
+/// Compute BLAKE2b(personalization | transcript | g^s | g^{s*x})
+/// and then hash it to G2
 pub fn compute_g2_s<E: PairingEngine>(
     digest: &[u8],
     g1_s: &E::G1Affine,
     g1_s_x: &E::G1Affine,
     personalization: u8,
-) -> E::G2Affine {
+) -> Result<E::G2Affine, Error> {
     let mut h = Blake2b::default();
     h.input(&[personalization]);
     h.input(digest);
-    let mut data = Vec::new();
-    g1_s.write(&mut data).unwrap();
-    g1_s_x.write(&mut data).unwrap();
+    let size = E::G1Affine::buffer_size();
+    let mut data = vec![0; 2 * size];
+    g1_s.serialize(&[], &mut data[..size])?;
+    g1_s_x.serialize(&[], &mut data[size..])?;
     h.input(&data);
-    hash_to_g2::<E>(h.result().as_ref()).into_affine()
+    Ok(hash_to_g2::<E>(h.result().as_ref()).into_affine())
 }
 
 /// Perform multi-exponentiation. The caller is responsible for ensuring that

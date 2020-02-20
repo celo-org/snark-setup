@@ -184,6 +184,8 @@ pub enum Error {
     PositionError(ElementType, usize, usize),
     #[error("Error during verification: {0}")]
     VerificationError(#[from] VerificationError),
+    #[error("Invalid variable length: expected {expected}, got {got}")]
+    InvalidLength { expected: usize, got: usize },
 }
 
 #[derive(Debug, Error)]
