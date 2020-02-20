@@ -459,10 +459,15 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         &mut self,
         output: &mut [u8],
         compression: UseCompression,
-        parameters: &CeremonyParams<E>,
+        parameters: &'a CeremonyParams<E>,
     ) -> Result<()> {
-        for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
-            if let MinMax(start, end) = chunk.minmax() {
+        for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
+            let (start, end) = if let MinMax(start, end) = chunk.minmax() {
+                (start, end)
+            } else {
+                return Err(Error::InvalidChunk);
+            };
+            if start < parameters.powers_length {
                 let tmp_acc = BatchedAccumulator::<E> {
                     tau_powers_g1: (&self.tau_powers_g1[start..=end]).to_vec(),
                     tau_powers_g2: (&self.tau_powers_g2[start..=end]).to_vec(),
@@ -474,26 +479,13 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                 };
                 tmp_acc.write_chunk(start, compression, output)?;
             } else {
-                return Err(Error::InvalidChunk);
-            }
-        }
-
-        for chunk in
-            &(parameters.powers_length..parameters.powers_g1_length).chunks(parameters.batch_size)
-        {
-            if let MinMax(start, end) = chunk.minmax() {
-                let tmp_acc = BatchedAccumulator::<E> {
-                    tau_powers_g1: (&self.tau_powers_g1[start..=end]).to_vec(),
-                    tau_powers_g2: vec![],
-                    alpha_tau_powers_g1: vec![],
-                    beta_tau_powers_g1: vec![],
-                    beta_g2: self.beta_g2,
-                    hash: self.hash,
-                    parameters,
-                };
-                tmp_acc.write_chunk(start, compression, output)?;
-            } else {
-                return Err(Error::InvalidChunk);
+                self.write_points_chunk(
+                    &self.tau_powers_g1[start..=end],
+                    output,
+                    start,
+                    compression,
+                    ElementType::TauG1,
+                )?;
             }
         }
 
