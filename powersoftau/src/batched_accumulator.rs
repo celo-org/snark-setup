@@ -198,25 +198,30 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         let g2_check = &(after.tau_powers_g2[0], after.tau_powers_g2[1]);
         let mut tau_powers_last_first_chunks = vec![E::G1Affine::zero(); 2];
         let tau_powers_length = parameters.powers_length;
-        for chunk in &(0..tau_powers_length).chunks(parameters.batch_size) {
-            if let MinMax(start, end) = chunk.minmax() {
-                // extra 1 to ensure intersection between chunks and ensure we don't overflow
-                let size = end - start + 1 + if end == tau_powers_length - 1 { 0 } else { 1 };
-                before.read_chunk(
-                    start,
-                    size,
-                    input_is_compressed,
-                    check_input_for_correctness,
-                    &input,
-                )?;
-                after.read_chunk(
-                    start,
-                    size,
-                    output_is_compressed,
-                    check_output_for_correctness,
-                    &output,
-                )?;
+        for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
+            let (start, end) = if let MinMax(start, end) = chunk.minmax() {
+                (start, end)
+            } else {
+                return Err(Error::InvalidChunk);
+            };
 
+            let size = end - start + 1 + if end == tau_powers_length - 1 { 0 } else { 1 };
+            before.read_chunk(
+                start,
+                size,
+                input_is_compressed,
+                check_input_for_correctness,
+                &input,
+            )?;
+            after.read_chunk(
+                start,
+                size,
+                output_is_compressed,
+                check_output_for_correctness,
+                &output,
+            )?;
+
+            if start < tau_powers_length {
                 // Check that the powers of tau are correct
                 let check_pairs = &[
                     (
@@ -250,72 +255,28 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                 if end == tau_powers_length - 1 {
                     tau_powers_last_first_chunks[0] = after.tau_powers_g1[size - 1];
                 }
-                info!("Done processing {} powers of tau", end);
             } else {
-                return Err(Error::InvalidChunk);
-            }
-        }
-
-        for chunk in &(tau_powers_length..parameters.powers_g1_length).chunks(parameters.batch_size)
-        {
-            if let MinMax(start, end) = chunk.minmax() {
-                // extra 1 to ensure intersection between chunks and ensure we don't overflow
-                let size = end - start
-                    + 1
-                    + if end == parameters.powers_g1_length - 1 {
-                        0
-                    } else {
-                        1
-                    };
-                before.read_chunk(
-                    start,
-                    size,
-                    input_is_compressed,
-                    check_input_for_correctness,
-                    &input,
-                )?;
-                after.read_chunk(
-                    start,
-                    size,
-                    output_is_compressed,
-                    check_output_for_correctness,
-                    &output,
-                )?;
-
-                if !before.tau_powers_g2.is_empty() {
-                    return Err(Error::InvalidLength {
-                        expected: 0,
-                        got: before.tau_powers_g2.len(),
-                    });
-                }
-
-                if !after.tau_powers_g2.is_empty() {
-                    return Err(Error::InvalidLength {
-                        expected: 0,
-                        got: after.tau_powers_g2.len(),
-                    });
-                }
-
-                // Are the powers of tau correct?
                 check_same_ratio(
                     &power_pairs(&after.tau_powers_g1),
                     g2_check,
                     "PowerPairs Tau G1",
                 )?;
+
                 if start == parameters.powers_length {
                     tau_powers_last_first_chunks[1] = after.tau_powers_g1[0];
                 }
-                info!("Done processing {} powers of tau", end);
-            } else {
-                return Err(Error::InvalidChunk);
             }
         }
 
+        // checks the intersection
+        // todo: do we still need this now that we have combined the 2 loops?
         check_same_ratio(
             &power_pairs(&tau_powers_last_first_chunks),
             g2_check,
             "LastChunk PowerPairs Tau G1",
         )?;
+
+        info!("Accumulator was calculated correctly!");
 
         Ok(())
     }
@@ -378,7 +339,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
             let (start, end) = if let MinMax(start, end) = chunk.minmax() {
                 (start, end)
             } else {
-                return Err(Error::InvalidChunk)
+                return Err(Error::InvalidChunk);
             };
 
             let size = end - start + 1;
