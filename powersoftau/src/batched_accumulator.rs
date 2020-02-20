@@ -368,59 +368,32 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
     ) -> Result<()> {
         let mut accumulator = Self::empty(parameters);
 
-        for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
-            if let MinMax(start, end) = chunk.minmax() {
-                let size = end - start + 1;
-                accumulator.read_chunk(
-                    start,
-                    size,
-                    UseCompression::Yes,
-                    check_input_for_correctness,
-                    &input,
-                )?;
-                accumulator.write_chunk(start, UseCompression::No, output)?;
+        for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
+            let (start, end) = if let MinMax(start, end) = chunk.minmax() {
+                (start, end)
             } else {
                 return Err(Error::InvalidChunk);
-            }
-        }
+            };
 
-        for chunk in
-            &(parameters.powers_length..parameters.powers_g1_length).chunks(parameters.batch_size)
-        {
-            if let MinMax(start, end) = chunk.minmax() {
-                let size = end - start + 1;
-                accumulator.read_chunk(
-                    start,
-                    size,
-                    UseCompression::Yes,
-                    check_input_for_correctness,
-                    &input,
-                )?;
+            let size = end - start + 1;
+            accumulator.read_chunk(
+                start,
+                size,
+                UseCompression::Yes,
+                check_input_for_correctness,
+                &input,
+            )?;
 
-                if !accumulator.tau_powers_g2.is_empty() {
-                    return Err(Error::InvalidLength {
-                        expected: 0,
-                        got: accumulator.tau_powers_g2.len(),
-                    });
-                }
-
-                if !accumulator.alpha_tau_powers_g1.is_empty() {
-                    return Err(Error::InvalidLength {
-                        expected: 0,
-                        got: accumulator.alpha_tau_powers_g1.len(),
-                    });
-                }
-
-                if !accumulator.beta_tau_powers_g1.is_empty() {
-                    return Err(Error::InvalidLength {
-                        expected: 0,
-                        got: accumulator.beta_tau_powers_g1.len(),
-                    });
-                }
-
+            if start < parameters.powers_length {
                 accumulator.write_chunk(start, UseCompression::No, output)?;
             } else {
-                return Err(Error::InvalidChunk);
+                accumulator.write_points_chunk(
+                    &accumulator.tau_powers_g1,
+                    output,
+                    start,
+                    UseCompression::No,
+                    ElementType::TauG1,
+                )?;
             }
         }
 
