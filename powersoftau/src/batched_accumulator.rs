@@ -192,88 +192,15 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         };
         check_initial_conditions(&before, &after, &params)?;
 
-        // Read by parts and just verify same ratios. Cause of two fixed variables with tau_powers_g2_1 = tau_powers_g2_0 ^ s
-        // one does not need to care about some overlapping
-        let g1_check = &(after.tau_powers_g1[0], after.tau_powers_g1[1]);
-        let g2_check = &(after.tau_powers_g2[0], after.tau_powers_g2[1]);
-        let mut tau_powers_last_first_chunks = vec![E::G1Affine::zero(); 2];
-        let tau_powers_length = parameters.powers_length;
-        for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
-            let (start, end) = if let MinMax(start, end) = chunk.minmax() {
-                (start, end)
-            } else {
-                return Err(Error::InvalidChunk);
-            };
-
-            let size = end - start + 1 + if end == tau_powers_length - 1 { 0 } else { 1 };
-            before.read_chunk(
-                start,
-                size,
-                input_is_compressed,
-                check_input_for_correctness,
-                &input,
-            )?;
-            after.read_chunk(
-                start,
-                size,
-                output_is_compressed,
-                check_output_for_correctness,
-                &output,
-            )?;
-
-            if start < tau_powers_length {
-                // Check that the powers of tau are correct
-                let check_pairs = &[
-                    (
-                        power_pairs(&after.tau_powers_g1),
-                        g2_check,
-                        "PowerPairs TauG1",
-                    ),
-                    (
-                        power_pairs(&after.alpha_tau_powers_g1),
-                        g2_check,
-                        "PowerPairs AlphaG1",
-                    ),
-                    (
-                        power_pairs(&after.beta_tau_powers_g1),
-                        g2_check,
-                        "PowerPairs BetaG1",
-                    ),
-                    // we change the order because the tuple is of the form (G1, G2)
-                    // the pairing is a commutative operation, so it doesn't affect the result
-                    (
-                        *g1_check,
-                        &power_pairs(&after.tau_powers_g2),
-                        "PowerPairs TauG2",
-                    ),
-                ];
-
-                for (a, b, err) in check_pairs {
-                    check_same_ratio(a, b, err)?;
-                }
-
-                if end == tau_powers_length - 1 {
-                    tau_powers_last_first_chunks[0] = after.tau_powers_g1[size - 1];
-                }
-            } else {
-                check_same_ratio(
-                    &power_pairs(&after.tau_powers_g1),
-                    g2_check,
-                    "PowerPairs Tau G1",
-                )?;
-
-                if start == parameters.powers_length {
-                    tau_powers_last_first_chunks[1] = after.tau_powers_g1[0];
-                }
-            }
-        }
-
-        // checks the intersection
-        // todo: do we still need this now that we have combined the 2 loops?
-        check_same_ratio(
-            &power_pairs(&tau_powers_last_first_chunks),
-            g2_check,
-            "LastChunk PowerPairs Tau G1",
+        check_accumulated_powers(
+            &mut before,
+            &mut after,
+            input,
+            output,
+            input_is_compressed,
+            output_is_compressed,
+            check_input_for_correctness,
+            check_output_for_correctness,
         )?;
 
         info!("Accumulator was calculated correctly!");
@@ -758,6 +685,105 @@ struct Params<'a, E: Engine> {
     alpha_g2: &'a (E::G2Affine, E::G2Affine),
     beta_g2: &'a (E::G2Affine, E::G2Affine),
     other_beta_g2: &'a (E::G2Affine, E::G2Affine),
+}
+
+/// We have preallocated the accumulators
+fn check_accumulated_powers<E: Engine>(
+    before: &mut BatchedAccumulator<E>,
+    after: &mut BatchedAccumulator<E>,
+    input: &[u8],
+    output: &[u8],
+    input_is_compressed: UseCompression,
+    output_is_compressed: UseCompression,
+    check_input_for_correctness: CheckForCorrectness,
+    check_output_for_correctness: CheckForCorrectness,
+) -> Result<()> {
+    // Read by parts and just verify same ratios. Cause of two fixed variables with tau_powers_g2_1 = tau_powers_g2_0 ^ s
+    // one does not need to care about some overlapping
+    let g1_check = &(after.tau_powers_g1[0], after.tau_powers_g1[1]);
+    let g2_check = &(after.tau_powers_g2[0], after.tau_powers_g2[1]);
+    let parameters = before.parameters;
+    let mut tau_powers_last_first_chunks = vec![E::G1Affine::zero(); 2];
+    let tau_powers_length = parameters.powers_length;
+    for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
+        let (start, end) = if let MinMax(start, end) = chunk.minmax() {
+            (start, end)
+        } else {
+            return Err(Error::InvalidChunk);
+        };
+
+        let size = end - start + 1 + if end == tau_powers_length - 1 { 0 } else { 1 };
+        before.read_chunk(
+            start,
+            size,
+            input_is_compressed,
+            check_input_for_correctness,
+            &input,
+        )?;
+        after.read_chunk(
+            start,
+            size,
+            output_is_compressed,
+            check_output_for_correctness,
+            &output,
+        )?;
+
+        if start < tau_powers_length {
+            // Check that the powers of tau are correct
+            let check_pairs = &[
+                (
+                    power_pairs(&after.tau_powers_g1),
+                    g2_check,
+                    "PowerPairs TauG1",
+                ),
+                (
+                    power_pairs(&after.alpha_tau_powers_g1),
+                    g2_check,
+                    "PowerPairs AlphaG1",
+                ),
+                (
+                    power_pairs(&after.beta_tau_powers_g1),
+                    g2_check,
+                    "PowerPairs BetaG1",
+                ),
+                // we change the order because the tuple is of the form (G1, G2)
+                // the pairing is a commutative operation, so it doesn't affect the result
+                (
+                    *g1_check,
+                    &power_pairs(&after.tau_powers_g2),
+                    "PowerPairs TauG2",
+                ),
+            ];
+
+            for (a, b, err) in check_pairs {
+                check_same_ratio(a, b, err)?;
+            }
+
+            if end == tau_powers_length - 1 {
+                tau_powers_last_first_chunks[0] = after.tau_powers_g1[size - 1];
+            }
+        } else {
+            check_same_ratio(
+                &power_pairs(&after.tau_powers_g1),
+                g2_check,
+                "PowerPairs Tau G1",
+            )?;
+
+            if start == parameters.powers_length {
+                tau_powers_last_first_chunks[1] = after.tau_powers_g1[0];
+            }
+        }
+    }
+
+    // checks the intersection
+    // todo: do we still need this now that we have combined the 2 loops?
+    check_same_ratio(
+        &power_pairs(&tau_powers_last_first_chunks),
+        g2_check,
+        "LastChunk PowerPairs Tau G1",
+    )?;
+
+    Ok(())
 }
 
 /// Checks that ate initial ratios are correctly formed
