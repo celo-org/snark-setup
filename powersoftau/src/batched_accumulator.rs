@@ -4,7 +4,7 @@ use itertools::{Itertools, MinMaxResult::MinMax};
 use log::info;
 use parking_lot::RwLock;
 use std::sync::Arc;
-use zexe_algebra::{AffineCurve, Field, PairingEngine as Engine, ProjectiveCurve, Zero};
+use zexe_algebra::{AffineCurve, PairingEngine as Engine, ProjectiveCurve, Zero};
 
 use generic_array::GenericArray;
 
@@ -14,11 +14,10 @@ use super::keypair::{PrivateKey, PublicKey};
 use super::parameters::{
     CeremonyParams, CheckForCorrectness, ElementType, Error, UseCompression, VerificationError,
 };
-use super::utils::{batch_exp, blank_hash, check_same_ratio, compute_g2_s, power_pairs};
-
+use super::utils::{
+    batch_exp, blank_hash, check_same_ratio, compute_g2_s, generate_powers_of_tau, power_pairs,
+};
 use rayon::prelude::*;
-use std::ops::MulAssign;
-
 pub enum AccumulatorState {
     Empty,
     NonEmpty,
@@ -797,23 +796,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                     &input,
                 )?;
 
-                // Construct the powers of tau
-                let mut taupowers = vec![E::Fr::zero(); size];
-                let chunk_size = size / num_cpus::get();
-
-                // Construct exponents in parallel
-                crossbeam::scope(|scope| {
-                    for (i, taupowers) in taupowers.chunks_mut(chunk_size).enumerate() {
-                        scope.spawn(move || {
-                            let mut acc = key.tau.pow(&[(start + i * chunk_size) as u64]);
-
-                            for t in taupowers {
-                                *t = acc;
-                                acc.mul_assign(&key.tau);
-                            }
-                        });
-                    }
-                });
+                let taupowers = generate_powers_of_tau::<E>(&key.tau, start, size);
 
                 batch_exp(&mut accumulator.tau_powers_g1, &taupowers[0..], None);
                 batch_exp(&mut accumulator.tau_powers_g2, &taupowers[0..], None);
@@ -857,24 +840,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                     "during rest of tau g1 generation tau g2 must be empty"
                 );
 
-                // Construct the powers of tau
-                let mut taupowers = vec![E::Fr::zero(); size];
-                let chunk_size = size / num_cpus::get();
-
-                // Construct exponents in parallel
-                crossbeam::scope(|scope| {
-                    for (i, taupowers) in taupowers.chunks_mut(chunk_size).enumerate() {
-                        scope.spawn(move || {
-                            let mut acc = key.tau.pow(&[(start + i * chunk_size) as u64]);
-
-                            for t in taupowers {
-                                *t = acc;
-                                acc.mul_assign(&key.tau);
-                            }
-                        });
-                    }
-                });
-
+                let taupowers = generate_powers_of_tau::<E>(&key.tau, start, size);
                 batch_exp(&mut accumulator.tau_powers_g1, &taupowers[0..], None);
                 //accumulator.beta_g2 = accumulator.beta_g2.mul(key.beta).into_affine();
                 //assert!(!accumulator.beta_g2.is_zero(), "your contribution happened to produce a point at infinity, please re-run");

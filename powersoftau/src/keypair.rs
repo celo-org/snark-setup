@@ -1,10 +1,7 @@
 use blake2::{Blake2b, Digest};
 use rand::Rng;
 use typenum::consts::U64;
-use zexe_algebra::{
-    AffineCurve, CanonicalSerialize, PairingEngine, ProjectiveCurve,
-    UniformRand,
-};
+use zexe_algebra::{AffineCurve, CanonicalSerialize, PairingEngine, ProjectiveCurve, UniformRand};
 
 use super::parameters::{CeremonyParams, Error, UseCompression};
 use super::utils::hash_to_g2;

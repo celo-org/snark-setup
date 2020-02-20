@@ -7,15 +7,32 @@ use super::parameters::VerificationError;
 use crypto::digest::Digest as CryptoDigest;
 use crypto::sha2::Sha256;
 use rayon::prelude::*;
+use std::convert::TryInto;
 use std::io::{self, Write};
 use std::ops::AddAssign;
 use std::ops::MulAssign;
 use std::sync::Arc;
 use typenum::consts::U64;
 use zexe_algebra::{
-    AffineCurve, BigInteger, One, PairingCurve, PairingEngine, PrimeField, ProjectiveCurve,
+    AffineCurve, BigInteger, Field, One, PairingCurve, PairingEngine, PrimeField, ProjectiveCurve,
     ToBytes, UniformRand, Zero,
 };
+
+/// Generate the powers by raising the key's `tau` to all powers
+/// belonging to this chunk
+pub fn generate_powers_of_tau<E: PairingEngine>(
+    tau: &E::Fr,
+    start: usize,
+    size: usize,
+) -> Vec<E::Fr> {
+    // Uh no better way to do this, this should never fail
+    let start: u64 = start.try_into().expect("could not convert to u64");
+    let size: u64 = size.try_into().expect("could not convert to u64");
+    (start..start + size)
+        .into_par_iter()
+        .map(|i| tau.pow([i]))
+        .collect()
+}
 
 pub fn print_hash(hash: &[u8]) {
     for line in hash.chunks(16) {
