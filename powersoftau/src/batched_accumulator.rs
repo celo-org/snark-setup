@@ -190,9 +190,9 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
             beta_g2: beta_g2_check,
             other_beta_g2: &(before.beta_g2, after.beta_g2),
         };
-        check_initial_conditions(&before, &after, &params)?;
+        Self::check_initial_conditions(&before, &after, &params)?;
 
-        check_accumulated_powers(
+        Self::check_accumulated_powers(
             &mut before,
             &mut after,
             input,
@@ -677,6 +677,160 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
         Ok(())
     }
+
+    /// We have preallocated the accumulators
+    fn check_accumulated_powers(
+        before: &mut BatchedAccumulator<E>,
+        after: &mut BatchedAccumulator<E>,
+        input: &[u8],
+        output: &[u8],
+        input_is_compressed: UseCompression,
+        output_is_compressed: UseCompression,
+        check_input_for_correctness: CheckForCorrectness,
+        check_output_for_correctness: CheckForCorrectness,
+    ) -> Result<()> {
+        // Read by parts and just verify same ratios. Cause of two fixed variables with tau_powers_g2_1 = tau_powers_g2_0 ^ s
+        // one does not need to care about some overlapping
+        let g1_check = &(after.tau_powers_g1[0], after.tau_powers_g1[1]);
+        let g2_check = &(after.tau_powers_g2[0], after.tau_powers_g2[1]);
+        let parameters = before.parameters;
+        let mut tau_powers_last_first_chunks = vec![E::G1Affine::zero(); 2];
+        let tau_powers_length = parameters.powers_length;
+        for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
+            let (start, end) = if let MinMax(start, end) = chunk.minmax() {
+                (start, end)
+            } else {
+                return Err(Error::InvalidChunk);
+            };
+
+            let size = end - start + 1 + if end == tau_powers_length - 1 { 0 } else { 1 };
+            before.read_chunk(
+                start,
+                size,
+                input_is_compressed,
+                check_input_for_correctness,
+                &input,
+            )?;
+            after.read_chunk(
+                start,
+                size,
+                output_is_compressed,
+                check_output_for_correctness,
+                &output,
+            )?;
+
+            if start < tau_powers_length {
+                // Check that the powers of tau are correct
+                let check_pairs = &[
+                    (
+                        power_pairs(&after.tau_powers_g1),
+                        g2_check,
+                        "PowerPairs TauG1",
+                    ),
+                    (
+                        power_pairs(&after.alpha_tau_powers_g1),
+                        g2_check,
+                        "PowerPairs AlphaG1",
+                    ),
+                    (
+                        power_pairs(&after.beta_tau_powers_g1),
+                        g2_check,
+                        "PowerPairs BetaG1",
+                    ),
+                    // we change the order because the tuple is of the form (G1, G2)
+                    // the pairing is a commutative operation, so it doesn't affect the result
+                    (
+                        *g1_check,
+                        &power_pairs(&after.tau_powers_g2),
+                        "PowerPairs TauG2",
+                    ),
+                ];
+
+                for (a, b, err) in check_pairs {
+                    check_same_ratio(a, b, err)?;
+                }
+
+                if end == tau_powers_length - 1 {
+                    tau_powers_last_first_chunks[0] = after.tau_powers_g1[size - 1];
+                }
+            } else {
+                check_same_ratio(
+                    &power_pairs(&after.tau_powers_g1),
+                    g2_check,
+                    "PowerPairs Tau G1",
+                )?;
+
+                if start == parameters.powers_length {
+                    tau_powers_last_first_chunks[1] = after.tau_powers_g1[0];
+                }
+            }
+        }
+
+        // checks the intersection
+        // todo: do we still need this now that we have combined the 2 loops?
+        check_same_ratio(
+            &power_pairs(&tau_powers_last_first_chunks),
+            g2_check,
+            "LastChunk PowerPairs Tau G1",
+        )?;
+
+        Ok(())
+    }
+
+    /// Checks that ate initial ratios are correctly formed
+    fn check_initial_conditions(
+        before: &BatchedAccumulator<E>,
+        after: &BatchedAccumulator<E>,
+        params: &Params<E>,
+    ) -> Result<()> {
+        let tau_g2_check = params.tau_g2;
+        let alpha_g2_check = params.alpha_g2;
+        let beta_g2_check = params.beta_g2;
+        let other_beta = params.other_beta_g2;
+
+        // Check the correctness of the generators for tau powers
+        if after.tau_powers_g1[0] != E::G1Affine::prime_subgroup_generator() {
+            return Err(VerificationError::InvalidGenerator(ElementType::TauG1).into());
+        }
+        if after.tau_powers_g2[0] != E::G2Affine::prime_subgroup_generator() {
+            return Err(VerificationError::InvalidGenerator(ElementType::TauG2).into());
+        }
+
+        let check_ratios = &[
+            // Did the participant multiply the previous tau by the new one?
+            (
+                (before.tau_powers_g1[1], after.tau_powers_g1[1]),
+                tau_g2_check,
+                "Before-After: Tau[1] G1<>G2",
+            ),
+            // Did the participant multiply the previous alpha by the new one?
+            (
+                (before.alpha_tau_powers_g1[0], after.alpha_tau_powers_g1[0]),
+                alpha_g2_check,
+                "Before-After: Alpha[0] G1<>G2",
+            ),
+            // Did the participant multiply the previous beta by the new one?
+            (
+                (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
+                beta_g2_check,
+                "Before-After: Beta[0] G1<>G2",
+            ),
+            // todo: since we're checking with the same G1 elements above, can't we remove the same_ratio
+            // call and replace it with an assertion that the G2 elements are the same as above?
+            (
+                (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
+                other_beta,
+                "Before-After: Beta[0] G1<>G2",
+            ),
+        ];
+
+        for (a, b, err) in check_ratios {
+            check_same_ratio(a, b, err)?;
+        }
+
+        Ok(())
+    }
+
 }
 
 // these checks only touch a part of the accumulator, so read two elements
@@ -685,159 +839,6 @@ struct Params<'a, E: Engine> {
     alpha_g2: &'a (E::G2Affine, E::G2Affine),
     beta_g2: &'a (E::G2Affine, E::G2Affine),
     other_beta_g2: &'a (E::G2Affine, E::G2Affine),
-}
-
-/// We have preallocated the accumulators
-fn check_accumulated_powers<E: Engine>(
-    before: &mut BatchedAccumulator<E>,
-    after: &mut BatchedAccumulator<E>,
-    input: &[u8],
-    output: &[u8],
-    input_is_compressed: UseCompression,
-    output_is_compressed: UseCompression,
-    check_input_for_correctness: CheckForCorrectness,
-    check_output_for_correctness: CheckForCorrectness,
-) -> Result<()> {
-    // Read by parts and just verify same ratios. Cause of two fixed variables with tau_powers_g2_1 = tau_powers_g2_0 ^ s
-    // one does not need to care about some overlapping
-    let g1_check = &(after.tau_powers_g1[0], after.tau_powers_g1[1]);
-    let g2_check = &(after.tau_powers_g2[0], after.tau_powers_g2[1]);
-    let parameters = before.parameters;
-    let mut tau_powers_last_first_chunks = vec![E::G1Affine::zero(); 2];
-    let tau_powers_length = parameters.powers_length;
-    for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
-        let (start, end) = if let MinMax(start, end) = chunk.minmax() {
-            (start, end)
-        } else {
-            return Err(Error::InvalidChunk);
-        };
-
-        let size = end - start + 1 + if end == tau_powers_length - 1 { 0 } else { 1 };
-        before.read_chunk(
-            start,
-            size,
-            input_is_compressed,
-            check_input_for_correctness,
-            &input,
-        )?;
-        after.read_chunk(
-            start,
-            size,
-            output_is_compressed,
-            check_output_for_correctness,
-            &output,
-        )?;
-
-        if start < tau_powers_length {
-            // Check that the powers of tau are correct
-            let check_pairs = &[
-                (
-                    power_pairs(&after.tau_powers_g1),
-                    g2_check,
-                    "PowerPairs TauG1",
-                ),
-                (
-                    power_pairs(&after.alpha_tau_powers_g1),
-                    g2_check,
-                    "PowerPairs AlphaG1",
-                ),
-                (
-                    power_pairs(&after.beta_tau_powers_g1),
-                    g2_check,
-                    "PowerPairs BetaG1",
-                ),
-                // we change the order because the tuple is of the form (G1, G2)
-                // the pairing is a commutative operation, so it doesn't affect the result
-                (
-                    *g1_check,
-                    &power_pairs(&after.tau_powers_g2),
-                    "PowerPairs TauG2",
-                ),
-            ];
-
-            for (a, b, err) in check_pairs {
-                check_same_ratio(a, b, err)?;
-            }
-
-            if end == tau_powers_length - 1 {
-                tau_powers_last_first_chunks[0] = after.tau_powers_g1[size - 1];
-            }
-        } else {
-            check_same_ratio(
-                &power_pairs(&after.tau_powers_g1),
-                g2_check,
-                "PowerPairs Tau G1",
-            )?;
-
-            if start == parameters.powers_length {
-                tau_powers_last_first_chunks[1] = after.tau_powers_g1[0];
-            }
-        }
-    }
-
-    // checks the intersection
-    // todo: do we still need this now that we have combined the 2 loops?
-    check_same_ratio(
-        &power_pairs(&tau_powers_last_first_chunks),
-        g2_check,
-        "LastChunk PowerPairs Tau G1",
-    )?;
-
-    Ok(())
-}
-
-/// Checks that ate initial ratios are correctly formed
-fn check_initial_conditions<E: Engine>(
-    before: &BatchedAccumulator<E>,
-    after: &BatchedAccumulator<E>,
-    params: &Params<E>,
-) -> Result<()> {
-    let tau_g2_check = params.tau_g2;
-    let alpha_g2_check = params.alpha_g2;
-    let beta_g2_check = params.beta_g2;
-    let other_beta = params.other_beta_g2;
-
-    // Check the correctness of the generators for tau powers
-    if after.tau_powers_g1[0] != E::G1Affine::prime_subgroup_generator() {
-        return Err(VerificationError::InvalidGenerator(ElementType::TauG1).into());
-    }
-    if after.tau_powers_g2[0] != E::G2Affine::prime_subgroup_generator() {
-        return Err(VerificationError::InvalidGenerator(ElementType::TauG2).into());
-    }
-
-    let check_ratios = &[
-        // Did the participant multiply the previous tau by the new one?
-        (
-            (before.tau_powers_g1[1], after.tau_powers_g1[1]),
-            tau_g2_check,
-            "Before-After: Tau[1] G1<>G2",
-        ),
-        // Did the participant multiply the previous alpha by the new one?
-        (
-            (before.alpha_tau_powers_g1[0], after.alpha_tau_powers_g1[0]),
-            alpha_g2_check,
-            "Before-After: Alpha[0] G1<>G2",
-        ),
-        // Did the participant multiply the previous beta by the new one?
-        (
-            (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
-            beta_g2_check,
-            "Before-After: Beta[0] G1<>G2",
-        ),
-        // todo: since we're checking with the same G1 elements above, can't we remove the same_ratio
-        // call and replace it with an assertion that the G2 elements are the same as above?
-        (
-            (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
-            other_beta,
-            "Before-After: Beta[0] G1<>G2",
-        ),
-    ];
-
-    for (a, b, err) in check_ratios {
-        check_same_ratio(a, b, err)?;
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]
