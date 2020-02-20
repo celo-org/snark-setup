@@ -169,73 +169,33 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         // Load accumulators AND perform computations
         let mut before = Self::empty(parameters);
         let mut after = Self::empty(parameters);
+        let chunk_size = 2;
+        before.read_chunk(
+            0,
+            chunk_size,
+            input_is_compressed,
+            check_input_for_correctness,
+            &input,
+        )?;
+        after.read_chunk(
+            0,
+            chunk_size,
+            output_is_compressed,
+            check_output_for_correctness,
+            &output,
+        )?;
+        let params = Params {
+            tau_g2: tau_g2_check,
+            alpha_g2: alpha_g2_check,
+            beta_g2: beta_g2_check,
+            other_beta_g2: &(before.beta_g2, after.beta_g2),
+        };
+        check_initial_conditions(&before, &after, &params)?;
 
-        // these checks only touch a part of the accumulator, so read two elements
-
-        {
-            let chunk_size = 2;
-            before.read_chunk(
-                0,
-                chunk_size,
-                input_is_compressed,
-                check_input_for_correctness,
-                &input,
-            )?;
-            after.read_chunk(
-                0,
-                chunk_size,
-                output_is_compressed,
-                check_output_for_correctness,
-                &output,
-            )?;
-
-            // Check the correctness of the generators for tau powers
-            if after.tau_powers_g1[0] != E::G1Affine::prime_subgroup_generator() {
-                return Err(VerificationError::InvalidGenerator(ElementType::TauG1).into());
-            }
-            if after.tau_powers_g2[0] != E::G2Affine::prime_subgroup_generator() {
-                return Err(VerificationError::InvalidGenerator(ElementType::TauG2).into());
-            }
-
-            let check_ratios = &[
-                // Did the participant multiply the previous tau by the new one?
-                (
-                    (before.tau_powers_g1[1], after.tau_powers_g1[1]),
-                    tau_g2_check,
-                    "Before-After: Tau[1] G1<>G2",
-                ),
-                // Did the participant multiply the previous alpha by the new one?
-                (
-                    (before.alpha_tau_powers_g1[0], after.alpha_tau_powers_g1[0]),
-                    alpha_g2_check,
-                    "Before-After: Alpha[0] G1<>G2",
-                ),
-                // Did the participant multiply the previous beta by the new one?
-                (
-                    (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
-                    beta_g2_check,
-                    "Before-After: Beta[0] G1<>G2",
-                ),
-                // todo: since we're checking with the same G1 elements above, can't we remove the same_ratio
-                // call and replace it with an assertion that the G2 elements are the same as above?
-                (
-                    (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
-                    &(before.beta_g2, after.beta_g2),
-                    "Before-After: Beta[0] G1<>G2",
-                ),
-            ];
-
-            for (a, b, err) in check_ratios {
-                check_same_ratio(a, b, err)?;
-            }
-        }
-
+        // Read by parts and just verify same ratios. Cause of two fixed variables with tau_powers_g2_1 = tau_powers_g2_0 ^ s
+        // one does not need to care about some overlapping
         let g1_check = &(after.tau_powers_g1[0], after.tau_powers_g1[1]);
         let g2_check = &(after.tau_powers_g2[0], after.tau_powers_g2[1]);
-
-        // Read by parts and just verify same ratios. Cause of two fixed variables above with tau_powers_g2_1 = tau_powers_g2_0 ^ s
-        // one does not need to care about some overlapping
-
         let mut tau_powers_last_first_chunks = vec![E::G1Affine::zero(); 2];
         let tau_powers_length = parameters.powers_length;
         for chunk in &(0..tau_powers_length).chunks(parameters.batch_size) {
@@ -829,6 +789,68 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
         Ok(())
     }
+}
+
+// these checks only touch a part of the accumulator, so read two elements
+struct Params<'a, E: Engine> {
+    tau_g2: &'a (E::G2Affine, E::G2Affine),
+    alpha_g2: &'a (E::G2Affine, E::G2Affine),
+    beta_g2: &'a (E::G2Affine, E::G2Affine),
+    other_beta_g2: &'a (E::G2Affine, E::G2Affine),
+}
+
+/// Checks that ate initial ratios are correctly formed
+fn check_initial_conditions<E: Engine>(
+    before: &BatchedAccumulator<E>,
+    after: &BatchedAccumulator<E>,
+    params: &Params<E>,
+) -> Result<()> {
+    let tau_g2_check = params.tau_g2;
+    let alpha_g2_check = params.alpha_g2;
+    let beta_g2_check = params.beta_g2;
+    let other_beta = params.other_beta_g2;
+
+    // Check the correctness of the generators for tau powers
+    if after.tau_powers_g1[0] != E::G1Affine::prime_subgroup_generator() {
+        return Err(VerificationError::InvalidGenerator(ElementType::TauG1).into());
+    }
+    if after.tau_powers_g2[0] != E::G2Affine::prime_subgroup_generator() {
+        return Err(VerificationError::InvalidGenerator(ElementType::TauG2).into());
+    }
+
+    let check_ratios = &[
+        // Did the participant multiply the previous tau by the new one?
+        (
+            (before.tau_powers_g1[1], after.tau_powers_g1[1]),
+            tau_g2_check,
+            "Before-After: Tau[1] G1<>G2",
+        ),
+        // Did the participant multiply the previous alpha by the new one?
+        (
+            (before.alpha_tau_powers_g1[0], after.alpha_tau_powers_g1[0]),
+            alpha_g2_check,
+            "Before-After: Alpha[0] G1<>G2",
+        ),
+        // Did the participant multiply the previous beta by the new one?
+        (
+            (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
+            beta_g2_check,
+            "Before-After: Beta[0] G1<>G2",
+        ),
+        // todo: since we're checking with the same G1 elements above, can't we remove the same_ratio
+        // call and replace it with an assertion that the G2 elements are the same as above?
+        (
+            (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
+            other_beta,
+            "Before-After: Beta[0] G1<>G2",
+        ),
+    ];
+
+    for (a, b, err) in check_ratios {
+        check_same_ratio(a, b, err)?;
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
