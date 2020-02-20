@@ -251,8 +251,8 @@ mod tests {
         let g1_s = g1.mul(s).into_affine();
         let g2_s = g2.mul(s).into_affine();
 
-        assert!(same_ratio((g1, g1_s), (g2, g2_s)));
-        assert!(!same_ratio((g1_s, g1), (g2, g2_s)));
+        assert!(same_ratio(&(g1, g1_s), &(g2, g2_s)));
+        assert!(!same_ratio(&(g1_s, g1), &(g2, g2_s)));
     }
 
     #[test]
@@ -271,15 +271,15 @@ mod tests {
         let gx = G2Affine::prime_subgroup_generator().mul(x).into_affine();
 
         assert!(same_ratio(
-            power_pairs(&v),
-            (G2Affine::prime_subgroup_generator(), gx)
+            &power_pairs(&v),
+            &(G2Affine::prime_subgroup_generator(), gx)
         ));
 
         v[1] = v[1].mul(Fr::rand(rng)).into_affine();
 
         assert!(!same_ratio(
-            power_pairs(&v),
-            (G2Affine::prime_subgroup_generator(), gx)
+            &power_pairs(&v),
+            &(G2Affine::prime_subgroup_generator(), gx)
         ));
     }
 }
@@ -318,7 +318,7 @@ pub fn reduced_hash(old_power: u8, new_power: u8) -> GenericArray<u8, U64> {
 /// Checks if pairs have the same ratio.
 /// Under the hood uses pairing to check
 /// x1/x2 = y1/y2 => x1*y2 = x2*y1
-pub fn same_ratio<G: PairingCurve>(g1: (G, G), g2: (G::PairWith, G::PairWith)) -> bool {
+pub fn same_ratio<G: PairingCurve>(g1: &(G, G), g2: &(G::PairWith, G::PairWith)) -> bool {
     g1.0.pairing_with(&g2.1) == g1.1.pairing_with(&g2.0)
 }
 
