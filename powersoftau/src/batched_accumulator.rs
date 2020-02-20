@@ -12,7 +12,7 @@ use typenum::consts::U64;
 
 use super::keypair::{PrivateKey, PublicKey};
 use super::parameters::{
-    CeremonyParams, CheckForCorrectness, DeserializationError, ElementType, UseCompression,
+    CeremonyParams, CheckForCorrectness, ElementType, Error, UseCompression, VerificationError,
 };
 use super::utils::{batch_exp, blank_hash, compute_g2_s, power_pairs, same_ratio};
 
@@ -24,6 +24,9 @@ pub enum AccumulatorState {
     NonEmpty,
     Transformed,
 }
+
+/// A convenience result type for returning errors
+type Result<T> = std::result::Result<T, Error>;
 
 /// The `BatchedAccumulator` is an object that participants of the ceremony contribute
 /// randomness to. This object contains powers of trapdoor `tau` in G1 and in G2 over
@@ -75,7 +78,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         index: usize,
         element_type: ElementType,
         compression: UseCompression,
-    ) -> Result<usize, DeserializationError> {
+    ) -> Result<usize> {
         let g1_size = self.parameters.curve.g1_size(compression);
         let g2_size = self.parameters.curve.g2_size(compression);
         let required_tau_g1_power = self.parameters.powers_g1_length;
@@ -84,7 +87,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         let position = match element_type {
             ElementType::TauG1 => {
                 if index >= required_tau_g1_power {
-                    return Err(DeserializationError::PositionError(
+                    return Err(Error::PositionError(
                         element_type,
                         required_tau_g1_power,
                         index,
@@ -94,31 +97,19 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
             }
             ElementType::TauG2 => {
                 if index >= required_power {
-                    return Err(DeserializationError::PositionError(
-                        element_type,
-                        required_power,
-                        index,
-                    ));
+                    return Err(Error::PositionError(element_type, required_power, index));
                 }
                 g1_size * required_tau_g1_power + g2_size * index
             }
             ElementType::AlphaG1 => {
                 if index >= required_power {
-                    return Err(DeserializationError::PositionError(
-                        element_type,
-                        required_power,
-                        index,
-                    ));
+                    return Err(Error::PositionError(element_type, required_power, index));
                 }
                 g1_size * required_tau_g1_power + g2_size * required_power + g1_size * index
             }
             ElementType::BetaG1 => {
                 if index >= required_power {
-                    return Err(DeserializationError::PositionError(
-                        element_type,
-                        required_power,
-                        index,
-                    ));
+                    return Err(Error::PositionError(element_type, required_power, index));
                 }
                 g1_size * required_tau_g1_power
                     + g2_size * required_power
@@ -159,15 +150,15 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         // Check the proofs-of-knowledge for tau/alpha/beta
 
         // g1^s / g1^(s*x) = g2^s / g2^(s*x)
-        if !same_ratio(key.tau_g1, (tau_g2_s, key.tau_g2)) {
+        if !same_ratio(&key.tau_g1, &(tau_g2_s, key.tau_g2)) {
             error!("Invalid ratio key.tau_g1, (tau_g2_s, key.tau_g2)");
             return false;
         }
-        if !same_ratio(key.alpha_g1, (alpha_g2_s, key.alpha_g2)) {
+        if !same_ratio(&key.alpha_g1, &(alpha_g2_s, key.alpha_g2)) {
             error!("Invalid ratio key.alpha_g1, (alpha_g2_s, key.alpha_g2)");
             return false;
         }
-        if !same_ratio(key.beta_g1, (beta_g2_s, key.beta_g2)) {
+        if !same_ratio(&key.beta_g1, &(beta_g2_s, key.beta_g2)) {
             error!("Invalid ratio key.beta_g1, (beta_g2_s, key.beta_g2)");
             return false;
         }
@@ -212,8 +203,8 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
             // Did the participant multiply the previous tau by the new one?
             if !same_ratio(
-                (before.tau_powers_g1[1], after.tau_powers_g1[1]),
-                (tau_g2_s, key.tau_g2),
+                &(before.tau_powers_g1[1], after.tau_powers_g1[1]),
+                &(tau_g2_s, key.tau_g2),
             ) {
                 error!("Invalid ratio (before.tau_powers_g1[1], after.tau_powers_g1[1]), (tau_g2_s, key.tau_g2)");
                 return false;
@@ -221,8 +212,8 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
             // Did the participant multiply the previous alpha by the new one?
             if !same_ratio(
-                (before.alpha_tau_powers_g1[0], after.alpha_tau_powers_g1[0]),
-                (alpha_g2_s, key.alpha_g2),
+                &(before.alpha_tau_powers_g1[0], after.alpha_tau_powers_g1[0]),
+                &(alpha_g2_s, key.alpha_g2),
             ) {
                 error!("Invalid ratio (before.alpha_tau_powers_g1[0], after.alpha_tau_powers_g1[0]), (alpha_g2_s, key.alpha_g2)");
                 return false;
@@ -230,15 +221,15 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
             // Did the participant multiply the previous beta by the new one?
             if !same_ratio(
-                (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
-                (beta_g2_s, key.beta_g2),
+                &(before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
+                &(beta_g2_s, key.beta_g2),
             ) {
                 error!("Invalid ratio (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]), (beta_g2_s, key.beta_g2)");
                 return false;
             }
             if !same_ratio(
-                (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
-                (before.beta_g2, after.beta_g2),
+                &(before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]),
+                &(before.beta_g2, after.beta_g2),
             ) {
                 error!("Invalid ratio (before.beta_tau_powers_g1[0], after.beta_tau_powers_g1[0]), (before.beta_g2, after.beta_g2)");
                 return false;
@@ -290,29 +281,29 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
                 // Are the powers of tau correct?
                 if !same_ratio(
-                    power_pairs(&after.tau_powers_g1),
-                    (tau_powers_g2_0, tau_powers_g2_1),
+                    &power_pairs(&after.tau_powers_g1),
+                    &(tau_powers_g2_0, tau_powers_g2_1),
                 ) {
                     error!("Invalid ratio power_pairs(&after.tau_powers_g1), (tau_powers_g2_0, tau_powers_g2_1)");
                     return false;
                 }
                 if !same_ratio(
-                    power_pairs(&after.tau_powers_g2),
-                    (tau_powers_g1_0, tau_powers_g1_1),
+                    &power_pairs(&after.tau_powers_g2),
+                    &(tau_powers_g1_0, tau_powers_g1_1),
                 ) {
                     error!("Invalid ratio power_pairs(&after.tau_powers_g2), (tau_powers_g1_0, tau_powers_g1_1)");
                     return false;
                 }
                 if !same_ratio(
-                    power_pairs(&after.alpha_tau_powers_g1),
-                    (tau_powers_g2_0, tau_powers_g2_1),
+                    &power_pairs(&after.alpha_tau_powers_g1),
+                    &(tau_powers_g2_0, tau_powers_g2_1),
                 ) {
                     error!("Invalid ratio power_pairs(&after.alpha_tau_powers_g1), (tau_powers_g2_0, tau_powers_g2_1)");
                     return false;
                 }
                 if !same_ratio(
-                    power_pairs(&after.beta_tau_powers_g1),
-                    (tau_powers_g2_0, tau_powers_g2_1),
+                    &power_pairs(&after.beta_tau_powers_g1),
+                    &(tau_powers_g2_0, tau_powers_g2_1),
                 ) {
                     error!("Invalid ratio power_pairs(&after.beta_tau_powers_g1), (tau_powers_g2_0, tau_powers_g2_1)");
                     return false;
@@ -379,8 +370,8 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
                 // Are the powers of tau correct?
                 if !same_ratio(
-                    power_pairs(&after.tau_powers_g1),
-                    (tau_powers_g2_0, tau_powers_g2_1),
+                    &power_pairs(&after.tau_powers_g1),
+                    &(tau_powers_g2_0, tau_powers_g2_1),
                 ) {
                     error!("Invalid ratio power_pairs(&after.tau_powers_g1), (tau_powers_g2_0, tau_powers_g2_1) in extra TauG1 contribution");
                     return false;
@@ -395,8 +386,8 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         }
 
         if !same_ratio(
-            power_pairs(&tau_powers_last_first_chunks),
-            (tau_powers_g2_0, tau_powers_g2_1),
+            &power_pairs(&tau_powers_last_first_chunks),
+            &(tau_powers_g2_0, tau_powers_g2_1),
         ) {
             error!("Invalid ratio power_pairs(&after.tau_powers_g1), (tau_powers_g2_0, tau_powers_g2_1) in TauG1 contribution intersection");
             return false;
@@ -410,26 +401,19 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         output: &mut [u8],
         check_input_for_correctness: CheckForCorrectness,
         parameters: &'a CeremonyParams<E>,
-    ) -> Result<(), DeserializationError> {
+    ) -> Result<()> {
         let mut accumulator = Self::empty(parameters);
 
         for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
             if let MinMax(start, end) = chunk.minmax() {
                 let size = end - start + 1;
-                accumulator
-                    .read_chunk(
-                        start,
-                        size,
-                        UseCompression::Yes,
-                        check_input_for_correctness,
-                        &input,
-                    )
-                    .unwrap_or_else(|_| {
-                        panic!(format!(
-                            "must read a chunk from {} to {} from source of decompression",
-                            start, end
-                        ))
-                    });
+                accumulator.read_chunk(
+                    start,
+                    size,
+                    UseCompression::Yes,
+                    check_input_for_correctness,
+                    &input,
+                )?;
                 accumulator.write_chunk(start, UseCompression::No, output)?;
             } else {
                 panic!("Chunk does not have a min and max");
@@ -441,20 +425,13 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         {
             if let MinMax(start, end) = chunk.minmax() {
                 let size = end - start + 1;
-                accumulator
-                    .read_chunk(
-                        start,
-                        size,
-                        UseCompression::Yes,
-                        check_input_for_correctness,
-                        &input,
-                    )
-                    .unwrap_or_else(|_| {
-                        panic!(format!(
-                            "must read a chunk from {} to {} from source of decompression",
-                            start, end
-                        ))
-                    });
+                accumulator.read_chunk(
+                    start,
+                    size,
+                    UseCompression::Yes,
+                    check_input_for_correctness,
+                    &input,
+                )?;
                 assert_eq!(
                     accumulator.tau_powers_g2.len(),
                     0,
@@ -485,7 +462,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         check_input_for_correctness: CheckForCorrectness,
         compression: UseCompression,
         parameters: &'a CeremonyParams<E>,
-    ) -> Result<BatchedAccumulator<'a, E>, DeserializationError> {
+    ) -> Result<BatchedAccumulator<'a, E>> {
         let mut accumulator = Self::empty(parameters);
 
         let mut tau_powers_g1 = vec![];
@@ -497,20 +474,13 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
             if let MinMax(start, end) = chunk.minmax() {
                 let size = end - start + 1;
-                accumulator
-                    .read_chunk(
-                        start,
-                        size,
-                        compression,
-                        check_input_for_correctness,
-                        &input,
-                    )
-                    .unwrap_or_else(|_| {
-                        panic!(format!(
-                            "must read a chunk from {} to {} from source of decompression",
-                            start, end
-                        ))
-                    });
+                accumulator.read_chunk(
+                    start,
+                    size,
+                    compression,
+                    check_input_for_correctness,
+                    &input,
+                )?;
                 tau_powers_g1.extend_from_slice(&accumulator.tau_powers_g1);
                 tau_powers_g2.extend_from_slice(&accumulator.tau_powers_g2);
                 alpha_tau_powers_g1.extend_from_slice(&accumulator.alpha_tau_powers_g1);
@@ -528,20 +498,13 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         {
             if let MinMax(start, end) = chunk.minmax() {
                 let size = end - start + 1;
-                accumulator
-                    .read_chunk(
-                        start,
-                        size,
-                        compression,
-                        check_input_for_correctness,
-                        &input,
-                    )
-                    .unwrap_or_else(|_| {
-                        panic!(format!(
-                            "must read a chunk from {} to {} from source of decompression",
-                            start, end
-                        ))
-                    });
+                accumulator.read_chunk(
+                    start,
+                    size,
+                    compression,
+                    check_input_for_correctness,
+                    &input,
+                )?;
                 assert_eq!(
                     accumulator.tau_powers_g2.len(),
                     0,
@@ -583,7 +546,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         output: &mut [u8],
         compression: UseCompression,
         parameters: &CeremonyParams<E>,
-    ) -> Result<(), DeserializationError> {
+    ) -> Result<()> {
         for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
             if let MinMax(start, end) = chunk.minmax() {
                 let tmp_acc = BatchedAccumulator::<E> {
@@ -630,7 +593,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         compression: UseCompression,
         checked: CheckForCorrectness,
         input: &[u8],
-    ) -> Result<(), DeserializationError> {
+    ) -> Result<()> {
         // Read `size` G1 Tau Elements
         self.tau_powers_g1 =
             self.read_points_chunk(&input, from, size, ElementType::TauG1, compression, checked)?;
@@ -674,7 +637,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         element_type: ElementType,
         compression: UseCompression,
         checked: CheckForCorrectness,
-    ) -> Result<Vec<G>, DeserializationError> {
+    ) -> Result<Vec<G>> {
         let element_size = self.parameters.curve.get_size(element_type, compression);
         (from..from + size)
             .into_par_iter()
@@ -703,7 +666,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                 };
 
                 Some(if point.is_zero() && checked == CheckForCorrectness::Yes {
-                    Err(DeserializationError::PointAtInfinity)
+                    Err(Error::PointAtInfinity)
                 } else {
                     Ok(point)
                 })
@@ -737,7 +700,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         index: usize,
         compression: UseCompression,
         element_type: ElementType,
-    ) -> Result<(), DeserializationError>
+    ) -> Result<()>
     where
         C: AffineCurve,
     {
@@ -766,7 +729,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         chunk_start: usize,
         compressed: UseCompression,
         element_type: ElementType,
-    ) -> Result<(), DeserializationError> {
+    ) -> Result<()> {
         let output = Arc::new(RwLock::new(output));
         // Does this provide significant performance benefits?
         elements.par_iter().enumerate().for_each(|(i, c)| {
@@ -787,7 +750,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         index: usize,
         compression: UseCompression,
         element_type: ElementType,
-    ) -> Result<(), DeserializationError>
+    ) -> Result<()>
     where
         C: AffineCurve,
     {
@@ -801,7 +764,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         chunk_start: usize,
         compression: UseCompression,
         output: &mut [u8],
-    ) -> Result<(), DeserializationError> {
+    ) -> Result<()> {
         // Write the G1 Tau elements
         self.write_points_chunk(
             &self.tau_powers_g1,
@@ -863,7 +826,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         check_input_for_correctness: CheckForCorrectness,
         key: &PrivateKey<E>,
         parameters: &'a CeremonyParams<E>,
-    ) -> Result<(), DeserializationError> {
+    ) -> Result<()> {
         let mut accumulator = Self::empty(parameters);
 
         for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
@@ -978,7 +941,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         output: &mut [u8],
         compress_the_output: UseCompression,
         parameters: &'a CeremonyParams<E>,
-    ) -> Result<(), DeserializationError> {
+    ) -> Result<()> {
         // Write the first Tau powers in chunks where every initial element is a G1 or G2 `one`
         for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
             if let MinMax(start, end) = chunk.minmax() {
