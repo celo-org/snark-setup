@@ -2,7 +2,8 @@ use blake2::{Blake2b, Digest};
 use rand::Rng;
 use typenum::consts::U64;
 use zexe_algebra::{
-    AffineCurve, PairingEngine, ProjectiveCurve, SerializationError, ToBytes, UniformRand,
+    AffineCurve, CanonicalSerialize, PairingEngine, ProjectiveCurve, SerializationError,
+    UniformRand,
 };
 
 use super::parameters::{CeremonyParams, DeserializationError, UseCompression};
@@ -71,9 +72,13 @@ pub fn keypair<E: PairingEngine>(
             h.input(&[personalization]);
             h.input(digest);
             let g1_el = {
-                let mut v = Vec::new();
-                g1_s.write(&mut v).expect("could not serialize g1_s");
-                g1_s_x.write(&mut v).expect("could not serialize g1_s_x");
+                let size = E::G1Affine::buffer_size();
+                let mut v = vec![0; 2 * size];
+                g1_s.serialize(&[], &mut v[..size])
+                    .expect("could not serialize g1_s");
+                g1_s_x
+                    .serialize(&[], &mut v[size..])
+                    .expect("could not serialize g1_s_x");
                 v
             };
             h.input(&g1_el);
