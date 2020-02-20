@@ -735,20 +735,28 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
     ) -> Result<()> {
         let mut accumulator = Self::empty(parameters);
 
-        for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
-            if let MinMax(start, end) = chunk.minmax() {
-                let size = end - start + 1;
-                accumulator.read_chunk(
-                    start,
-                    size,
-                    input_is_compressed,
-                    check_input_for_correctness,
-                    &input,
-                )?;
+        for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
+            let (start, end) = if let MinMax(start, end) = chunk.minmax() {
+                (start, end)
+            } else {
+                return Err(Error::InvalidChunk);
+            };
 
-                let taupowers = generate_powers_of_tau::<E>(&key.tau, start, size);
+            let size = end - start + 1;
+            accumulator.read_chunk(
+                start,
+                size,
+                input_is_compressed,
+                check_input_for_correctness,
+                &input,
+            )?;
 
-                batch_exp(&mut accumulator.tau_powers_g1, &taupowers[0..], None);
+            // generate the powers from our private key
+            let taupowers = generate_powers_of_tau::<E>(&key.tau, start, size);
+
+            // batch Exp everything up to powers_length, and TauG1 additionally up to the full length
+            batch_exp(&mut accumulator.tau_powers_g1, &taupowers[0..], None);
+            if start < parameters.powers_length {
                 batch_exp(&mut accumulator.tau_powers_g2, &taupowers[0..], None);
                 batch_exp(
                     &mut accumulator.alpha_tau_powers_g1,
@@ -765,39 +773,16 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                     return Err(Error::PointAtInfinity);
                 }
                 accumulator.write_chunk(start, compress_the_output, output)?;
-                info!("Done processing {} powers of tau", end);
             } else {
-                return Err(Error::InvalidChunk);
-            }
-        }
-
-        for chunk in
-            &(parameters.powers_length..parameters.powers_g1_length).chunks(parameters.batch_size)
-        {
-            if let MinMax(start, end) = chunk.minmax() {
-                let size = end - start + 1;
-                accumulator.read_chunk(
+                accumulator.write_points_chunk(
+                    &accumulator.tau_powers_g1,
+                    output,
                     start,
-                    size,
-                    input_is_compressed,
-                    check_input_for_correctness,
-                    &input,
+                    compress_the_output,
+                    ElementType::TauG1,
                 )?;
-                if !accumulator.tau_powers_g2.is_empty() {
-                    return Err(Error::InvalidLength {
-                        expected: 0,
-                        got: accumulator.tau_powers_g2.len(),
-                    });
-                }
-
-                let taupowers = generate_powers_of_tau::<E>(&key.tau, start, size);
-                batch_exp(&mut accumulator.tau_powers_g1, &taupowers[0..], None);
-                accumulator.write_chunk(start, compress_the_output, output)?;
-
-                info!("Done processing {} powers of tau", end);
-            } else {
-                return Err(Error::InvalidChunk);
             }
+            info!("Done processing {} powers of tau", end);
         }
 
         Ok(())
