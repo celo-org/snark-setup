@@ -2,11 +2,11 @@ use blake2::{Blake2b, Digest};
 use rand::Rng;
 use typenum::consts::U64;
 use zexe_algebra::{
-    AffineCurve, CanonicalSerialize, PairingEngine, ProjectiveCurve, SerializationError,
+    AffineCurve, CanonicalSerialize, PairingEngine, ProjectiveCurve,
     UniformRand,
 };
 
-use super::parameters::{CeremonyParams, DeserializationError, UseCompression};
+use super::parameters::{CeremonyParams, Error, UseCompression};
 use super::utils::hash_to_g2;
 
 /// Contains terms of the form (s<sub>1</sub>, s<sub>1</sub><sup>x</sup>, H(s<sub>1</sub><sup>x</sup>)<sub>2</sub>, H(s<sub>1</sub><sup>x</sup>)<sub>2</sub><sup>x</sup>)
@@ -92,7 +92,7 @@ pub fn keypair<E: PairingEngine>(
         ((g1_s, g1_s_x), g2_s_x)
     };
 
-    // these "public keys" are required for for next participants to check that points are in fact
+    // these "public keys" are required for the next participants to check that points are in fact
     // sequential powers
     let pk_tau = op(tau, 0);
     let pk_alpha = op(alpha, 1);
@@ -118,7 +118,7 @@ impl<E: PairingEngine> PublicKey<E> {
         writer: &mut [u8],
         g1_size: usize,
         g2_size: usize,
-    ) -> Result<(), SerializationError> {
+    ) -> Result<(), Error> {
         let g1_elements = &[
             self.tau_g1.0,
             self.tau_g1.1,
@@ -150,7 +150,7 @@ impl<E: PairingEngine> PublicKey<E> {
         reader: &[u8],
         g1_size: usize,
         g2_size: usize,
-    ) -> Result<PublicKey<E>, DeserializationError> {
+    ) -> Result<PublicKey<E>, Error> {
         // Deserialize the first 6 G1 elements
         let g1_els = read_elements::<E::G1Affine>(reader, 6, g1_size, UseCompression::No)?;
         // Deserialize the next 3 G2 elements
@@ -177,7 +177,7 @@ impl<E: PairingEngine> PublicKey<E> {
         output_map: &mut [u8],
         accumulator_was_compressed: UseCompression,
         parameters: &CeremonyParams<E>,
-    ) -> Result<(), DeserializationError> {
+    ) -> Result<(), Error> {
         let position = match accumulator_was_compressed {
             UseCompression::Yes => parameters.contribution_size - parameters.public_key_size,
             UseCompression::No => parameters.accumulator_size,
@@ -199,7 +199,7 @@ impl<E: PairingEngine> PublicKey<E> {
         input_map: &[u8],
         accumulator_was_compressed: UseCompression,
         parameters: &CeremonyParams<E>,
-    ) -> Result<Self, DeserializationError> {
+    ) -> Result<Self, Error> {
         let position = match accumulator_was_compressed {
             UseCompression::Yes => parameters.contribution_size - parameters.public_key_size,
             UseCompression::No => parameters.accumulator_size,
@@ -219,7 +219,7 @@ fn write_elements(
     elements: &[impl AffineCurve],
     group_size: usize,
     compressed: UseCompression,
-) -> Result<(), SerializationError> {
+) -> Result<(), Error> {
     for (i, element) in elements.iter().enumerate() {
         if compressed == UseCompression::Yes {
             element.serialize(&[], &mut buffer[i * group_size..(i + 1) * group_size])?;
@@ -237,7 +237,7 @@ fn read_elements<G: AffineCurve>(
     num_elements: usize,
     group_size: usize,
     compressed: UseCompression,
-) -> Result<Vec<G>, SerializationError> {
+) -> Result<Vec<G>, Error> {
     let mut ret = Vec::with_capacity(num_elements);
     for i in 0..num_elements {
         let element = if compressed == UseCompression::Yes {
