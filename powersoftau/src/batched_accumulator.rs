@@ -788,16 +788,21 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         Ok(())
     }
 
-    /// Transforms the accumulator with a private key.
+    /// Generates the initial accumulator
     pub fn generate_initial(
         output: &mut [u8],
         compress_the_output: UseCompression,
         parameters: &'a CeremonyParams<E>,
     ) -> Result<()> {
         // Write the first Tau powers in chunks where every initial element is a G1 or G2 `one`
-        for chunk in &(0..parameters.powers_length).chunks(parameters.batch_size) {
-            if let MinMax(start, end) = chunk.minmax() {
-                let size = end - start + 1;
+        for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
+            let (start, end) = if let MinMax(start, end) = chunk.minmax() {
+                (start, end)
+            } else {
+                return Err(Error::InvalidChunk);
+            };
+            let size = end - start + 1;
+            if start < parameters.powers_length {
                 let accumulator = Self {
                     tau_powers_g1: vec![E::G1Affine::prime_subgroup_generator(); size],
                     tau_powers_g2: vec![E::G2Affine::prime_subgroup_generator(); size],
@@ -807,36 +812,20 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                     hash: blank_hash(),
                     parameters,
                 };
-
                 accumulator.write_chunk(start, compress_the_output, output)?;
-                info!("Done processing {} powers of tau", end);
             } else {
-                return Err(Error::InvalidChunk);
+                let powers = vec![E::G1Affine::prime_subgroup_generator(); size];
+                let acc = Self::empty(parameters);
+                acc.write_points_chunk(
+                    &powers,
+                    output,
+                    start,
+                    compress_the_output,
+                    ElementType::TauG1,
+                )?;
             }
         }
-
-        // Write the next `G1 length` elements
-        for chunk in
-            &(parameters.powers_length..parameters.powers_g1_length).chunks(parameters.batch_size)
-        {
-            if let MinMax(start, end) = chunk.minmax() {
-                let size = end - start + 1;
-                let accumulator = Self {
-                    tau_powers_g1: vec![E::G1Affine::prime_subgroup_generator(); size],
-                    tau_powers_g2: vec![],
-                    alpha_tau_powers_g1: vec![],
-                    beta_tau_powers_g1: vec![],
-                    beta_g2: E::G2Affine::prime_subgroup_generator(),
-                    hash: blank_hash(),
-                    parameters,
-                };
-
-                accumulator.write_chunk(start, compress_the_output, output)?;
-                info!("Done processing {} powers of tau", end);
-            } else {
-                return Err(Error::InvalidChunk);
-            }
-        }
+        info!("Initial accumulator created");
 
         Ok(())
     }
