@@ -217,13 +217,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
     ) -> Result<()> {
         let mut accumulator = Self::empty(parameters);
 
-        for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
-            let (start, end) = match chunk.minmax() {
-                MinMaxResult::MinMax(start, end) => (start, end),
-                MinMaxResult::OneElement(start) => (start, start),
-                _ => return Err(Error::InvalidChunk),
-            };
-
+        Self::iter_chunk(parameters, |start, end| {
             let size = end - start + 1;
             accumulator.read_chunk(
                 start,
@@ -244,7 +238,9 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                     ElementType::TauG1,
                 )?;
             }
-        }
+
+            Ok(())
+        })?;
 
         Ok(())
     }
@@ -263,13 +259,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         let mut beta_tau_powers_g1 = vec![];
         let mut beta_g2 = E::G2Affine::zero();
 
-        for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
-            let (start, end) = match chunk.minmax() {
-                MinMaxResult::MinMax(start, end) => (start, end),
-                MinMaxResult::OneElement(start) => (start, start),
-                _ => return Err(Error::InvalidChunk),
-            };
-
+        Self::iter_chunk(parameters, |start, end| {
             let size = end - start + 1;
             accumulator.read_chunk(
                 start,
@@ -291,7 +281,9 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
             } else {
                 tau_powers_g1.extend_from_slice(&accumulator.tau_powers_g1);
             }
-        }
+
+            Ok(())
+        })?;
 
         Ok(BatchedAccumulator {
             tau_powers_g1,
@@ -310,12 +302,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         compression: UseCompression,
         parameters: &'a CeremonyParams<E>,
     ) -> Result<()> {
-        for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
-            let (start, end_taug1) = match chunk.minmax() {
-                MinMaxResult::MinMax(start, end) => (start, end),
-                MinMaxResult::OneElement(start) => (start, start),
-                _ => return Err(Error::InvalidChunk),
-            };
+        Self::iter_chunk(parameters, |start, end_taug1| {
             if start < parameters.powers_length {
                 // Ensure we do not exceed bounds
                 let end_powers = std::cmp::min(parameters.powers_length - 1, end_taug1);
@@ -338,7 +325,9 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                     ElementType::TauG1,
                 )?;
             }
-        }
+
+            Ok(())
+        })?;
 
         Ok(())
     }
@@ -586,13 +575,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
     ) -> Result<()> {
         let mut accumulator = Self::empty(parameters);
 
-        for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
-            let (start, end) = match chunk.minmax() {
-                MinMaxResult::MinMax(start, end) => (start, end),
-                MinMaxResult::OneElement(start) => (start, start),
-                _ => return Err(Error::InvalidChunk),
-            };
-
+        Self::iter_chunk(parameters, |start, end| {
             let size = end - start + 1;
             accumulator.read_chunk(
                 start,
@@ -633,8 +616,11 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                     ElementType::TauG1,
                 )?;
             }
-            info!("Done processing {} powers of tau", end);
-        }
+
+            info!("Done contributing {} powers of tau", end);
+
+            Ok(())
+        })?;
 
         Ok(())
     }
@@ -646,12 +632,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         parameters: &'a CeremonyParams<E>,
     ) -> Result<()> {
         // Write the first Tau powers in chunks where every initial element is a G1 or G2 `one`
-        for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
-            let (start, end) = match chunk.minmax() {
-                MinMaxResult::MinMax(start, end) => (start, end),
-                MinMaxResult::OneElement(start) => (start, start),
-                _ => return Err(Error::InvalidChunk),
-            };
+        Self::iter_chunk(parameters, |start, end| {
             let size = end - start + 1;
             if start < parameters.powers_length {
                 let accumulator = Self {
@@ -675,10 +656,32 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                     ElementType::TauG1,
                 )?;
             }
-        }
-        info!("Initial accumulator created");
 
+            Ok(())
+        })?;
+
+        info!("Initial accumulator created");
         Ok(())
+    }
+
+    /// Helper function to iterate over the accumulator in chunks.
+    /// `action` will perform an action on the chunk
+    fn iter_chunk(
+        parameters: &CeremonyParams<E>,
+        mut action: impl FnMut(usize, usize) -> Result<()>,
+    ) -> Result<()> {
+        (0..parameters.powers_g1_length)
+            .chunks(parameters.batch_size)
+            .into_iter()
+            .map(|chunk| {
+                let (start, end) = match chunk.minmax() {
+                    MinMaxResult::MinMax(start, end) => (start, end),
+                    MinMaxResult::OneElement(start) => (start, start),
+                    _ => return Err(Error::InvalidChunk),
+                };
+                action(start, end)
+            })
+            .collect::<Result<_>>()
     }
 
     /// We have preallocated the accumulators
@@ -700,13 +703,8 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         let parameters = before.parameters;
         let mut tau_powers_last_first_chunks = vec![E::G1Affine::zero(); 2];
         let tau_powers_length = parameters.powers_length;
-        for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
-            let (start, end) = match chunk.minmax() {
-                MinMaxResult::MinMax(start, end) => (start, end),
-                MinMaxResult::OneElement(start) => (start, start),
-                _ => return Err(Error::InvalidChunk),
-            };
 
+        Self::iter_chunk(parameters, |start, end| {
             let size = end - start + 1 + if end == tau_powers_length - 1 { 0 } else { 1 };
             before.read_chunk(
                 start,
@@ -768,7 +766,9 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                     tau_powers_last_first_chunks[1] = after.tau_powers_g1[0];
                 }
             }
-        }
+
+            Ok(())
+        })?;
 
         // checks the intersection
         // todo: do we still need this now that we have combined the 2 loops?
