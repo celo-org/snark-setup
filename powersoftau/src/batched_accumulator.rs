@@ -1,6 +1,6 @@
 /// Memory constrained accumulator that checks parts of the initial information in parts that fit to memory
 /// and then contributes to entropy in parts as well
-use itertools::{Itertools, MinMaxResult::MinMax};
+use itertools::{Itertools, MinMaxResult};
 use log::info;
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -184,13 +184,14 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
             check_output_for_correctness,
             &output,
         )?;
-        let params = Params {
-            tau_g2: tau_g2_check,
-            alpha_g2: alpha_g2_check,
-            beta_g2: beta_g2_check,
-            other_beta_g2: &(before.beta_g2, after.beta_g2),
-        };
-        Self::check_initial_conditions(&before, &after, &params)?;
+        Self::check_initial_conditions(
+            &before,
+            &after,
+            tau_g2_check,
+            alpha_g2_check,
+            beta_g2_check,
+            &(before.beta_g2, after.beta_g2),
+        )?;
 
         Self::check_accumulated_powers(
             &mut before,
@@ -217,10 +218,10 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         let mut accumulator = Self::empty(parameters);
 
         for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
-            let (start, end) = if let MinMax(start, end) = chunk.minmax() {
-                (start, end)
-            } else {
-                return Err(Error::InvalidChunk);
+            let (start, end) = match chunk.minmax() {
+                MinMaxResult::MinMax(start, end) => (start, end),
+                MinMaxResult::OneElement(start) => (start, start),
+                _ => return Err(Error::InvalidChunk),
             };
 
             let size = end - start + 1;
@@ -263,10 +264,10 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         let mut beta_g2 = E::G2Affine::zero();
 
         for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
-            let (start, end) = if let MinMax(start, end) = chunk.minmax() {
-                (start, end)
-            } else {
-                return Err(Error::InvalidChunk);
+            let (start, end) = match chunk.minmax() {
+                MinMaxResult::MinMax(start, end) => (start, end),
+                MinMaxResult::OneElement(start) => (start, start),
+                _ => return Err(Error::InvalidChunk),
             };
 
             let size = end - start + 1;
@@ -310,17 +311,19 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         parameters: &'a CeremonyParams<E>,
     ) -> Result<()> {
         for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
-            let (start, end) = if let MinMax(start, end) = chunk.minmax() {
-                (start, end)
-            } else {
-                return Err(Error::InvalidChunk);
+            let (start, end_taug1) = match chunk.minmax() {
+                MinMaxResult::MinMax(start, end) => (start, end),
+                MinMaxResult::OneElement(start) => (start, start),
+                _ => return Err(Error::InvalidChunk),
             };
             if start < parameters.powers_length {
+                // Ensure we do not exceed bounds
+                let end_powers = std::cmp::min(parameters.powers_length - 1, end_taug1);
                 let tmp_acc = BatchedAccumulator::<E> {
-                    tau_powers_g1: (&self.tau_powers_g1[start..=end]).to_vec(),
-                    tau_powers_g2: (&self.tau_powers_g2[start..=end]).to_vec(),
-                    alpha_tau_powers_g1: (&self.alpha_tau_powers_g1[start..=end]).to_vec(),
-                    beta_tau_powers_g1: (&self.beta_tau_powers_g1[start..=end]).to_vec(),
+                    tau_powers_g1: (&self.tau_powers_g1[start..=end_taug1]).to_vec(),
+                    tau_powers_g2: (&self.tau_powers_g2[start..=end_powers]).to_vec(),
+                    alpha_tau_powers_g1: (&self.alpha_tau_powers_g1[start..=end_powers]).to_vec(),
+                    beta_tau_powers_g1: (&self.beta_tau_powers_g1[start..=end_powers]).to_vec(),
                     beta_g2: self.beta_g2,
                     hash: self.hash,
                     parameters,
@@ -328,7 +331,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                 tmp_acc.write_chunk(start, compression, output)?;
             } else {
                 self.write_points_chunk(
-                    &self.tau_powers_g1[start..=end],
+                    &self.tau_powers_g1[start..=end_taug1],
                     output,
                     start,
                     compression,
@@ -584,10 +587,10 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         let mut accumulator = Self::empty(parameters);
 
         for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
-            let (start, end) = if let MinMax(start, end) = chunk.minmax() {
-                (start, end)
-            } else {
-                return Err(Error::InvalidChunk);
+            let (start, end) = match chunk.minmax() {
+                MinMaxResult::MinMax(start, end) => (start, end),
+                MinMaxResult::OneElement(start) => (start, start),
+                _ => return Err(Error::InvalidChunk),
             };
 
             let size = end - start + 1;
@@ -644,10 +647,10 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
     ) -> Result<()> {
         // Write the first Tau powers in chunks where every initial element is a G1 or G2 `one`
         for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
-            let (start, end) = if let MinMax(start, end) = chunk.minmax() {
-                (start, end)
-            } else {
-                return Err(Error::InvalidChunk);
+            let (start, end) = match chunk.minmax() {
+                MinMaxResult::MinMax(start, end) => (start, end),
+                MinMaxResult::OneElement(start) => (start, start),
+                _ => return Err(Error::InvalidChunk),
             };
             let size = end - start + 1;
             if start < parameters.powers_length {
@@ -679,6 +682,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
     }
 
     /// We have preallocated the accumulators
+    #[allow(clippy::too_many_arguments)]
     fn check_accumulated_powers(
         before: &mut BatchedAccumulator<E>,
         after: &mut BatchedAccumulator<E>,
@@ -697,10 +701,10 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         let mut tau_powers_last_first_chunks = vec![E::G1Affine::zero(); 2];
         let tau_powers_length = parameters.powers_length;
         for chunk in &(0..parameters.powers_g1_length).chunks(parameters.batch_size) {
-            let (start, end) = if let MinMax(start, end) = chunk.minmax() {
-                (start, end)
-            } else {
-                return Err(Error::InvalidChunk);
+            let (start, end) = match chunk.minmax() {
+                MinMaxResult::MinMax(start, end) => (start, end),
+                MinMaxResult::OneElement(start) => (start, start),
+                _ => return Err(Error::InvalidChunk),
             };
 
             let size = end - start + 1 + if end == tau_powers_length - 1 { 0 } else { 1 };
@@ -777,17 +781,15 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         Ok(())
     }
 
-    /// Checks that ate initial ratios are correctly formed
+    /// Checks that the initial ratios are correctly formed
     fn check_initial_conditions(
         before: &BatchedAccumulator<E>,
         after: &BatchedAccumulator<E>,
-        params: &Params<E>,
+        tau_g2_check: &(E::G2Affine, E::G2Affine),
+        alpha_g2_check: &(E::G2Affine, E::G2Affine),
+        beta_g2_check: &(E::G2Affine, E::G2Affine),
+        other_beta: &(E::G2Affine, E::G2Affine),
     ) -> Result<()> {
-        let tau_g2_check = params.tau_g2;
-        let alpha_g2_check = params.alpha_g2;
-        let beta_g2_check = params.beta_g2;
-        let other_beta = params.other_beta_g2;
-
         // Check the correctness of the generators for tau powers
         if after.tau_powers_g1[0] != E::G1Affine::prime_subgroup_generator() {
             return Err(VerificationError::InvalidGenerator(ElementType::TauG1).into());
@@ -830,15 +832,6 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
         Ok(())
     }
-
-}
-
-// these checks only touch a part of the accumulator, so read two elements
-struct Params<'a, E: Engine> {
-    tau_g2: &'a (E::G2Affine, E::G2Affine),
-    alpha_g2: &'a (E::G2Affine, E::G2Affine),
-    beta_g2: &'a (E::G2Affine, E::G2Affine),
-    other_beta_g2: &'a (E::G2Affine, E::G2Affine),
 }
 
 #[cfg(test)]
@@ -852,28 +845,41 @@ mod tests {
     use zexe_algebra::curves::{bls12_377::Bls12_377, bls12_381::Bls12_381, sw6::SW6};
 
     #[test]
+    fn serialize_multiple_batches() {
+        // this test ensures that we can serialize for batches which are smaller, equal
+        // or _bigger_ than any of the G1/G2 vector sizes
+        for batch in 1..10 {
+            serialize_accumulator_curve::<Bls12_377>(UseCompression::Yes, 2, batch);
+        }
+    }
+
+    #[test]
     fn serializer_bls12_381() {
-        serialize_accumulator_curve::<Bls12_381>(UseCompression::Yes);
-        serialize_accumulator_curve::<Bls12_381>(UseCompression::No);
+        serialize_accumulator_curve::<Bls12_381>(UseCompression::Yes, 2, 2);
+        serialize_accumulator_curve::<Bls12_381>(UseCompression::No, 2, 2);
     }
 
     #[test]
     fn serializer_bls12_377() {
-        serialize_accumulator_curve::<Bls12_377>(UseCompression::Yes);
-        serialize_accumulator_curve::<Bls12_377>(UseCompression::No);
+        serialize_accumulator_curve::<Bls12_377>(UseCompression::Yes, 2, 2);
+        serialize_accumulator_curve::<Bls12_377>(UseCompression::No, 2, 2);
     }
 
     #[test]
     #[ignore] // this takes very long to run
     fn serializer_sw6() {
-        serialize_accumulator_curve::<SW6>(UseCompression::Yes);
-        serialize_accumulator_curve::<SW6>(UseCompression::No);
+        serialize_accumulator_curve::<SW6>(UseCompression::Yes, 2, 2);
+        serialize_accumulator_curve::<SW6>(UseCompression::No, 2, 2);
     }
 
-    fn serialize_accumulator_curve<E: Engine + Sync>(compress: UseCompression) {
+    fn serialize_accumulator_curve<E: Engine + Sync>(
+        compress: UseCompression,
+        size: usize,
+        batch: usize,
+    ) {
         // create a small accumulator with some random state
         let curve = CurveParams::<E>::new();
-        let parameters = CeremonyParams::new_with_curve(curve, 2, 4);
+        let parameters = CeremonyParams::new_with_curve(curve, size, batch);
         let mut accumulator = random_accumulator::<E>(&parameters);
 
         let expected_challenge_length = match compress {
