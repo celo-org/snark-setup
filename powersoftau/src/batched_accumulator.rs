@@ -815,18 +815,18 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
                 let taupowers = generate_powers_of_tau::<E>(&key.tau, start, size);
 
-                batch_exp(&mut accumulator.tau_powers_g1, &taupowers[0..], None);
-                batch_exp(&mut accumulator.tau_powers_g2, &taupowers[0..], None);
+                batch_exp(&mut accumulator.tau_powers_g1, &taupowers[0..], None)?;
+                batch_exp(&mut accumulator.tau_powers_g2, &taupowers[0..], None)?;
                 batch_exp(
                     &mut accumulator.alpha_tau_powers_g1,
                     &taupowers[0..],
                     Some(&key.alpha),
-                );
+                )?;
                 batch_exp(
                     &mut accumulator.beta_tau_powers_g1,
                     &taupowers[0..],
                     Some(&key.beta),
-                );
+                )?;
                 accumulator.beta_g2 = accumulator.beta_g2.mul(key.beta).into_affine();
                 if accumulator.beta_g2.is_zero() {
                     return Err(Error::PointAtInfinity);
@@ -858,7 +858,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
                 }
 
                 let taupowers = generate_powers_of_tau::<E>(&key.tau, start, size);
-                batch_exp(&mut accumulator.tau_powers_g1, &taupowers[0..], None);
+                batch_exp(&mut accumulator.tau_powers_g1, &taupowers[0..], None)?;
                 accumulator.write_chunk(start, compress_the_output, output)?;
 
                 info!("Done processing {} powers of tau", end);

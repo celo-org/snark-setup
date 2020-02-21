@@ -54,7 +54,13 @@ pub(crate) fn batch_exp<C: AffineCurve>(
     bases: &mut [C],
     exps: &[C::ScalarField],
     coeff: Option<&C::ScalarField>,
-) {
+) -> Result<(), Error> {
+    if bases.len() != exps.len() {
+        return Err(Error::InvalidLength {
+            expected: bases.len(),
+            got: exps.len(),
+        });
+    }
     // raise the base to the exponent and assign it back to the base
     // this will return the points as projective
     let mut points: Vec<_> = bases
@@ -81,6 +87,8 @@ pub(crate) fn batch_exp<C: AffineCurve>(
         .par_iter_mut()
         .zip(points)
         .for_each(|(base, proj)| *base = proj.into_affine());
+
+    Ok(())
 }
 
 // Create an RNG based on a mixture of system randomness and user provided randomness
