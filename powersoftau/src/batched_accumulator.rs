@@ -2,20 +2,21 @@
 /// and then contributes to entropy in parts as well
 use itertools::{Itertools, MinMaxResult};
 use log::info;
-use parking_lot::RwLock;
-use std::sync::Arc;
 use zexe_algebra::{AffineCurve, PairingEngine as Engine, ProjectiveCurve, Zero};
 
 use generic_array::GenericArray;
 
 use typenum::consts::U64;
 
-use super::keypair::{PrivateKey, PublicKey};
-use super::parameters::{
-    CeremonyParams, CheckForCorrectness, ElementType, Error, UseCompression, VerificationError,
-};
-use super::utils::{
-    batch_exp, blank_hash, check_same_ratio, compute_g2_s, generate_powers_of_tau, power_pairs,
+use super::{
+    keypair::{PrivateKey, PublicKey},
+    parameters::{
+        CeremonyParams, CheckForCorrectness, ElementType, Error, UseCompression, VerificationError,
+    },
+    utils::{
+        batch_exp, blank_hash, check_same_ratio, compute_g2_s, generate_powers_of_tau, power_pairs,
+        Result,
+    },
 };
 use rayon::prelude::*;
 pub enum AccumulatorState {
@@ -23,9 +24,6 @@ pub enum AccumulatorState {
     NonEmpty,
     Transformed,
 }
-
-/// A convenience result type for returning errors
-type Result<T> = std::result::Result<T, Error>;
 
 /// The `BatchedAccumulator` is an object that participants of the ceremony contribute
 /// randomness to. This object contains powers of trapdoor `tau` in G1 and in G2 over
@@ -245,93 +243,6 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         Ok(())
     }
 
-    pub fn deserialize(
-        input: &[u8],
-        check_input_for_correctness: CheckForCorrectness,
-        compression: UseCompression,
-        parameters: &'a CeremonyParams<E>,
-    ) -> Result<BatchedAccumulator<'a, E>> {
-        let mut accumulator = Self::empty(parameters);
-
-        let mut tau_powers_g1 = vec![];
-        let mut tau_powers_g2 = vec![];
-        let mut alpha_tau_powers_g1 = vec![];
-        let mut beta_tau_powers_g1 = vec![];
-        let mut beta_g2 = E::G2Affine::zero();
-
-        Self::iter_chunk(parameters, |start, end| {
-            let size = end - start + 1;
-            accumulator.read_chunk(
-                start,
-                size,
-                compression,
-                check_input_for_correctness,
-                &input,
-            )?;
-
-            // We only get Tau G2 and Alpha/Beta G1 elements up to `powers_length`
-            if start < parameters.powers_length {
-                tau_powers_g1.extend_from_slice(&accumulator.tau_powers_g1);
-                tau_powers_g2.extend_from_slice(&accumulator.tau_powers_g2);
-                alpha_tau_powers_g1.extend_from_slice(&accumulator.alpha_tau_powers_g1);
-                beta_tau_powers_g1.extend_from_slice(&accumulator.beta_tau_powers_g1);
-                if start == 0 {
-                    beta_g2 = accumulator.beta_g2;
-                }
-            } else {
-                tau_powers_g1.extend_from_slice(&accumulator.tau_powers_g1);
-            }
-
-            Ok(())
-        })?;
-
-        Ok(BatchedAccumulator {
-            tau_powers_g1,
-            tau_powers_g2,
-            alpha_tau_powers_g1,
-            beta_tau_powers_g1,
-            beta_g2,
-            hash: blank_hash(),
-            parameters,
-        })
-    }
-
-    pub fn serialize(
-        &mut self,
-        output: &mut [u8],
-        compression: UseCompression,
-        parameters: &'a CeremonyParams<E>,
-    ) -> Result<()> {
-        Self::iter_chunk(parameters, |start, end_taug1| {
-            if start < parameters.powers_length {
-                // Ensure we do not exceed bounds
-                let end_powers = std::cmp::min(parameters.powers_length - 1, end_taug1);
-                let tmp_acc = BatchedAccumulator::<E> {
-                    tau_powers_g1: (&self.tau_powers_g1[start..=end_taug1]).to_vec(),
-                    tau_powers_g2: (&self.tau_powers_g2[start..=end_powers]).to_vec(),
-                    alpha_tau_powers_g1: (&self.alpha_tau_powers_g1[start..=end_powers]).to_vec(),
-                    beta_tau_powers_g1: (&self.beta_tau_powers_g1[start..=end_powers]).to_vec(),
-                    beta_g2: self.beta_g2,
-                    hash: self.hash,
-                    parameters,
-                };
-                tmp_acc.write_chunk(start, compression, output)?;
-            } else {
-                self.write_points_chunk(
-                    &self.tau_powers_g1[start..=end_taug1],
-                    output,
-                    start,
-                    compression,
-                    ElementType::TauG1,
-                )?;
-            }
-
-            Ok(())
-        })?;
-
-        Ok(())
-    }
-
     pub fn read_chunk(
         &mut self,
         from: usize,
@@ -476,32 +387,12 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         compressed: UseCompression,
         element_type: ElementType,
     ) -> Result<()> {
-        let output = Arc::new(RwLock::new(output));
-        // Does this provide significant performance benefits?
-        elements.par_iter().enumerate().for_each(|(i, c)| {
-            let index = chunk_start + i;
-            if let Err(e) =
-                self.write_point_sync(c, output.clone(), index, compressed, element_type)
-            {
-                log::error!("Error when writing point {:?}", e);
-            }
-        });
+        elements
+            .iter()
+            .enumerate()
+            .map(|(i, c)| self.write_point(c, output, chunk_start + i, compressed, element_type))
+            .collect::<Result<_>>()?;
         Ok(())
-    }
-
-    fn write_point_sync<C>(
-        &self,
-        p: &C,
-        output: Arc<RwLock<&mut [u8]>>,
-        index: usize,
-        compression: UseCompression,
-        element_type: ElementType,
-    ) -> Result<()>
-    where
-        C: AffineCurve,
-    {
-        let output = &mut *output.write();
-        self.write_point(p, output, index, compression, element_type)
     }
 
     /// Write the accumulator with some compression behavior.
@@ -586,7 +477,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
             )?;
 
             // generate the powers from our private key
-            let taupowers = generate_powers_of_tau::<E>(&key.tau, start, size);
+            let taupowers = generate_powers_of_tau::<E>(&key.tau, start, start + size);
 
             // batch Exp everything up to powers_length, and TauG1 additionally up to the full length
             batch_exp(&mut accumulator.tau_powers_g1, &taupowers[0..], None)?;
@@ -666,7 +557,7 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
     /// Helper function to iterate over the accumulator in chunks.
     /// `action` will perform an action on the chunk
-    fn iter_chunk(
+    pub fn iter_chunk(
         parameters: &CeremonyParams<E>,
         mut action: impl FnMut(usize, usize) -> Result<()>,
     ) -> Result<()> {
@@ -834,12 +725,107 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
     }
 }
 
+// These functions are only useful in tests. In reality they won't ever be used
+// because they require being able to load the entirety of the accumulator to memory
+#[cfg(test)]
+impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
+    pub fn deserialize(
+        input: &[u8],
+        check_input_for_correctness: CheckForCorrectness,
+        compression: UseCompression,
+        parameters: &'a CeremonyParams<E>,
+    ) -> Result<BatchedAccumulator<'a, E>> {
+        let mut accumulator = Self::empty(parameters);
+
+        let mut tau_powers_g1 = vec![];
+        let mut tau_powers_g2 = vec![];
+        let mut alpha_tau_powers_g1 = vec![];
+        let mut beta_tau_powers_g1 = vec![];
+        let mut beta_g2 = E::G2Affine::zero();
+
+        Self::iter_chunk(parameters, |start, end| {
+            let size = end - start + 1;
+            accumulator.read_chunk(
+                start,
+                size,
+                compression,
+                check_input_for_correctness,
+                &input,
+            )?;
+
+            // We only get Tau G2 and Alpha/Beta G1 elements up to `powers_length`
+            if start < parameters.powers_length {
+                tau_powers_g1.extend_from_slice(&accumulator.tau_powers_g1);
+                tau_powers_g2.extend_from_slice(&accumulator.tau_powers_g2);
+                alpha_tau_powers_g1.extend_from_slice(&accumulator.alpha_tau_powers_g1);
+                beta_tau_powers_g1.extend_from_slice(&accumulator.beta_tau_powers_g1);
+                if start == 0 {
+                    beta_g2 = accumulator.beta_g2;
+                }
+            } else {
+                tau_powers_g1.extend_from_slice(&accumulator.tau_powers_g1);
+            }
+
+            Ok(())
+        })?;
+
+        Ok(BatchedAccumulator {
+            tau_powers_g1,
+            tau_powers_g2,
+            alpha_tau_powers_g1,
+            beta_tau_powers_g1,
+            beta_g2,
+            hash: blank_hash(),
+            parameters,
+        })
+    }
+
+    pub fn serialize(
+        &mut self,
+        output: &mut [u8],
+        compression: UseCompression,
+        parameters: &'a CeremonyParams<E>,
+    ) -> Result<()> {
+        Self::iter_chunk(parameters, |start, end_taug1| {
+            if start < parameters.powers_length {
+                // Ensure we do not exceed bounds
+                let end_powers = std::cmp::min(parameters.powers_length - 1, end_taug1);
+                let tmp_acc = BatchedAccumulator::<E> {
+                    tau_powers_g1: (&self.tau_powers_g1[start..=end_taug1]).to_vec(),
+                    tau_powers_g2: (&self.tau_powers_g2[start..=end_powers]).to_vec(),
+                    alpha_tau_powers_g1: (&self.alpha_tau_powers_g1[start..=end_powers]).to_vec(),
+                    beta_tau_powers_g1: (&self.beta_tau_powers_g1[start..=end_powers]).to_vec(),
+                    beta_g2: self.beta_g2,
+                    hash: self.hash,
+                    parameters,
+                };
+                tmp_acc.write_chunk(start, compression, output)?;
+            } else {
+                self.write_points_chunk(
+                    &self.tau_powers_g1[start..=end_taug1],
+                    output,
+                    start,
+                    compression,
+                    ElementType::TauG1,
+                )?;
+            }
+
+            Ok(())
+        })?;
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
         parameters::CurveParams,
-        utils::test_helpers::{random_point, random_point_vec, random_point_vec_batched},
+        utils::{
+            calculate_hash,
+            test_helpers::{random_point, random_point_vec, random_point_vec_batched},
+        },
     };
     use rand::thread_rng;
     use zexe_algebra::curves::{bls12_377::Bls12_377, bls12_381::Bls12_381, sw6::SW6};
@@ -870,6 +856,278 @@ mod tests {
     fn serializer_sw6() {
         serialize_accumulator_curve::<SW6>(UseCompression::Yes, 2, 2);
         serialize_accumulator_curve::<SW6>(UseCompression::No, 2, 2);
+    }
+
+    #[test]
+    fn generate_initial_test() {
+        generate_initial_test_curve::<Bls12_377>(4, 4, UseCompression::Yes);
+        generate_initial_test_curve::<Bls12_377>(4, 4, UseCompression::No);
+    }
+
+    #[test]
+    fn test_contribute() {
+        // receive a compressed/uncompressed input, contribute to it and produce
+        // a compressed/decompressed output
+        test_contribute_curve::<Bls12_377>(2, 2, UseCompression::Yes, UseCompression::Yes);
+        test_contribute_curve::<Bls12_377>(2, 2, UseCompression::No, UseCompression::Yes);
+        test_contribute_curve::<Bls12_377>(2, 2, UseCompression::Yes, UseCompression::No);
+        test_contribute_curve::<Bls12_377>(3, 4, UseCompression::No, UseCompression::No);
+        test_contribute_curve::<Bls12_377>(6, 64, UseCompression::No, UseCompression::No);
+        // works even if the batch is larger than the powers
+        test_contribute_curve::<Bls12_377>(6, 128, UseCompression::No, UseCompression::Yes);
+    }
+
+    fn test_contribute_curve<E: Engine>(
+        powers: usize,
+        batch: usize,
+        compressed_input: UseCompression,
+        compressed_output: UseCompression,
+    ) {
+        let parameters = CeremonyParams::<E>::new(powers, batch);
+        let expected_response_length = parameters.get_length(compressed_output);
+
+        // get a non-mutable copy of the initial accumulator state
+        let (input, mut before) = generate_input(&parameters, compressed_input);
+
+        let mut output = vec![0; expected_response_length];
+        // Construct our keypair using the RNG we created above
+        let current_accumulator_hash = blank_hash();
+        let mut rng = thread_rng();
+        let (_, privkey) = crate::keypair::keypair(&mut rng, current_accumulator_hash.as_ref())
+            .expect("could not generate keypair");
+
+        BatchedAccumulator::contribute(
+            &input,
+            &mut output,
+            compressed_input,
+            compressed_output,
+            CheckForCorrectness::Yes,
+            &privkey,
+            &parameters,
+        )
+        .unwrap();
+
+        let deserialized = BatchedAccumulator::deserialize(
+            &output,
+            CheckForCorrectness::Yes,
+            compressed_output,
+            &parameters,
+        )
+        .unwrap();
+
+        let taupowers = generate_powers_of_tau::<E>(&privkey.tau, 0, parameters.powers_g1_length);
+        batch_exp(
+            &mut before.tau_powers_g1,
+            &taupowers[0..parameters.powers_g1_length],
+            None,
+        )
+        .unwrap();
+        batch_exp(
+            &mut before.tau_powers_g2,
+            &taupowers[0..parameters.powers_length],
+            None,
+        )
+        .unwrap();
+        batch_exp(
+            &mut before.alpha_tau_powers_g1,
+            &taupowers[0..parameters.powers_length],
+            Some(&privkey.alpha),
+        )
+        .unwrap();
+        batch_exp(
+            &mut before.beta_tau_powers_g1,
+            &taupowers[0..parameters.powers_length],
+            Some(&privkey.beta),
+        )
+        .unwrap();
+        before.beta_g2 = before.beta_g2.mul(privkey.beta).into_affine();
+
+        assert_eq!(deserialized.tau_powers_g1, before.tau_powers_g1);
+        assert_eq!(deserialized.tau_powers_g2, before.tau_powers_g2);
+        assert_eq!(deserialized.alpha_tau_powers_g1, before.alpha_tau_powers_g1);
+        assert_eq!(deserialized.beta_tau_powers_g1, before.beta_tau_powers_g1);
+        assert_eq!(deserialized.beta_g2, before.beta_g2);
+    }
+
+    #[test]
+    fn test_verify_transformation() {
+        test_verify_transformation_curve::<Bls12_377>(
+            2,
+            2,
+            UseCompression::Yes,
+            UseCompression::Yes,
+        );
+        test_verify_transformation_curve::<Bls12_377>(2, 2, UseCompression::No, UseCompression::No);
+        test_verify_transformation_curve::<Bls12_377>(
+            2,
+            2,
+            UseCompression::Yes,
+            UseCompression::No,
+        );
+        test_verify_transformation_curve::<Bls12_381>(
+            2,
+            2,
+            UseCompression::No,
+            UseCompression::Yes,
+        );
+    }
+
+    fn test_verify_transformation_curve<E: Engine>(
+        powers: usize,
+        batch: usize,
+        compressed_input: UseCompression,
+        compressed_output: UseCompression,
+    ) {
+        let parameters = CeremonyParams::<E>::new(powers, batch);
+        let correctness = CheckForCorrectness::Yes;
+
+        // allocate the input/output vectors
+        let (input, _) = generate_input(&parameters, compressed_input);
+        let mut output = generate_output(&parameters, compressed_output);
+
+        // Construct our keypair
+        let current_accumulator_hash = blank_hash();
+        let mut rng = thread_rng();
+        let (pubkey, privkey) =
+            crate::keypair::keypair(&mut rng, current_accumulator_hash.as_ref())
+                .expect("could not generate keypair");
+
+        // transform the accumulator
+        BatchedAccumulator::contribute(
+            &input,
+            &mut output,
+            compressed_input,
+            compressed_output,
+            CheckForCorrectness::Yes,
+            &privkey,
+            &parameters,
+        )
+        .unwrap();
+        // ensure that the key is not available to the verifier
+        drop(privkey);
+
+        let res = BatchedAccumulator::verify_transformation(
+            &input,
+            &output,
+            &pubkey,
+            &current_accumulator_hash,
+            compressed_input,
+            compressed_output,
+            correctness,
+            correctness,
+            &parameters,
+        );
+        assert!(res.is_ok());
+
+        // subsequent participants must use the hash of the accumulator they received
+        let current_accumulator_hash = calculate_hash(&output);
+
+        let (pubkey, privkey) =
+            crate::keypair::keypair(&mut rng, current_accumulator_hash.as_ref())
+                .expect("could not generate keypair");
+
+        // generate a new output vector for the 2nd participant's contribution
+        let mut output_2 = generate_output(&parameters, compressed_output);
+        // we use the first output as input
+        BatchedAccumulator::contribute(
+            &output,
+            &mut output_2,
+            compressed_output,
+            compressed_output,
+            CheckForCorrectness::Yes,
+            &privkey,
+            &parameters,
+        )
+        .unwrap();
+        // ensure that the key is not available to the verifier
+        drop(privkey);
+
+        let res = BatchedAccumulator::verify_transformation(
+            &output,
+            &output_2,
+            &pubkey,
+            &current_accumulator_hash,
+            compressed_output,
+            compressed_output,
+            correctness,
+            correctness,
+            &parameters,
+        );
+        assert!(res.is_ok());
+
+        // verification will fail if the old hash is used
+        let res = BatchedAccumulator::verify_transformation(
+            &output,
+            &output_2,
+            &pubkey,
+            &blank_hash(),
+            compressed_output,
+            compressed_output,
+            correctness,
+            correctness,
+            &parameters,
+        );
+        assert!(res.is_err());
+
+        // verification will fail if even 1 byte is modified
+        output_2[100] = 0;
+        let res = BatchedAccumulator::verify_transformation(
+            &output,
+            &output_2,
+            &pubkey,
+            &current_accumulator_hash,
+            compressed_output,
+            compressed_output,
+            correctness,
+            correctness,
+            &parameters,
+        );
+        assert!(res.is_err());
+    }
+
+    fn generate_initial_test_curve<E: Engine>(
+        powers: usize,
+        batch: usize,
+        compression: UseCompression,
+    ) {
+        let parameters = CeremonyParams::<E>::new(powers, batch);
+        let expected_challenge_length = match compression {
+            UseCompression::Yes => parameters.contribution_size - parameters.public_key_size,
+            UseCompression::No => parameters.accumulator_size,
+        };
+
+        let mut output = vec![0; expected_challenge_length];
+        BatchedAccumulator::generate_initial(&mut output, compression, &parameters)
+            .unwrap();
+
+        let deserialized = BatchedAccumulator::deserialize(
+            &output,
+            CheckForCorrectness::Yes,
+            compression,
+            &parameters,
+        )
+        .unwrap();
+
+        let g1_zero = E::G1Affine::prime_subgroup_generator();
+        let g2_zero = E::G2Affine::prime_subgroup_generator();
+
+        assert_eq!(
+            deserialized.tau_powers_g1,
+            vec![g1_zero; parameters.powers_g1_length]
+        );
+        assert_eq!(
+            deserialized.tau_powers_g2,
+            vec![g2_zero; parameters.powers_length]
+        );
+        assert_eq!(
+            deserialized.alpha_tau_powers_g1,
+            vec![g1_zero; parameters.powers_length]
+        );
+        assert_eq!(
+            deserialized.beta_tau_powers_g1,
+            vec![g1_zero; parameters.powers_length]
+        );
+        assert_eq!(deserialized.beta_g2, g2_zero);
     }
 
     fn serialize_accumulator_curve<E: Engine + Sync>(
@@ -932,6 +1190,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn read_write_chunk_sw6() {
         read_write_chunk_curve::<SW6>(3, 6, UseCompression::Yes);
         read_write_chunk_curve::<SW6>(5, 2, UseCompression::Yes);
@@ -1250,5 +1509,33 @@ mod tests {
         }
 
         deserialized_batches
+    }
+
+    fn generate_input<E: Engine>(
+        parameters: &CeremonyParams<E>,
+        compressed: UseCompression,
+    ) -> (Vec<u8>, BatchedAccumulator<E>) {
+        let len = parameters.get_length(compressed);
+        let mut output = vec![0; len];
+        BatchedAccumulator::generate_initial(&mut output, compressed, &parameters)
+            .unwrap();
+        let mut input = vec![0; len];
+        input.copy_from_slice(&output);
+        let before = BatchedAccumulator::deserialize(
+            &output,
+            CheckForCorrectness::Yes,
+            compressed,
+            &parameters,
+        )
+        .unwrap();
+        (input, before)
+    }
+
+    fn generate_output<E: Engine>(
+        parameters: &CeremonyParams<E>,
+        compressed: UseCompression,
+    ) -> Vec<u8> {
+        let expected_response_length = parameters.get_length(compressed);
+        vec![0; expected_response_length]
     }
 }
