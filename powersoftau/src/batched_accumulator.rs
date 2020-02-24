@@ -13,6 +13,7 @@ use super::{
     parameters::{
         CeremonyParams, CheckForCorrectness, ElementType, Error, UseCompression, VerificationError,
     },
+    raw::raw_accumulator,
     utils::{
         batch_exp, blank_hash, check_same_ratio, compute_g2_s, generate_powers_of_tau, power_pairs,
         Result,
@@ -135,6 +136,29 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 
         // The element's position is offset by the hash's size
         Ok(parameters.hash_size + position)
+    }
+
+    /// Verifies a transformation of the `Accumulator` with the `PublicKey`, given a 64-byte transcript `digest`.
+    #[allow(clippy::too_many_arguments, clippy::cognitive_complexity)]
+    pub fn verify_transformation_parallel(
+        input: &[u8],
+        output: &[u8],
+        key: &PublicKey<E>,
+        digest: &[u8],
+        input_is_compressed: UseCompression,
+        output_is_compressed: UseCompression,
+        _check_input_for_correctness: CheckForCorrectness,
+        _check_output_for_correctness: CheckForCorrectness,
+        parameters: &'a CeremonyParams<E>,
+    ) -> Result<()> {
+        raw_accumulator::verify(
+            (input, input_is_compressed),
+            (output, output_is_compressed),
+            key,
+            digest,
+            parameters,
+        )?;
+        Ok(())
     }
 
     /// Verifies a transformation of the `Accumulator` with the `PublicKey`, given a 64-byte transcript `digest`.
@@ -461,12 +485,32 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         Ok(())
     }
 
+    pub fn contribute_parallel(
+        input: &[u8],
+        output: &mut [u8],
+        input_is_compressed: UseCompression,
+        compress_the_output: UseCompression,
+        _check_input_for_correctness: CheckForCorrectness,
+        key: &PrivateKey<E>,
+        parameters: &'a CeremonyParams<E>,
+    ) -> Result<()> {
+        raw_accumulator::contribute(
+            (input, input_is_compressed),
+            (output, compress_the_output),
+            key,
+            parameters,
+        )?;
+        info!("Contributed to the accumulator!");
+        Ok(())
+    }
+
     /// Transforms the accumulator with a private key.
     /// Due to large amount of data in a previous accumulator even in the compressed form
     /// this function can now work on compressed input. Output can be made in any form
     /// WARNING: Contributor does not have to check that values from challenge file were serialized
     /// correctly, but we may want to enforce it if a ceremony coordinator does not recompress the previous
     /// contribution into the new challenge file
+    #[deprecated(note = "please use contribute_parallel as it is 2x faster")]
     pub fn contribute(
         input: &[u8],
         output: &mut [u8],
@@ -529,6 +573,17 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
     }
 
     /// Generates the initial accumulator
+    pub fn generate_initial_parallel(
+        output: &mut [u8],
+        compress_the_output: UseCompression,
+        parameters: &'a CeremonyParams<E>,
+    ) -> Result<()> {
+        raw_accumulator::init(output, parameters, compress_the_output);
+        Ok(())
+    }
+
+    /// Generates the initial accumulator
+    #[deprecated(note = "please use generate_initial_parallel as it is 2x faster")]
     pub fn generate_initial(
         output: &mut [u8],
         compress_the_output: UseCompression,
@@ -905,7 +960,7 @@ mod tests {
         let (_, privkey) = crate::keypair::keypair(&mut rng, current_accumulator_hash.as_ref())
             .expect("could not generate keypair");
 
-        BatchedAccumulator::contribute(
+        BatchedAccumulator::contribute_parallel(
             &input,
             &mut output,
             compressed_input,
@@ -1002,7 +1057,7 @@ mod tests {
                 .expect("could not generate keypair");
 
         // transform the accumulator
-        BatchedAccumulator::contribute(
+        BatchedAccumulator::contribute_parallel(
             &input,
             &mut output,
             compressed_input,
@@ -1015,7 +1070,7 @@ mod tests {
         // ensure that the key is not available to the verifier
         drop(privkey);
 
-        let res = BatchedAccumulator::verify_transformation(
+        let res = BatchedAccumulator::verify_transformation_parallel(
             &input,
             &output,
             &pubkey,
@@ -1038,7 +1093,7 @@ mod tests {
         // generate a new output vector for the 2nd participant's contribution
         let mut output_2 = generate_output(&parameters, compressed_output);
         // we use the first output as input
-        BatchedAccumulator::contribute(
+        BatchedAccumulator::contribute_parallel(
             &output,
             &mut output_2,
             compressed_output,
@@ -1051,7 +1106,7 @@ mod tests {
         // ensure that the key is not available to the verifier
         drop(privkey);
 
-        let res = BatchedAccumulator::verify_transformation(
+        let res = BatchedAccumulator::verify_transformation_parallel(
             &output,
             &output_2,
             &pubkey,
@@ -1065,7 +1120,7 @@ mod tests {
         assert!(res.is_ok());
 
         // verification will fail if the old hash is used
-        let res = BatchedAccumulator::verify_transformation(
+        let res = BatchedAccumulator::verify_transformation_parallel(
             &output,
             &output_2,
             &pubkey,
@@ -1080,7 +1135,7 @@ mod tests {
 
         // verification will fail if even 1 byte is modified
         output_2[100] = 0;
-        let res = BatchedAccumulator::verify_transformation(
+        let res = BatchedAccumulator::verify_transformation_parallel(
             &output,
             &output_2,
             &pubkey,

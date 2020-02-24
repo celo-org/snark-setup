@@ -1,0 +1,439 @@
+//! Accumulator which operates on batches of data
+use super::chunk::{buffer_size, Deserializer, Serializer};
+use crate::{
+    keypair::{PrivateKey, PublicKey},
+    parameters::{CeremonyParams, ElementType, Error, UseCompression, VerificationError},
+    utils::{
+        batch_exp, check_same_ratio, compute_g2_s, generate_powers_of_tau, power_pairs, Result,
+    },
+};
+use itertools::{Itertools, MinMaxResult};
+use zexe_algebra::{AffineCurve, PairingCurve, PairingEngine, ProjectiveCurve, Zero};
+
+/// Mutable buffer, compression
+type Output<'a> = (&'a mut [u8], UseCompression);
+/// Buffer, compression
+type Input<'a> = (&'a [u8], UseCompression);
+
+/// Mutable slices with format [TauG1, TauG2, AlphaG1, BetaG1, BetaG2]
+type SplitBufMut<'a> = (
+    &'a mut [u8],
+    &'a mut [u8],
+    &'a mut [u8],
+    &'a mut [u8],
+    &'a mut [u8],
+);
+
+/// Immutable slices with format [TauG1, TauG2, AlphaG1, BetaG1, BetaG2]
+type SplitBuf<'a> = (&'a [u8], &'a [u8], &'a [u8], &'a [u8], &'a [u8]);
+
+/// Helper function to iterate over the accumulator in chunks.
+/// `action` will perform an action on the chunk
+fn iter_chunk(
+    parameters: &CeremonyParams<impl PairingEngine>,
+    mut action: impl FnMut(usize, usize) -> Result<()>,
+) -> Result<()> {
+    (0..parameters.powers_g1_length)
+        .chunks(parameters.batch_size)
+        .into_iter()
+        .map(|chunk| {
+            let (start, end) = match chunk.minmax() {
+                MinMaxResult::MinMax(start, end) => (start, end),
+                MinMaxResult::OneElement(start) => (start, start),
+                _ => return Err(Error::InvalidChunk),
+            };
+            action(start, end)
+        })
+        .collect::<Result<_>>()
+}
+
+/// Populates the output buffer with an empty accumulator as dictated by Parameters and compression
+pub fn init<'a, E: PairingEngine>(
+    output: &'a mut [u8],
+    parameters: &'a CeremonyParams<E>,
+    compressed: UseCompression,
+) {
+    let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split_mut(output, parameters, compressed);
+    let (g1_size, g2_size) = parameters.curve.get_sizes(compressed);
+    let g1_one = &E::G1Affine::prime_subgroup_generator();
+    let g2_one = &E::G2Affine::prime_subgroup_generator();
+    rayon::scope(|s| {
+        s.spawn(|_| {
+            tau_g1
+                .init_element(g1_one, g1_size, compressed)
+                .expect("could not initialize TauG1 elements")
+        });
+        s.spawn(|_| {
+            tau_g2
+                .init_element(g2_one, g2_size, compressed)
+                .expect("could not initialize TauG2 elements")
+        });
+        s.spawn(|_| {
+            alpha_g1
+                .init_element(g1_one, g1_size, compressed)
+                .expect("could not initialize Alpha G1 elements")
+        });
+        s.spawn(|_| {
+            beta_g1
+                .init_element(g1_one, g1_size, compressed)
+                .expect("could not initialize Beta G1 elements")
+        });
+        s.spawn(|_| {
+            beta_g2
+                .init_element(g2_one, g2_size, compressed)
+                .expect("could not initialize the Beta G2 element")
+        });
+    });
+}
+
+/// Given a public key and the accumulator's digest, it hashes each G1 element
+/// along with the digest, and then hashes it to G2.
+fn compute_g2_s_key<E: PairingEngine>(
+    key: &PublicKey<E>,
+    digest: &[u8],
+) -> Result<[E::G2Affine; 3]> {
+    Ok([
+        compute_g2_s::<E>(&digest, &key.tau_g1.0, &key.tau_g1.1, 0)?,
+        compute_g2_s::<E>(&digest, &key.alpha_g1.0, &key.alpha_g1.1, 1)?,
+        compute_g2_s::<E>(&digest, &key.beta_g1.0, &key.beta_g1.1, 2)?,
+    ])
+}
+
+/// Reads a list of elements from the buffer to the provided `elements` slice
+/// and then checks that their powers pairs ratio matches the one from the
+/// provided `check` pair
+fn check_power_ratios<C: PairingCurve>(
+    (buffer, compression): (&[u8], UseCompression),
+    (start, end): (usize, usize),
+    elements: &mut [C],
+    check: &(C::PairWith, C::PairWith),
+) -> Result<()> {
+    let size = buffer_size::<C>(compression);
+    buffer[start * size..end * size]
+        .read_batch_preallocated(&mut elements[0..end - start], compression)?;
+    check_same_ratio(&power_pairs(&elements[..end - start]), check, "Power pairs")?;
+    Ok(())
+}
+
+/// Reads a chunk of 2 elements from the buffer
+fn read_initial_elements<C: AffineCurve>(buf: &[u8], compressed: UseCompression) -> Result<Vec<C>> {
+    let batch = 2;
+    let size = buffer_size::<C>(compressed);
+    let ret = buf[0..batch * size].read_batch(compressed)?;
+    if ret.len() != batch {
+        return Err(Error::InvalidLength {
+            expected: batch,
+            got: ret.len(),
+        });
+    }
+    Ok(ret)
+}
+
+/// Verifies that the accumulator was transformed correctly
+/// given the `PublicKey` and the so-far hash of the accumulator
+pub fn verify<E: PairingEngine>(
+    (input, compressed_input): (&[u8], UseCompression),
+    (output, compressed_output): (&[u8], UseCompression),
+    key: &PublicKey<E>,
+    digest: &[u8],
+    parameters: &CeremonyParams<E>,
+) -> Result<()> {
+    // Ensure the key ratios are correctly produced
+    let [tau_g2_s, alpha_g2_s, beta_g2_s] = compute_g2_s_key(&key, &digest)?;
+    // put in tuple form for convenience
+    let tau_g2_check = &(tau_g2_s, key.tau_g2);
+    let alpha_g2_check = &(alpha_g2_s, key.alpha_g2);
+    let beta_g2_check = &(beta_g2_s, key.beta_g2);
+    // Check the proofs-of-knowledge for tau/alpha/beta
+    let check_ratios = &[
+        (key.tau_g1, tau_g2_check, "Tau G1<>G2"),
+        (key.alpha_g1, alpha_g2_check, "Alpha G1<>G2"),
+        (key.beta_g1, beta_g2_check, "Beta G1<>G2"),
+    ];
+    for (a, b, err) in check_ratios {
+        check_same_ratio(a, b, err)?;
+    }
+
+    // Split the buffers
+    // todo: check that in_tau_g2 is actually not required
+    let (in_tau_g1, _, in_alpha_g1, in_beta_g1, in_beta_g2) =
+        split(input, parameters, compressed_input);
+    let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split(output, parameters, compressed_output);
+
+    // Ensure that the initial conditions are correctly formed (first 2 elements)
+    // We allocate a G1 vector of length 2 and re-use it for our G1 elements.
+    // We keep the values of the Tau G1/G2 telements for later use.
+    let (g1_check, g2_check) = {
+        let mut before_g1 = read_initial_elements::<E::G1Affine>(in_tau_g1, compressed_input)?;
+        let mut after_g1 = read_initial_elements::<E::G1Affine>(tau_g1, compressed_output)?;
+        if after_g1[0] != E::G1Affine::prime_subgroup_generator() {
+            return Err(VerificationError::InvalidGenerator(ElementType::TauG1).into());
+        }
+        let after_g2 = read_initial_elements::<E::G2Affine>(tau_g2, compressed_output)?;
+        if after_g2[0] != E::G2Affine::prime_subgroup_generator() {
+            return Err(VerificationError::InvalidGenerator(ElementType::TauG2).into());
+        }
+        let g1_check = (after_g1[0], after_g1[1]);
+        let g2_check = (after_g2[0], after_g2[1]);
+
+        // Check TauG1 -> TauG2
+        check_same_ratio(
+            &(before_g1[1], after_g1[1]),
+            tau_g2_check,
+            "Before-After: Tau [1] G1<>G2",
+        )?;
+        for (before, after, check) in &[
+            (in_alpha_g1, alpha_g1, alpha_g2_check),
+            (in_beta_g1, beta_g1, beta_g2_check),
+        ] {
+            before.read_batch_preallocated(&mut before_g1, compressed_input)?;
+            after.read_batch_preallocated(&mut after_g1, compressed_output)?;
+            check_same_ratio(
+                &(before_g1[0], after_g1[0]),
+                check,
+                "Before-After: Alpha[0] G1<>G2",
+            )?;
+        }
+
+        let before_beta_g2 = in_beta_g2.read_element(compressed_input)?;
+        let after_beta_g2 = beta_g2.read_element(compressed_output)?;
+        check_same_ratio(
+            &(before_g1[0], after_g1[0]),
+            &(before_beta_g2, after_beta_g2),
+            "Before-After: Other[0] G1<>G2",
+        )?;
+
+        (g1_check, g2_check)
+    };
+
+    // preallocate 2 vectors per batch
+    // Ensure that the pairs are created correctly (we do this in chunks!)
+    // load `batch_size` chunks on each iteration and perform the transformation
+    iter_chunk(&parameters, |start, end| {
+        rayon::scope(|t| {
+            t.spawn(|_| {
+                let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
+                check_power_ratios::<E::G1Affine>(
+                    (tau_g1, compressed_output),
+                    (start, end),
+                    &mut g1,
+                    &g2_check,
+                )
+                .expect("could not check ratios for Tau G1");
+            });
+
+            if start < parameters.powers_length {
+                // if the `end` would be out of bounds, then just process until
+                // the end (this is necessary in case the last batch would try to
+                // process more elements than available)
+                let end = if start + parameters.batch_size > parameters.powers_length {
+                    parameters.powers_length
+                } else {
+                    end
+                };
+
+                rayon::scope(|t| {
+                    t.spawn(|_| {
+                        let mut g2 = vec![E::G2Affine::zero(); parameters.batch_size];
+                        check_power_ratios::<E::G2Affine>(
+                            (tau_g2, compressed_output),
+                            (start, end),
+                            &mut g2,
+                            &g1_check,
+                        )
+                        .expect("could not check ratios for Tau G2");
+                    });
+
+                    t.spawn(|_| {
+                        let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
+                        check_power_ratios::<E::G1Affine>(
+                            (alpha_g1, compressed_output),
+                            (start, end),
+                            &mut g1,
+                            &g2_check,
+                        )
+                        .expect("could not check ratios for Alpha G1");
+                    });
+
+                    t.spawn(|_| {
+                        let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
+                        check_power_ratios::<E::G1Affine>(
+                            (beta_g1, compressed_output),
+                            (start, end),
+                            &mut g1,
+                            &g2_check,
+                        )
+                        .expect("could not check ratios for Beta G1");
+                    });
+                });
+            }
+        });
+
+        Ok(())
+    })
+}
+
+/// Reads an input buffer and a secret key **which must be destroyed after this function is executed**.
+/// It then generates 2^(N+1) -1 powers of tau (tau is stored inside the secret key).
+/// Finally, each group element read from the input is multiplied by the corresponding power of tau depending
+/// on its index and maybe some extra coefficient, and is written to the output buffer.
+pub fn contribute<E: PairingEngine>(
+    input: (&[u8], UseCompression),
+    output: (&mut [u8], UseCompression),
+    key: &PrivateKey<E>,
+    parameters: &CeremonyParams<E>,
+) -> Result<()> {
+    let (input, compressed_input) = (input.0, input.1);
+    let (output, compressed_output) = (output.0, output.1);
+    // get an immutable reference to the input chunks
+    let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, in_beta_g2) =
+        split(&input, parameters, compressed_input);
+
+    // get mutable refs to the outputs
+    let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) =
+        split_mut(output, parameters, compressed_output);
+
+    // write beta_g2 for the first chunk
+    {
+        // get the element
+        let mut beta_g2_el = in_beta_g2.read_element::<E::G2Affine>(compressed_input)?;
+        // multiply it by the key's beta
+        beta_g2_el = beta_g2_el.mul(key.beta).into_affine();
+        // write it back
+        beta_g2.write_element(&beta_g2_el, compressed_output)?;
+    }
+
+    // load `batch_size` chunks on each iteration and perform the transformation
+    iter_chunk(&parameters, |start, end| {
+        // generate powers from `start` to `end` (e.g. [0,4) then [4, 8) etc.)
+        let powers = generate_powers_of_tau::<E>(&key.tau, start, end);
+
+        // raise each element from the input buffer to the powers of tau
+        // and write the updated value (without allocating) to the
+        // output buffer
+        rayon::scope(|t| {
+            t.spawn(|_| {
+                apply_powers::<E::G1Affine>(
+                    (tau_g1, compressed_output),
+                    (in_tau_g1, compressed_input),
+                    (start, end),
+                    &powers,
+                    None,
+                )
+                .expect("could not apply powers of tau to the TauG1 elements")
+            });
+            if start < parameters.powers_length {
+                // if the `end` would be out of bounds, then just process until
+                // the end (this is necessary in case the last batch would try to
+                // process more elements than available)
+                let end = if start + parameters.batch_size > parameters.powers_length {
+                    parameters.powers_length
+                } else {
+                    end
+                };
+
+                rayon::scope(|t| {
+                    t.spawn(|_| {
+                        apply_powers::<E::G2Affine>(
+                            (tau_g2, compressed_output),
+                            (in_tau_g2, compressed_input),
+                            (start, end),
+                            &powers,
+                            None,
+                        )
+                        .expect("could not apply powers of tau to the TauG2 elements")
+                    });
+                    t.spawn(|_| {
+                        apply_powers::<E::G1Affine>(
+                            (alpha_g1, compressed_output),
+                            (in_alpha_g1, compressed_input),
+                            (start, end),
+                            &powers,
+                            Some(&key.alpha),
+                        )
+                        .expect("could not apply powers of tau to the AlphaG1 elements")
+                    });
+                    t.spawn(|_| {
+                        apply_powers::<E::G1Affine>(
+                            (beta_g1, compressed_output),
+                            (in_beta_g1, compressed_input),
+                            (start, end),
+                            &powers,
+                            Some(&key.beta),
+                        )
+                        .expect("could not apply powers of tau to the BetaG1 elements")
+                    });
+                });
+            }
+        });
+
+        Ok(())
+    })
+}
+
+/// Takes a buffer, reads the group elements in it, exponentiates them to the
+/// provided `powers` and maybe to the `coeff`, and then writes them back
+fn apply_powers<C: AffineCurve>(
+    (output, output_compressed): Output,
+    (input, input_compressed): Input,
+    (start, end): (usize, usize),
+    powers: &[C::ScalarField],
+    coeff: Option<&C::ScalarField>,
+) -> Result<()> {
+    let in_size = buffer_size::<C>(input_compressed);
+    let out_size = buffer_size::<C>(output_compressed);
+    // read the input
+    let mut elements =
+        &mut input[start * in_size..end * in_size].read_batch::<C>(input_compressed)?;
+    // calculate the powers
+    batch_exp(&mut elements, &powers[..end - start], coeff)?;
+    // write back
+    output[start * out_size..end * out_size].write_batch(&elements, output_compressed)?;
+
+    Ok(())
+}
+
+/// Splits the full buffer in 5 non overlapping mutable slice.
+/// Each slice corresponds to the group elements in the following order
+/// [TauG1, TauG2, AlphaG1, BetaG1, BetaG2]
+fn split_mut<'a>(
+    buf: &'a mut [u8],
+    parameters: &'a CeremonyParams<impl PairingEngine>,
+    compressed: UseCompression,
+) -> SplitBufMut<'a> {
+    let g1_els = parameters.powers_g1_length;
+    let other = parameters.powers_length;
+    let (g1_size, g2_size) = parameters.curve.get_sizes(compressed);
+
+    // leave the first 64 bytes for the hash
+    let (_, others) = buf.split_at_mut(parameters.hash_size);
+    let (tau_g1, others) = others.split_at_mut(g1_size * g1_els);
+    let (tau_g2, others) = others.split_at_mut(g2_size * other);
+    let (alpha_g1, others) = others.split_at_mut(g1_size * other);
+    let (beta_g1, beta_g2) = others.split_at_mut(g1_size * other);
+    // we take up to g2_size for beta_g2, since there might be other
+    // elements after it at the end of the buffer
+    (tau_g1, tau_g2, alpha_g1, beta_g1, &mut beta_g2[0..g2_size])
+}
+
+/// Splits the full buffer in 5 non overlapping immutable slice.
+/// Each slice corresponds to the group elements in the following order
+/// [TauG1, TauG2, AlphaG1, BetaG1, BetaG2]
+fn split<'a>(
+    buf: &'a [u8],
+    parameters: &CeremonyParams<impl PairingEngine>,
+    compressed: UseCompression,
+) -> SplitBuf<'a> {
+    let g1_els = parameters.powers_g1_length;
+    let other = parameters.powers_length;
+    let (g1_size, g2_size) = parameters.curve.get_sizes(compressed);
+
+    let (_, others) = buf.split_at(parameters.hash_size);
+    let (tau_g1, others) = others.split_at(g1_size * g1_els);
+    let (tau_g2, others) = others.split_at(g2_size * other);
+    let (alpha_g1, others) = others.split_at(g1_size * other);
+    let (beta_g1, beta_g2) = others.split_at(g1_size * other);
+    // we take up to g2_size for beta_g2, since there might be other
+    // elements after it at the end of the buffer
+    (tau_g1, tau_g2, alpha_g1, beta_g1, &beta_g2[0..g2_size])
+}
