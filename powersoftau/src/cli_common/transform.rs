@@ -184,7 +184,7 @@ pub fn transform<T: Engine + Sync>(
                 .expect("unable to write hash to new challenge file");
         }
 
-        BatchedAccumulator::decompress(
+        BatchedAccumulator::decompress_parallel(
             &response_readable_map,
             &mut writable_map,
             CheckForCorrectness::No,

@@ -319,13 +319,7 @@ pub fn deserialize<E: PairingEngine>(
     input: &[u8],
     compressed: UseCompression,
     parameters: &CeremonyParams<E>,
-) -> Result<(
-    Vec<E::G1Affine>,
-    Vec<E::G2Affine>,
-    Vec<E::G1Affine>,
-    Vec<E::G1Affine>,
-    E::G2Affine,
-)> {
+) -> Result<AccumulatorElements<E>> {
     // get an immutable reference to the input chunks
     let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, in_beta_g2) =
         split(&input, parameters, compressed);

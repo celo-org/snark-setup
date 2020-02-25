@@ -52,8 +52,12 @@ pub fn new_challenge<T: Engine + Sync>(challenge_filename: &str, parameters: &Ce
     println!("Blank hash for an empty challenge:");
     print_hash(&hash);
 
-    BatchedAccumulator::generate_initial(&mut writable_map, COMPRESS_NEW_CHALLENGE, &parameters)
-        .expect("generation of initial accumulator is successful");
+    BatchedAccumulator::generate_initial_parallel(
+        &mut writable_map,
+        COMPRESS_NEW_CHALLENGE,
+        &parameters,
+    )
+    .expect("generation of initial accumulator is successful");
     writable_map
         .flush()
         .expect("unable to flush memmap to disk");
