@@ -243,6 +243,17 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         Ok(())
     }
 
+    pub fn decompress_parallel(
+        input: &[u8],
+        output: &mut [u8],
+        _check_input_for_correctness: CheckForCorrectness,
+        parameters: &'a CeremonyParams<E>,
+    ) -> Result<()> {
+        raw_accumulator::decompress(input, output, parameters)?;
+        Ok(())
+    }
+
+    #[deprecated(note = "please use decompress_parallel as it is 2x faster")]
     pub fn decompress(
         input: &[u8],
         output: &mut [u8],
@@ -926,6 +937,43 @@ mod tests {
     fn generate_initial_test() {
         generate_initial_test_curve::<Bls12_377>(4, 4, UseCompression::Yes);
         generate_initial_test_curve::<Bls12_377>(4, 4, UseCompression::No);
+    }
+
+    #[test]
+    fn test_decompress() {
+        test_decompress_curve::<Bls12_377>()
+    }
+
+    fn test_decompress_curve<E: Engine>() {
+        let parameters = CeremonyParams::<E>::new(2, 2);
+        let (mut input, before) = generate_input(&parameters, UseCompression::Yes);
+        let mut output = generate_output(&parameters, UseCompression::No);
+        // generates a compressed input vector
+        BatchedAccumulator::generate_initial_parallel(&mut input, UseCompression::Yes, &parameters)
+            .unwrap();
+
+        // decompress the input to the output
+        BatchedAccumulator::decompress_parallel(&input, &mut output, CheckForCorrectness::Yes, &parameters)
+            .unwrap();
+
+        // deserializes the decompressed output
+        let deserialized = BatchedAccumulator::deserialize(
+            &output,
+            CheckForCorrectness::Yes,
+            UseCompression::No,
+            &parameters,
+        )
+        .unwrap();
+        assert_eq!(deserialized, before);
+
+        // trying to deserialize it as compressed should obviously fail:w
+        BatchedAccumulator::deserialize(
+            &output,
+            CheckForCorrectness::Yes,
+            UseCompression::Yes,
+            &parameters,
+        )
+        .unwrap_err();
     }
 
     #[test]

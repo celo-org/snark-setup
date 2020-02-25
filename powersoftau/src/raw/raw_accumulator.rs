@@ -38,8 +38,8 @@ fn iter_chunk(
         .into_iter()
         .map(|chunk| {
             let (start, end) = match chunk.minmax() {
-                MinMaxResult::MinMax(start, end) => (start, end),
-                MinMaxResult::OneElement(start) => (start, start),
+                MinMaxResult::MinMax(start, end) => (start, end + 1),
+                MinMaxResult::OneElement(start) => (start, start + 1),
                 _ => return Err(Error::InvalidChunk),
             };
             action(start, end)
@@ -54,7 +54,8 @@ pub fn init<'a, E: PairingEngine>(
     compressed: UseCompression,
 ) {
     let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split_mut(output, parameters, compressed);
-    let (g1_size, g2_size) = parameters.curve.get_sizes(compressed);
+    let g1_size = buffer_size::<E::G1Affine>(compressed);
+    let g2_size = buffer_size::<E::G2Affine>(compressed);
     let g1_one = &E::G1Affine::prime_subgroup_generator();
     let g2_one = &E::G2Affine::prime_subgroup_generator();
     rayon::scope(|s| {
@@ -274,6 +275,69 @@ pub fn verify<E: PairingEngine>(
 }
 
 /// Reads an input buffer and a secret key **which must be destroyed after this function is executed**.
+pub fn decompress<E: PairingEngine>(
+    input: &[u8],
+    output: &mut [u8],
+    parameters: &CeremonyParams<E>,
+) -> Result<()> {
+    let compressed_input = UseCompression::Yes;
+    let compressed_output = UseCompression::No;
+    // get an immutable reference to the compressed input chunks
+    let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, in_beta_g2) =
+        split(&input, parameters, compressed_input);
+
+    // get mutable refs to the decompressed outputs
+    let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) =
+        split_mut(output, parameters, compressed_output);
+
+    // decompress beta_g2 for the first chunk
+    {
+        // get the compressed element
+        let beta_g2_el = in_beta_g2.read_element::<E::G2Affine>(compressed_input)?;
+        // write it back decompressed
+        beta_g2.write_element(&beta_g2_el, compressed_output)?;
+    }
+
+    // load `batch_size` chunks on each iteration and decompress them
+    iter_chunk(&parameters, |start, end| {
+        // decompress each element
+        rayon::scope(|t| {
+            t.spawn(|_| {
+                decompress_buffer::<E::G1Affine>(tau_g1, in_tau_g1, (start, end))
+                    .expect("could not decompress the TauG1 elements")
+            });
+            if start < parameters.powers_length {
+                // if the `end` would be out of bounds, then just process until
+                // the end (this is necessary in case the last batch would try to
+                // process more elements than available)
+                let end = if start + parameters.batch_size > parameters.powers_length {
+                    parameters.powers_length
+                } else {
+                    end
+                };
+
+                rayon::scope(|t| {
+                    t.spawn(|_| {
+                        decompress_buffer::<E::G2Affine>(tau_g2, in_tau_g2, (start, end))
+                            .expect("could not decompress the TauG2 elements")
+                    });
+                    t.spawn(|_| {
+                        decompress_buffer::<E::G1Affine>(alpha_g1, in_alpha_g1, (start, end))
+                            .expect("could not decompress the AlphaG1 elements")
+                    });
+                    t.spawn(|_| {
+                        decompress_buffer::<E::G1Affine>(beta_g1, in_beta_g1, (start, end))
+                            .expect("could not decompress the BetaG1 elements")
+                    });
+                });
+            }
+        });
+
+        Ok(())
+    })
+}
+
+/// Reads an input buffer and a secret key **which must be destroyed after this function is executed**.
 /// It then generates 2^(N+1) -1 powers of tau (tau is stored inside the secret key).
 /// Finally, each group element read from the input is multiplied by the corresponding power of tau depending
 /// on its index and maybe some extra coefficient, and is written to the output buffer.
@@ -371,6 +435,57 @@ pub fn contribute<E: PairingEngine>(
     })
 }
 
+/// Takes a compressed input buffer and decompresses it
+fn decompress_buffer<C: AffineCurve>(
+    output: &mut [u8],
+    input: &[u8],
+    (start, end): (usize, usize),
+) -> Result<()> {
+    let in_size = buffer_size::<C>(UseCompression::Yes);
+    let out_size = buffer_size::<C>(UseCompression::No);
+    // read the compressed input
+    let elements = input[start * in_size..end * in_size].read_batch::<C>(UseCompression::Yes)?;
+    // write it back uncompressed
+    output[start * out_size..end * out_size].write_batch(&elements, UseCompression::No)?;
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::test_helpers::random_point_vec;
+    use rand::thread_rng;
+    use zexe_algebra::curves::bls12_377::Bls12_377;
+
+    #[test]
+    fn test_decompress_buffer() {
+        test_decompress_buffer_curve::<<Bls12_377 as PairingEngine>::G1Affine>();
+        test_decompress_buffer_curve::<<Bls12_377 as PairingEngine>::G2Affine>();
+    }
+
+    fn test_decompress_buffer_curve<C: AffineCurve>() {
+        // generate some random points
+        let mut rng = thread_rng();
+        let num_els = 10;
+        let elements:  Vec<C> = random_point_vec(num_els, &mut rng);
+        // write them as compressed
+        let len = num_els * buffer_size::<C>(UseCompression::Yes);
+        let mut input = vec![0; len];
+        input.write_batch(&elements, UseCompression::Yes).unwrap();
+
+        // allocate the decompressed buffer
+        let len = num_els * buffer_size::<C>(UseCompression::No);
+        let mut out = vec![0; len];
+        // perform the decompression
+        decompress_buffer::<C>(&mut out, &input, (0, num_els)).unwrap();
+        let deserialized = out.read_batch::<C>(UseCompression::No).unwrap();
+        // ensure they match
+        assert_eq!(deserialized, elements);
+    }
+
+}
+
 /// Takes a buffer, reads the group elements in it, exponentiates them to the
 /// provided `powers` and maybe to the `coeff`, and then writes them back
 fn apply_powers<C: AffineCurve>(
@@ -396,14 +511,15 @@ fn apply_powers<C: AffineCurve>(
 /// Splits the full buffer in 5 non overlapping mutable slice.
 /// Each slice corresponds to the group elements in the following order
 /// [TauG1, TauG2, AlphaG1, BetaG1, BetaG2]
-fn split_mut<'a>(
+fn split_mut<'a, E: PairingEngine>(
     buf: &'a mut [u8],
-    parameters: &'a CeremonyParams<impl PairingEngine>,
+    parameters: &'a CeremonyParams<E>,
     compressed: UseCompression,
 ) -> SplitBufMut<'a> {
     let g1_els = parameters.powers_g1_length;
     let other = parameters.powers_length;
-    let (g1_size, g2_size) = parameters.curve.get_sizes(compressed);
+    let g1_size = buffer_size::<E::G1Affine>(compressed);
+    let g2_size = buffer_size::<E::G2Affine>(compressed);
 
     // leave the first 64 bytes for the hash
     let (_, others) = buf.split_at_mut(parameters.hash_size);
@@ -419,14 +535,15 @@ fn split_mut<'a>(
 /// Splits the full buffer in 5 non overlapping immutable slice.
 /// Each slice corresponds to the group elements in the following order
 /// [TauG1, TauG2, AlphaG1, BetaG1, BetaG2]
-fn split<'a>(
+fn split<'a, E: PairingEngine>(
     buf: &'a [u8],
-    parameters: &CeremonyParams<impl PairingEngine>,
+    parameters: &CeremonyParams<E>,
     compressed: UseCompression,
 ) -> SplitBuf<'a> {
     let g1_els = parameters.powers_g1_length;
     let other = parameters.powers_length;
-    let (g1_size, g2_size) = parameters.curve.get_sizes(compressed);
+    let g1_size = buffer_size::<E::G1Affine>(compressed);
+    let g2_size = buffer_size::<E::G2Affine>(compressed);
 
     let (_, others) = buf.split_at(parameters.hash_size);
     let (tau_g1, others) = others.split_at(g1_size * g1_els);
