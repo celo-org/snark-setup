@@ -114,7 +114,7 @@ pub fn contribute<T: Engine + Sync>(
     println!("Computing and writing your contribution, this could take a while...");
 
     // this computes a transformation and writes it
-    BatchedAccumulator::contribute_parallel(
+    BatchedAccumulator::contribute(
         &readable_map,
         &mut writable_map,
         INPUT_IS_COMPRESSED,
