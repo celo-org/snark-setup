@@ -243,6 +243,25 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         Ok(())
     }
 
+    pub fn deserialize_parallel(
+        input: &[u8],
+        _check_input_for_correctness: CheckForCorrectness,
+        compression: UseCompression,
+        parameters: &'a CeremonyParams<E>,
+    ) -> Result<BatchedAccumulator<'a, E>> {
+        let (tau_powers_g1, tau_powers_g2, alpha_tau_powers_g1, beta_tau_powers_g1, beta_g2) =
+            raw_accumulator::deserialize(input, compression, parameters)?;
+        Ok(BatchedAccumulator {
+            tau_powers_g1,
+            tau_powers_g2,
+            alpha_tau_powers_g1,
+            beta_tau_powers_g1,
+            beta_g2,
+            hash: blank_hash(),
+            parameters,
+        })
+    }
+
     pub fn decompress_parallel(
         input: &[u8],
         output: &mut [u8],
@@ -858,6 +877,25 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
         })
     }
 
+    pub fn serialize_parallel(
+        &self,
+        output: &mut [u8],
+        compression: UseCompression,
+        parameters: &'a CeremonyParams<E>,
+    ) -> Result<()> {
+        let elements = (
+            self.tau_powers_g1.as_ref(),
+            self.tau_powers_g2.as_ref(),
+            self.alpha_tau_powers_g1.as_ref(),
+            self.beta_tau_powers_g1.as_ref(),
+            &self.beta_g2,
+        );
+
+        raw_accumulator::serialize(elements, output, compression, parameters)?;
+
+        Ok(())
+    }
+
     pub fn serialize(
         &mut self,
         output: &mut [u8],
@@ -946,18 +984,21 @@ mod tests {
 
     fn test_decompress_curve<E: Engine>() {
         let parameters = CeremonyParams::<E>::new(2, 2);
-        let (mut input, before) = generate_input(&parameters, UseCompression::Yes);
+        // generate a random input compressed accumulator
+        let (input, before) = generate_random_accumulator(&parameters, UseCompression::Yes);
         let mut output = generate_output(&parameters, UseCompression::No);
-        // generates a compressed input vector
-        BatchedAccumulator::generate_initial_parallel(&mut input, UseCompression::Yes, &parameters)
-            .unwrap();
 
         // decompress the input to the output
-        BatchedAccumulator::decompress_parallel(&input, &mut output, CheckForCorrectness::Yes, &parameters)
-            .unwrap();
+        BatchedAccumulator::decompress_parallel(
+            &input,
+            &mut output,
+            CheckForCorrectness::Yes,
+            &parameters,
+        )
+        .unwrap();
 
         // deserializes the decompressed output
-        let deserialized = BatchedAccumulator::deserialize(
+        let deserialized = BatchedAccumulator::deserialize_parallel(
             &output,
             CheckForCorrectness::Yes,
             UseCompression::No,
@@ -966,8 +1007,8 @@ mod tests {
         .unwrap();
         assert_eq!(deserialized, before);
 
-        // trying to deserialize it as compressed should obviously fail:w
-        BatchedAccumulator::deserialize(
+        // trying to deserialize it as compressed should obviously fail
+        BatchedAccumulator::deserialize_parallel(
             &output,
             CheckForCorrectness::Yes,
             UseCompression::Yes,
@@ -1019,7 +1060,7 @@ mod tests {
         )
         .unwrap();
 
-        let deserialized = BatchedAccumulator::deserialize(
+        let deserialized = BatchedAccumulator::deserialize_parallel(
             &output,
             CheckForCorrectness::Yes,
             compressed_output,
@@ -1054,11 +1095,7 @@ mod tests {
         .unwrap();
         before.beta_g2 = before.beta_g2.mul(privkey.beta).into_affine();
 
-        assert_eq!(deserialized.tau_powers_g1, before.tau_powers_g1);
-        assert_eq!(deserialized.tau_powers_g2, before.tau_powers_g2);
-        assert_eq!(deserialized.alpha_tau_powers_g1, before.alpha_tau_powers_g1);
-        assert_eq!(deserialized.beta_tau_powers_g1, before.beta_tau_powers_g1);
-        assert_eq!(deserialized.beta_g2, before.beta_g2);
+        assert_eq!(deserialized, before);
     }
 
     #[test]
@@ -1246,7 +1283,7 @@ mod tests {
         let mut output = vec![0; expected_challenge_length];
         BatchedAccumulator::generate_initial(&mut output, compression, &parameters).unwrap();
 
-        let deserialized = BatchedAccumulator::deserialize(
+        let deserialized = BatchedAccumulator::deserialize_parallel(
             &output,
             CheckForCorrectness::Yes,
             compression,
@@ -1284,7 +1321,7 @@ mod tests {
         // create a small accumulator with some random state
         let parameters = CeremonyParams::<E>::new(size, batch);
         let (buffer, accumulator) = generate_random_accumulator(&parameters, compress);
-        let deserialized = BatchedAccumulator::deserialize(
+        let deserialized = BatchedAccumulator::deserialize_parallel(
             &buffer,
             CheckForCorrectness::Yes,
             compress,
@@ -1639,6 +1676,30 @@ mod tests {
         deserialized_batches
     }
 
+    // Helpers
+    fn generate_random_accumulator<'a, E: Engine>(
+        parameters: &'a CeremonyParams<E>,
+        compressed: UseCompression,
+    ) -> (Vec<u8>, BatchedAccumulator<'a, E>) {
+        let tau_g1_size = parameters.powers_g1_length;
+        let other_size = parameters.powers_length;
+        let rng = &mut thread_rng();
+        let acc = BatchedAccumulator {
+            tau_powers_g1: random_point_vec(tau_g1_size, rng),
+            tau_powers_g2: random_point_vec(other_size, rng),
+            alpha_tau_powers_g1: random_point_vec(other_size, rng),
+            beta_tau_powers_g1: random_point_vec(other_size, rng),
+            beta_g2: random_point(rng),
+            hash: blank_hash(),
+            parameters,
+        };
+        let len = parameters.get_length(compressed);
+        let mut buf = vec![0; len];
+        acc.serialize_parallel(&mut buf, compressed, parameters)
+            .unwrap();
+        (buf, acc)
+    }
+
     fn generate_input<E: Engine>(
         parameters: &CeremonyParams<E>,
         compressed: UseCompression,
@@ -1648,7 +1709,7 @@ mod tests {
         BatchedAccumulator::generate_initial(&mut output, compressed, &parameters).unwrap();
         let mut input = vec![0; len];
         input.copy_from_slice(&output);
-        let before = BatchedAccumulator::deserialize(
+        let before = BatchedAccumulator::deserialize_parallel(
             &output,
             CheckForCorrectness::Yes,
             compressed,

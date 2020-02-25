@@ -27,6 +27,25 @@ type SplitBufMut<'a> = (
 /// Immutable slices with format [TauG1, TauG2, AlphaG1, BetaG1, BetaG2]
 type SplitBuf<'a> = (&'a [u8], &'a [u8], &'a [u8], &'a [u8], &'a [u8]);
 
+#[allow(type_alias_bounds)]
+type AccumulatorElements<E: PairingEngine> = (
+    Vec<E::G1Affine>,
+    Vec<E::G2Affine>,
+    Vec<E::G1Affine>,
+    Vec<E::G1Affine>,
+    E::G2Affine,
+);
+
+#[allow(type_alias_bounds)]
+#[allow(unused)]
+type AccumulatorElementsRef<'a, E: PairingEngine> = (
+    &'a [E::G1Affine],
+    &'a [E::G2Affine],
+    &'a [E::G1Affine],
+    &'a [E::G1Affine],
+    &'a E::G2Affine,
+);
+
 /// Helper function to iterate over the accumulator in chunks.
 /// `action` will perform an action on the chunk
 fn iter_chunk(
@@ -274,6 +293,53 @@ pub fn verify<E: PairingEngine>(
     })
 }
 
+/// Serializes all the provided elements to the output buffer
+#[allow(unused)]
+pub fn serialize<E: PairingEngine>(
+    elements: AccumulatorElementsRef<E>,
+    output: &mut [u8],
+    compressed: UseCompression,
+    parameters: &CeremonyParams<E>,
+) -> Result<()> {
+    let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, in_beta_g2) = elements;
+    let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split_mut(output, parameters, compressed);
+
+    tau_g1.write_batch(&in_tau_g1, compressed)?;
+    tau_g2.write_batch(&in_tau_g2, compressed)?;
+    alpha_g1.write_batch(&in_alpha_g1, compressed)?;
+    beta_g1.write_batch(&in_beta_g1, compressed)?;
+    beta_g2.write_element(in_beta_g2, compressed)?;
+
+    Ok(())
+}
+
+/// warning, only use this on machines which have enough memory to load
+/// the accumulator in memory
+pub fn deserialize<E: PairingEngine>(
+    input: &[u8],
+    compressed: UseCompression,
+    parameters: &CeremonyParams<E>,
+) -> Result<(
+    Vec<E::G1Affine>,
+    Vec<E::G2Affine>,
+    Vec<E::G1Affine>,
+    Vec<E::G1Affine>,
+    E::G2Affine,
+)> {
+    // get an immutable reference to the input chunks
+    let (in_tau_g1, in_tau_g2, in_alpha_g1, in_beta_g1, in_beta_g2) =
+        split(&input, parameters, compressed);
+
+    // deserialize each part of the buffer separately
+    let tau_g1 = in_tau_g1.read_batch(compressed)?;
+    let tau_g2 = in_tau_g2.read_batch(compressed)?;
+    let alpha_g1 = in_alpha_g1.read_batch(compressed)?;
+    let beta_g1 = in_beta_g1.read_batch(compressed)?;
+    let beta_g2 = in_beta_g2.read_element(compressed)?;
+
+    Ok((tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2))
+}
+
 /// Reads an input buffer and a secret key **which must be destroyed after this function is executed**.
 pub fn decompress<E: PairingEngine>(
     input: &[u8],
@@ -468,7 +534,7 @@ mod tests {
         // generate some random points
         let mut rng = thread_rng();
         let num_els = 10;
-        let elements:  Vec<C> = random_point_vec(num_els, &mut rng);
+        let elements: Vec<C> = random_point_vec(num_els, &mut rng);
         // write them as compressed
         let len = num_els * buffer_size::<C>(UseCompression::Yes);
         let mut input = vec![0; len];
@@ -483,7 +549,6 @@ mod tests {
         // ensure they match
         assert_eq!(deserialized, elements);
     }
-
 }
 
 /// Takes a buffer, reads the group elements in it, exponentiates them to the
