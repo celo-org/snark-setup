@@ -32,6 +32,7 @@ pub enum AccumulatorState {
 ///
 /// * (τ, τ<sup>2</sup>, ..., τ<sup>2<sup>22</sup> - 2</sup>, α, ατ, ατ<sup>2</sup>, ..., ατ<sup>2<sup>21</sup> - 1</sup>, β, βτ, βτ<sup>2</sup>, ..., βτ<sup>2<sup>21</sup> - 1</sup>)<sub>1</sub>
 /// * (β, τ, τ<sup>2</sup>, ..., τ<sup>2<sup>21</sup> - 1</sup>)<sub>2</sub>
+#[derive(Debug)]
 pub struct BatchedAccumulator<'a, E: Engine> {
     /// tau^0, tau^1, tau^2, ..., tau^{TAU_POWERS_G1_LENGTH - 1}
     pub tau_powers_g1: Vec<E::G1Affine>,
@@ -47,6 +48,17 @@ pub struct BatchedAccumulator<'a, E: Engine> {
     pub hash: GenericArray<u8, U64>,
     /// The parameters used for the setup of this accumulator
     pub parameters: &'a CeremonyParams<E>,
+}
+
+impl<'a, E: Engine> PartialEq for BatchedAccumulator<'a, E> {
+    fn eq(&self, other: &Self) -> bool {
+        self.tau_powers_g1 == other.tau_powers_g1
+            && self.tau_powers_g2 == other.tau_powers_g2
+            && self.alpha_tau_powers_g1 == other.alpha_tau_powers_g1
+            && self.beta_tau_powers_g1 == other.beta_tau_powers_g1
+            && self.hash == other.hash
+            && self.beta_g2 == other.beta_g2
+    }
 }
 
 impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
@@ -820,12 +832,9 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        parameters::CurveParams,
-        utils::{
-            calculate_hash,
-            test_helpers::{random_point, random_point_vec, random_point_vec_batched},
-        },
+    use crate::utils::{
+        calculate_hash,
+        test_helpers::{random_point, random_point_vec, random_point_vec_batched},
     };
     use rand::thread_rng;
     use zexe_algebra::curves::{bls12_377::Bls12_377, bls12_381::Bls12_381, sw6::SW6};
@@ -1085,6 +1094,41 @@ mod tests {
         assert!(res.is_err());
     }
 
+    #[test]
+    fn test_decompress() {
+        test_decompress_curve::<Bls12_377>()
+    }
+
+    fn test_decompress_curve<E: Engine>() {
+        let parameters = CeremonyParams::<E>::new(2, 2);
+        // generate a random input compressed accumulator
+        let (input, before) = generate_random_accumulator(&parameters, UseCompression::Yes);
+        let mut output = generate_output(&parameters, UseCompression::No);
+
+        // decompress the input to the output
+        BatchedAccumulator::decompress(&input, &mut output, CheckForCorrectness::Yes, &parameters)
+            .unwrap();
+
+        // deserializes the decompressed output
+        let deserialized = BatchedAccumulator::deserialize(
+            &output,
+            CheckForCorrectness::Yes,
+            UseCompression::No,
+            &parameters,
+        )
+        .unwrap();
+        assert_eq!(deserialized, before);
+
+        // trying to deserialize it as compressed should obviously fail
+        BatchedAccumulator::deserialize(
+            &output,
+            CheckForCorrectness::Yes,
+            UseCompression::Yes,
+            &parameters,
+        )
+        .unwrap_err();
+    }
+
     fn generate_initial_test_curve<E: Engine>(
         powers: usize,
         batch: usize,
@@ -1097,8 +1141,7 @@ mod tests {
         };
 
         let mut output = vec![0; expected_challenge_length];
-        BatchedAccumulator::generate_initial(&mut output, compression, &parameters)
-            .unwrap();
+        BatchedAccumulator::generate_initial(&mut output, compression, &parameters).unwrap();
 
         let deserialized = BatchedAccumulator::deserialize(
             &output,
@@ -1136,20 +1179,8 @@ mod tests {
         batch: usize,
     ) {
         // create a small accumulator with some random state
-        let curve = CurveParams::<E>::new();
-        let parameters = CeremonyParams::new_with_curve(curve, size, batch);
-        let mut accumulator = random_accumulator::<E>(&parameters);
-
-        let expected_challenge_length = match compress {
-            UseCompression::Yes => parameters.contribution_size - parameters.public_key_size,
-            UseCompression::No => parameters.accumulator_size,
-        };
-        let mut buffer = vec![0; expected_challenge_length];
-
-        // serialize it and ensure that the recovered version matches the original
-        accumulator
-            .serialize(&mut buffer, compress, &parameters)
-            .unwrap();
+        let parameters = CeremonyParams::<E>::new(size, batch);
+        let (buffer, accumulator) = generate_random_accumulator(&parameters, compress);
         let deserialized = BatchedAccumulator::deserialize(
             &buffer,
             CheckForCorrectness::Yes,
@@ -1157,18 +1188,7 @@ mod tests {
             &parameters,
         )
         .unwrap();
-
-        assert_eq!(deserialized.tau_powers_g1, accumulator.tau_powers_g1);
-        assert_eq!(deserialized.tau_powers_g2, accumulator.tau_powers_g2);
-        assert_eq!(
-            deserialized.alpha_tau_powers_g1,
-            accumulator.alpha_tau_powers_g1
-        );
-        assert_eq!(
-            deserialized.beta_tau_powers_g1,
-            accumulator.beta_tau_powers_g1
-        );
-        assert_eq!(deserialized.beta_g2, accumulator.beta_g2);
+        assert_eq!(deserialized, accumulator);
     }
 
     #[test]
@@ -1436,13 +1456,14 @@ mod tests {
     }
 
     // Helpers
-    fn random_accumulator<'a, E: Engine>(
+    fn generate_random_accumulator<'a, E: Engine>(
         parameters: &'a CeremonyParams<E>,
-    ) -> BatchedAccumulator<'a, E> {
+        compressed: UseCompression,
+    ) -> (Vec<u8>, BatchedAccumulator<'a, E>) {
         let tau_g1_size = parameters.powers_g1_length;
         let other_size = parameters.powers_length;
         let rng = &mut thread_rng();
-        BatchedAccumulator {
+        let mut acc = BatchedAccumulator {
             tau_powers_g1: random_point_vec(tau_g1_size, rng),
             tau_powers_g2: random_point_vec(other_size, rng),
             alpha_tau_powers_g1: random_point_vec(other_size, rng),
@@ -1450,7 +1471,11 @@ mod tests {
             beta_g2: random_point(rng),
             hash: blank_hash(),
             parameters,
-        }
+        };
+        let len = parameters.get_length(compressed);
+        let mut buf = vec![0; len];
+        acc.serialize(&mut buf, compressed, parameters).unwrap();
+        (buf, acc)
     }
 
     fn serialize_batches<'a, C: AffineCurve, E: Engine + Sync>(
@@ -1517,8 +1542,7 @@ mod tests {
     ) -> (Vec<u8>, BatchedAccumulator<E>) {
         let len = parameters.get_length(compressed);
         let mut output = vec![0; len];
-        BatchedAccumulator::generate_initial(&mut output, compressed, &parameters)
-            .unwrap();
+        BatchedAccumulator::generate_initial(&mut output, compressed, &parameters).unwrap();
         let mut input = vec![0; len];
         input.copy_from_slice(&output);
         let before = BatchedAccumulator::deserialize(
