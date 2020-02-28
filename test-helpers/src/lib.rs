@@ -1,4 +1,7 @@
 //! Helpers crate to be consumed in tests and benchmarks
+mod accumulator_helpers;
+pub use accumulator_helpers::*;
+
 use rand::{thread_rng, Rng};
 use zexe_algebra::{AffineCurve, ProjectiveCurve, UniformRand};
 

@@ -70,6 +70,19 @@ pub fn print_hash(hash: &[u8]) {
     }
 }
 
+/// Multiply a large number of points by a scalar
+pub fn batch_mul<C: AffineCurve>(bases: &mut [C], coeff: &C::ScalarField) -> Result<()> {
+    let coeff = coeff.into_repr();
+    let mut points: Vec<_> = bases.par_iter().map(|base| base.mul(coeff)).collect();
+    C::Projective::batch_normalization(&mut points);
+    bases
+        .par_iter_mut()
+        .zip(points)
+        .for_each(|(base, proj)| *base = proj.into_affine());
+
+    Ok(())
+}
+
 /// Exponentiate a large number of points, with an optional coefficient to be applied to the
 /// exponent.
 pub fn batch_exp<C: AffineCurve>(
@@ -180,9 +193,9 @@ pub const fn num_bits<T>() -> usize {
     std::mem::size_of::<T>() * 8
 }
 
-pub fn log_2(x: u64) -> u32 {
+pub fn log_2(x: usize) -> usize {
     assert!(x > 0);
-    num_bits::<u64>() as u32 - x.leading_zeros() - 1
+    num_bits::<usize>() - (x.leading_zeros() as usize) - 1
 }
 
 /// Abstraction over a writer which hashes the data being written.
@@ -329,7 +342,7 @@ mod tests {
     }
 }
 
-fn merge_pairs<G: AffineCurve>(v1: &[G], v2: &[G]) -> (G, G) {
+pub fn merge_pairs<G: AffineCurve>(v1: &[G], v2: &[G]) -> (G, G) {
     assert_eq!(v1.len(), v2.len());
     let rng = &mut thread_rng();
 

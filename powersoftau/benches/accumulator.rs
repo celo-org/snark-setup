@@ -14,8 +14,7 @@ use powersoftau_v1::{
     },
 };
 
-mod utils;
-use utils::{compat, generate_input, setup_verify};
+use test_helpers::{generate_input, setup_verify};
 
 // Benchmark comparing the generation of the iterator in parallel chunks
 // Parallel generation is strictly better
@@ -203,6 +202,16 @@ fn verify_benchmark(c: &mut Criterion) {
                 },
             );
         }
+    }
+}
+
+use powersoftau_v1::parameters::UseCompression as UseCompressionV1;
+// Unfortunately we need to convert datatypes from the current version
+// to be compatible to the imported version
+pub fn compat(compression: UseCompression) -> UseCompressionV1 {
+    match compression {
+        UseCompression::Yes => UseCompressionV1::Yes,
+        UseCompression::No => UseCompressionV1::No,
     }
 }
 
