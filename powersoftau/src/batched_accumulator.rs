@@ -153,13 +153,13 @@ impl<'a, E: Engine + Sync> BatchedAccumulator<'a, E> {
 mod tests {
     use super::*;
     use crate::utils::{
-        batch_exp,
-        generate_powers_of_tau,
-        calculate_hash,
+        batch_exp, calculate_hash, generate_powers_of_tau,
         test_helpers::{random_point, random_point_vec},
     };
     use rand::thread_rng;
-    use zexe_algebra::curves::{bls12_377::Bls12_377, bls12_381::Bls12_381, sw6::SW6, AffineCurve, ProjectiveCurve};
+    use zexe_algebra::curves::{
+        bls12_377::Bls12_377, bls12_381::Bls12_381, sw6::SW6, AffineCurve, ProjectiveCurve,
+    };
 
     #[test]
     fn serialize_multiple_batches() {
