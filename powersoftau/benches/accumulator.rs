@@ -1,7 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use powersoftau::{
-    batched_accumulator::BatchedAccumulator as RawAccumulator, keypair::*, parameters::*,
-};
+use powersoftau::{keypair::*, parameters::*, BatchedAccumulator as RawAccumulator};
 use rand::thread_rng;
 use snark_utils::*;
 use zexe_algebra::Bls12_377;

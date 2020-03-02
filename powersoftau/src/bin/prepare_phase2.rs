@@ -1,8 +1,8 @@
 use gumdrop::Options;
 use powersoftau::{
-    batched_accumulator::*,
     cli_common::{curve_from_str, proving_system_from_str, CurveKind, ProvingSystem},
     parameters::*,
+    BatchedAccumulator,
 };
 use snark_utils::{Groth16Params, Result, UseCompression};
 
@@ -85,13 +85,9 @@ fn prepare_phase2<E: PairingEngine + Sync>(
         .expect("unable to create parameter file in this directory");
 
     // Deserialize the accumulator
-    let current_accumulator = BatchedAccumulator::deserialize(
-        &response_readable_map,
-        CheckForCorrectness::Yes,
-        UseCompression::Yes,
-        &parameters,
-    )
-    .expect("unable to read uncompressed accumulator");
+    let current_accumulator =
+        BatchedAccumulator::deserialize(&response_readable_map, UseCompression::Yes, &parameters)
+            .expect("unable to read uncompressed accumulator");
 
     // Load the elements to the Groth16 utility
     let groth16_params = Groth16Params::<E>::new(

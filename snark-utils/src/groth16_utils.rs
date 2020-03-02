@@ -5,10 +5,12 @@ use crate::{
     UseCompression,
 };
 use rayon::prelude::*;
+use std::fmt::Debug;
 use std::io::Write;
 use zexe_algebra::{AffineCurve, PairingEngine, PrimeField, ProjectiveCurve};
 use zexe_fft::EvaluationDomain;
 
+#[derive(Debug)]
 pub struct Groth16Params<E: PairingEngine> {
     pub alpha_g1: E::G1Affine,
     pub beta_g1: E::G1Affine,
@@ -18,6 +20,19 @@ pub struct Groth16Params<E: PairingEngine> {
     pub alpha_coeffs_g1: Vec<E::G1Affine>,
     pub beta_coeffs_g1: Vec<E::G1Affine>,
     pub h_g1: Vec<E::G1Affine>,
+}
+
+impl<E: PairingEngine> PartialEq for Groth16Params<E> {
+    fn eq(&self, other: &Self) -> bool {
+        self.alpha_g1 == other.alpha_g1
+            && self.beta_g1 == other.beta_g1
+            && self.beta_g2 == other.beta_g2
+            && self.coeffs_g1 == other.coeffs_g1
+            && self.coeffs_g2 == other.coeffs_g2
+            && self.alpha_coeffs_g1 == other.alpha_coeffs_g1
+            && self.beta_coeffs_g1 == other.beta_coeffs_g1
+            && self.h_g1 == other.h_g1
+    }
 }
 
 /// Performs an IFFT over the provided evaluation domain to the provided
@@ -43,7 +58,7 @@ where
 /// x^i * (x^m - 1) for i in 0..=(m-2) a.k.a.
 /// x^(i + m) - x^i for i in 0..=(m-2)
 /// for radix2 evaluation domains
-pub fn h_query_groth16<C: AffineCurve>(powers: Vec<C>, degree: usize) -> Vec<C> {
+fn h_query_groth16<C: AffineCurve>(powers: Vec<C>, degree: usize) -> Vec<C> {
     (0..degree - 1)
         .into_par_iter()
         .map(|i| powers[i + degree] + powers[i].neg())
@@ -53,6 +68,10 @@ pub fn h_query_groth16<C: AffineCurve>(powers: Vec<C>, degree: usize) -> Vec<C> 
 impl<E: PairingEngine> Groth16Params<E> {
     /// Loads the Powers of Tau and transforms them to coefficient form
     /// in preparation of Phase 2
+    ///
+    /// # Panics
+    ///
+    /// If `phase2_size` > length of any of the provided vectors
     pub fn new(
         phase2_size: usize,
         tau_powers_g1: Vec<E::G1Affine>,
@@ -210,4 +229,77 @@ fn split_transcript<E: PairingEngine>(
         beta_coeffs_g1,
         h_coeffs,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::UseCompression as UseCompressionV1;
+    use powersoftau::{parameters::CeremonyParams, BatchedAccumulator};
+    use test_helpers::{setup_verify, UseCompression};
+    use zexe_algebra::Bls12_377;
+
+    #[test]
+    fn first_half_powers() {
+        let power = 3 as usize;
+        let phase2_size = 2u32.pow(power as u32) as usize / 2;
+        read_write_curve::<Bls12_377>(power, phase2_size, UseCompression::Yes);
+        read_write_curve::<Bls12_377>(power, phase2_size, UseCompression::No);
+    }
+
+    #[test]
+    fn phase2_equal_to_powers() {
+        let power = 3 as usize;
+        let phase2_size = 2u32.pow(power as u32) as usize;
+        read_write_curve::<Bls12_377>(power, phase2_size, UseCompression::Yes);
+        read_write_curve::<Bls12_377>(power, phase2_size, UseCompression::No);
+    }
+
+    #[test]
+    #[should_panic]
+    fn large_phase2_fails() {
+        read_write_curve::<Bls12_377>(3, 9, UseCompression::Yes);
+    }
+
+    #[test]
+    #[should_panic]
+    fn large_phase2_uncompressed_fails() {
+        read_write_curve::<Bls12_377>(3, 9, UseCompression::No);
+    }
+
+    fn read_write_curve<E: PairingEngine>(
+        powers: usize,
+        phase2_size: usize,
+        compressed: UseCompression,
+    ) {
+        let batch = 2;
+        let params = CeremonyParams::<E>::new(powers, batch);
+        let (_, output, _, _) = setup_verify(compressed, compressed, &params);
+        let accumulator = BatchedAccumulator::deserialize(&output, compressed, &params).unwrap();
+
+        let groth_params = Groth16Params::<E>::new(
+            phase2_size,
+            accumulator.tau_powers_g1,
+            accumulator.tau_powers_g2,
+            accumulator.alpha_tau_powers_g1,
+            accumulator.beta_tau_powers_g1,
+            accumulator.beta_g2,
+        );
+
+        let mut writer = vec![];
+        groth_params.write(&mut writer, compat(compressed)).unwrap();
+        let mut reader = vec![0; writer.len()];
+        reader.copy_from_slice(&writer);
+        let deserialized =
+            Groth16Params::<E>::read((&reader, compat(compressed)), phase2_size).unwrap();
+        assert_eq!(deserialized, groth_params);
+    }
+
+    // helper
+    fn compat(compression: UseCompression) -> UseCompressionV1 {
+        match compression {
+            UseCompression::Yes => UseCompressionV1::Yes,
+            UseCompression::No => UseCompressionV1::No,
+        }
+    }
 }

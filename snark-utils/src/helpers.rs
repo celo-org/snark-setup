@@ -520,33 +520,3 @@ fn dense_multiexp_inner<G: AffineCurve>(
         next_region
     }
 }
-
-#[cfg(test)]
-pub mod test_helpers {
-    use super::*;
-    pub fn random_point<C: AffineCurve>(rng: &mut impl Rng) -> C {
-        C::Projective::rand(rng).into_affine()
-    }
-
-    pub fn random_point_vec<C: AffineCurve>(size: usize, rng: &mut impl Rng) -> Vec<C> {
-        (0..size).map(|_| random_point(rng)).collect()
-    }
-
-    pub fn random_point_vec_batched<C: AffineCurve>(
-        size: usize,
-        batch_size: usize,
-        rng: &mut impl Rng,
-    ) -> Vec<Vec<C>> {
-        let mut batches = Vec::new();
-        let div = size / batch_size;
-        for _ in 0..div {
-            batches.push(random_point_vec(batch_size, rng));
-        }
-        let remainder = size % batch_size;
-        if remainder > 0 {
-            batches.push(random_point_vec(remainder, rng));
-        }
-
-        batches
-    }
-}

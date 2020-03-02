@@ -25,6 +25,7 @@ zexe_r1cs_core = { package = "r1cs-core", git = "https://github.com/gakonst/zexe
 [dev-dependencies]
 criterion = "0.3.1"
 test-helpers = { path = "../test-helpers" }
+powersoftau = { path = "../powersoftau" }
 zexe_algebra = { package = "algebra", version = "0.1.0", features = ["parallel", "full"] }
 
 [[bench]]

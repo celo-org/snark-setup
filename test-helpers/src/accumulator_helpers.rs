@@ -1,13 +1,12 @@
 use powersoftau::{
-    batched_accumulator::BatchedAccumulator,
     keypair::*,
     parameters::{CeremonyParams, CheckForCorrectness},
+    BatchedAccumulator,
 };
 use rand::thread_rng;
+use snark_utils::UseCompression;
 use snark_utils::*;
 use zexe_algebra::PairingEngine;
-
-use snark_utils::UseCompression;
 
 // helper for testing verification of a transformation
 // it creates an initial accumulator and contributes to it
@@ -53,9 +52,7 @@ pub fn generate_input<E: PairingEngine>(
     BatchedAccumulator::generate_initial(&mut output, compressed, &parameters).unwrap();
     let mut input = vec![0; len];
     input.copy_from_slice(&output);
-    let before =
-        BatchedAccumulator::deserialize(&output, CheckForCorrectness::Yes, compressed, &parameters)
-            .unwrap();
+    let before = BatchedAccumulator::deserialize(&output, compressed, &parameters).unwrap();
     (input, before)
 }
 

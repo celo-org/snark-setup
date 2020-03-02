@@ -982,6 +982,7 @@ dependencies = [
  "crossbeam 0.7.3",
  "ff-fft",
  "num_cpus",
+ "powersoftau 0.2.0",
  "r1cs-core",
  "rand 0.7.3",
  "rand_chacha",
