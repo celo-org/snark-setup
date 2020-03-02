@@ -1,10 +1,10 @@
 use crate::errors::{Error, VerificationError};
+use crate::{buffer_size, Serializer, UseCompression};
 use blake2::{digest::generic_array::GenericArray, Blake2b, Digest};
 use crypto::digest::Digest as CryptoDigest;
 use crypto::sha2::Sha256;
 use rand::{rngs::OsRng, thread_rng, Rng, SeedableRng};
 use rand_chacha::ChaChaRng;
-
 use rayon::prelude::*;
 use std::convert::TryInto;
 use std::io::{self, Write};
@@ -19,6 +19,30 @@ use zexe_algebra::{
 
 /// A convenience result type for returning errors
 pub type Result<T> = std::result::Result<T, Error>;
+
+/// Allocates a buffer to serialize the provided element
+/// and then writes that buffer to the provided reader
+pub fn write_element<C: AffineCurve, W: Write>(
+    writer: &mut W,
+    element: &C,
+    compression: UseCompression,
+) -> Result<()> {
+    let mut buf = vec![0; buffer_size::<C>(compression)];
+    buf.write_element(element, compression)?;
+    writer.write_all(&buf)?;
+    Ok(())
+}
+
+pub fn write_elements<C: AffineCurve, W: Write>(
+    writer: &mut W,
+    elements: &[C],
+    compression: UseCompression,
+) -> Result<()> {
+    let mut buf = vec![0; elements.len() * buffer_size::<C>(compression)];
+    buf.write_batch(&elements, compression)?;
+    writer.write_all(&buf)?;
+    Ok(())
+}
 
 /// Generate the powers by raising the key's `tau` to all powers
 /// belonging to this chunk
