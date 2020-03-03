@@ -39,7 +39,7 @@ where
     let mut transcript = vec![0; writer.len()];
     transcript.copy_from_slice(&writer);
 
-    // // read the transcript
+    // read the transcript
     let mut mpc =
         MPCParameters::<E>::new_from_buffer(c, (&transcript, compressed), phase2_size).unwrap();
 

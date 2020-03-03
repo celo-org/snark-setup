@@ -126,7 +126,7 @@ impl<E: PairingEngine> Keypair<E> {
 /// Returns the transcript hash so far.
 ///
 /// Internally calculates: `H(cs_hash | <contributions> | s | s_delta)`
-fn hash_cs_pubkeys<E: PairingEngine>(
+pub fn hash_cs_pubkeys<E: PairingEngine>(
     cs_hash: [u8; 64],
     contributions: &[PublicKey<E>],
     s: E::G1Affine,

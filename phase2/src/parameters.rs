@@ -10,7 +10,7 @@ use zexe_r1cs_core::{ConstraintSynthesizer, ConstraintSystem, Index, SynthesisEr
 
 use rand::Rng;
 
-use super::keypair::{Keypair, PublicKey};
+use super::keypair::{hash_cs_pubkeys, Keypair, PublicKey};
 use super::polynomial::eval;
 
 /// MPC parameters are just like Zexe's `Parameters` except, when serialized,
@@ -323,53 +323,30 @@ fn ensure_unchanged<T: PartialEq>(before: T, after: T, kind: InvariantKind) -> R
     Ok(())
 }
 
-// given a sink which has the cs_hash and the previous pubkeys
-// already included, it calculates the contribution's G2 signature
-// after
-fn get_contribution_signature<E: PairingEngine, W: Write>(
-    mut sink: HashWriter<W>,
-    pubkey: &PublicKey<E>,
-) -> Result<E::G2Affine> {
-    write_element(&mut sink, &pubkey.s, UseCompression::Yes)?;
-    write_element(&mut sink, &pubkey.s_delta, UseCompression::Yes)?;
-    let hash = sink.into_hash();
-    // ensure that the transcript was generated correctly
-    ensure_unchanged(
-        &pubkey.transcript[..],
-        &hash.as_ref()[..],
-        InvariantKind::Transcript,
-    )?;
-
-    // generate the G2 point from the hash
-    let r = hash_to_g2::<E>(hash.as_ref()).into_affine();
-
-    // Check the signature of knowledge
-    check_same_ratio::<E>(
-        &(pubkey.s, pubkey.s_delta),
-        &(r, pubkey.r_delta),
-        "Incorrect signature of knowledge",
-    )?;
-
-    Ok(r)
-}
-
 fn verify_transcript<E: PairingEngine>(
     cs_hash: [u8; 64],
     contributions: &[PublicKey<E>],
 ) -> Result<Vec<[u8; 64]>> {
-    let sink = io::sink();
-    let mut sink = HashWriter::new(sink);
-    sink.write_all(&cs_hash[..])?;
-
     let mut result = vec![];
     let mut old_delta = E::G1Affine::prime_subgroup_generator();
     for (i, pubkey) in contributions.iter().enumerate() {
-        // Hash in the contributions so far
-        let mut our_sink = sink.clone();
-        for pubkey in &contributions[0..i] {
-            pubkey.write(&mut our_sink).unwrap();
-        }
-        let r = get_contribution_signature(our_sink, pubkey)?;
+        let hash = hash_cs_pubkeys(cs_hash, &contributions[0..i], pubkey.s, pubkey.s_delta);
+        ensure_unchanged(
+            &pubkey.transcript[..],
+            &hash.as_ref()[..],
+            InvariantKind::Transcript,
+        )?;
+
+        // generate the G2 point from the hash
+        let r = hash_to_g2::<E>(hash.as_ref()).into_affine();
+
+        // Check the signature of knowledge
+        check_same_ratio::<E>(
+            &(pubkey.s, pubkey.s_delta),
+            &(r, pubkey.r_delta),
+            "Incorrect signature of knowledge",
+        )?;
+
         // Check the change with the previous G1 Delta is consistent
         check_same_ratio::<E>(
             &(old_delta, pubkey.delta_after),
