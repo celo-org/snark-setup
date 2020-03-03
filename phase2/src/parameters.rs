@@ -390,11 +390,6 @@ pub fn circuit_to_qap<E: PairingEngine, C: ConstraintSynthesizer<E::Fr>>(
     assembly.alloc_input(|| "", || Ok(E::Fr::one()))?;
     // Synthesize the circuit.
     circuit.generate_constraints(&mut assembly)?;
-    // Reject circuits larger than 2^28
-    let exp = log_2(assembly.num_constraints);
-    if exp > 28 {
-        return Err(SynthesisError::PolynomialDegreeTooLarge.into());
-    }
     // Input constraints to ensure full density of IC query
     // x * 0 = 0
     for i in 0..assembly.num_inputs {

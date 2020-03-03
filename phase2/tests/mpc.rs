@@ -8,9 +8,6 @@ use zexe_algebra::{Bls12_377, Bls12_381, PairingEngine, SW6};
 use zexe_groth16::{create_random_proof, prepare_verifying_key, verify_proof, Parameters};
 use zexe_r1cs_core::ConstraintSynthesizer;
 
-// mock which should be converted to generate `params` via the MPC
-// step 1: generate a phase 1 setup via powersoftau
-// step 2: call contribute multiple times
 fn generate_mpc_parameters<E, C>(c: C, rng: &mut impl Rng) -> MPCParameters<E>
 where
     E: PairingEngine,
