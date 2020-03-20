@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "./bls-snark-setup",
     "./powersoftau",
     "./phase2",
     "./snark-utils",
@@ -7,7 +8,9 @@ members = [
 ]
 
 [patch."https://github.com/scipr-lab/zexe"]
-zexe_algebra = { version = "0.1.0", package = "algebra", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
-zexe_fft = { package = "ff-fft", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
-zexe_groth16 = { package = "groth16", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
-zexe_r1cs_core = { package = "r1cs-core", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
+algebra = { version = "0.1.0", package = "algebra", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
+fft = { package = "ff-fft", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
+groth16 = { package = "groth16", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
+r1cs-core = { package = "r1cs-core", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
+r1cs-std = { package = "r1cs-std", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
+crypto-primitives = { package = "crypto-primitives", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
