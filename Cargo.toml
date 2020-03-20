@@ -6,8 +6,8 @@ members = [
     "./test-helpers",
 ]
 
-[patch.crates-io]
-algebra = { package = "algebra", git = "https://github.com/gakonst/zexe", branch = "serde-uncompressed" }
-ff-fft = { package = "ff-fft", git = "https://github.com/gakonst/zexe", branch = "serde-uncompressed" }
-groth16 = { package = "groth16", git = "https://github.com/gakonst/zexe", branch = "serde-uncompressed" }
-r1cs-core = { package = "r1cs-core", git = "https://github.com/gakonst/zexe", branch = "serde-uncompressed" }
+[patch."https://github.com/scipr-lab/zexe"]
+zexe_algebra = { version = "0.1.0", package = "algebra", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
+zexe_fft = { package = "ff-fft", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
+zexe_groth16 = { package = "groth16", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
+zexe_r1cs_core = { package = "r1cs-core", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
