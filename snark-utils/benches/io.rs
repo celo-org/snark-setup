@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use zexe_algebra::{AffineCurve, Bls12_377, PairingEngine};
 
 use snark_utils::{BatchDeserializer, BatchSerializer, UseCompression};
@@ -67,7 +67,7 @@ fn write<C: AffineCurve>(c: &mut Criterion, el_type: &str) {
             group.throughput(Throughput::Elements(*num_els as u64));
 
             group.bench_with_input(format!("{}", compression), &num_els, |b, _num_els| {
-                b.iter(|| black_box(buf.write_batch::<C>(&elements, *compression).unwrap()));
+                b.iter(|| buf.write_batch::<C>(&elements, *compression).unwrap());
             });
         }
     }
