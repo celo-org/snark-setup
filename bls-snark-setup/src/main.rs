@@ -1,7 +1,7 @@
 use snark_utils::{beacon_randomness, from_slice, get_rng, user_system_randomness};
 
 use gumdrop::Options;
-use std::process;
+use std::{process, time::Instant};
 
 mod cli;
 use cli::*;
@@ -9,12 +9,13 @@ use cli::*;
 fn main() {
     let opts = SNARKOpts::parse_args_default_or_exit();
 
-    let command = opts.command.unwrap_or_else(|| {
+    let command = opts.clone().command.unwrap_or_else(|| {
         eprintln!("No command was provided.");
         eprintln!("{}", SNARKOpts::usage());
         process::exit(2)
     });
 
+    let now = Instant::now();
     let res = match command {
         Command::New(ref opt) => new(&opt),
         Command::Contribute(ref opt) => {
@@ -35,4 +36,11 @@ fn main() {
     if let Err(e) = res {
         eprintln!("Failed to execute {:?}: {}", command, e);
     }
+
+    let new_now = Instant::now();
+    println!(
+        "Executing {:?} took: {:?}",
+        opts,
+        new_now.duration_since(now)
+    );
 }
