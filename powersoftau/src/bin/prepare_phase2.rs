@@ -6,7 +6,7 @@ use powersoftau::{
 };
 use snark_utils::{Groth16Params, Result, UseCompression};
 
-use zexe_algebra::{Bls12_377, PairingEngine};
+use zexe_algebra::{Bls12_377, Bls12_381, PairingEngine, SW6};
 
 use std::fs::OpenOptions;
 
@@ -49,26 +49,19 @@ struct PreparePhase2Opts {
 fn main() -> Result<()> {
     let opts = PreparePhase2Opts::parse_args_default_or_exit();
 
-    let parameters = CeremonyParams::<Bls12_377>::new(opts.power, opts.batch_size);
-
-    prepare_phase2(
-        &opts.response_fname,
-        &opts.phase2_fname,
-        &parameters,
-        opts.phase2_size,
-    )
+    match opts.curve_kind {
+        CurveKind::Bls12_381 => prepare_phase2::<Bls12_381>(opts),
+        CurveKind::Bls12_377 => prepare_phase2::<Bls12_377>(opts),
+        CurveKind::SW6 => prepare_phase2::<SW6>(opts),
+    }
 }
 
-fn prepare_phase2<E: PairingEngine + Sync>(
-    response_filename: &str,
-    phase2_filename: &str,
-    parameters: &CeremonyParams<E>,
-    phase2_size: usize,
-) -> Result<()> {
+fn prepare_phase2<E: PairingEngine + Sync>(opts: PreparePhase2Opts) -> Result<()> {
+    let parameters = CeremonyParams::<E>::new(opts.power, opts.batch_size);
     // Try to load response file from disk.
     let reader = OpenOptions::new()
         .read(true)
-        .open(response_filename)
+        .open(opts.response_fname)
         .expect("unable open response file in this directory");
     let response_readable_map = unsafe {
         MmapOptions::new()
@@ -81,7 +74,7 @@ fn prepare_phase2<E: PairingEngine + Sync>(
         .read(false)
         .write(true)
         .create_new(true)
-        .open(phase2_filename)
+        .open(opts.phase2_fname)
         .expect("unable to create parameter file in this directory");
 
     // Deserialize the accumulator
@@ -91,7 +84,7 @@ fn prepare_phase2<E: PairingEngine + Sync>(
 
     // Load the elements to the Groth16 utility
     let groth16_params = Groth16Params::<E>::new(
-        phase2_size,
+        opts.phase2_size,
         current_accumulator.tau_powers_g1,
         current_accumulator.tau_powers_g2,
         current_accumulator.alpha_tau_powers_g1,

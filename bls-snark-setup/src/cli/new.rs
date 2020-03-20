@@ -57,6 +57,7 @@ pub fn new(opt: &NewOpts) -> Result<()> {
         maximum_non_signers,
         None, // The hashes are done over SW6 so no helper is provided for the setup
     );
+
     // Convert it to a QAP
     let keypair = circuit_to_qap(valset)?;
 
