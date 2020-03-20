@@ -41,7 +41,7 @@ rm contribution # no longer needed
 $snark contribute --input contribution1 --output contribution2
 rm contribution1 # no longer needed
 
-$snark contribute --input contribution --output contribution3
+$snark contribute --input contribution2 --output contribution3
 
 # verify the last mpc against the initial mpc
 $snark verify --before challenge --after contribution3
