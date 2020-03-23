@@ -12,6 +12,11 @@ pub struct ContributeOpts {
     pub input: String,
     #[options(help = "the new file after your contribution", default = "challenge")]
     pub output: String,
+    #[options(
+        help = "the beacon hash to be used if running a beacon contribution",
+        default = "0000000000000000000a558a61ddc8ee4e488d647a747fe4dcc362fe2026c620"
+    )]
+    pub beacon_hash: String,
 }
 
 pub fn contribute<R: Rng>(opts: &ContributeOpts, rng: &mut R) -> Result<()> {

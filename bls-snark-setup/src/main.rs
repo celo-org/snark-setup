@@ -1,13 +1,10 @@
-use snark_utils::{beacon_randomness, get_rng, user_system_randomness};
+use snark_utils::{beacon_randomness, from_slice, get_rng, user_system_randomness};
 
 use gumdrop::Options;
 use std::process;
 
 mod cli;
 use cli::*;
-
-#[macro_use]
-extern crate hex_literal;
 
 fn main() {
     let opts = SNARKOpts::parse_args_default_or_exit();
@@ -27,10 +24,9 @@ fn main() {
         }
         Command::Beacon(ref opt) => {
             // use the beacon's randomness
-            // Place block hash here (block number #564321)
-            let beacon_hash: [u8; 32] =
-                hex!("0000000000000000000a558a61ddc8ee4e488d647a747fe4dcc362fe2026c620");
-            let mut rng = get_rng(&beacon_randomness(beacon_hash));
+            let beacon_hash =
+                hex::decode(&opt.beacon_hash).expect("could not hex decode beacon hash");
+            let mut rng = get_rng(&beacon_randomness(from_slice(&beacon_hash)));
             contribute(&opt, &mut rng)
         }
         Command::Verify(ref opt) => verify(&opt),

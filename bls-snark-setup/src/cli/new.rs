@@ -2,9 +2,11 @@ use gumdrop::Options;
 
 use bls_snark::gadgets::ValidatorSetUpdate;
 use zexe_algebra::SW6;
+use zexe_r1cs_core::ConstraintSynthesizer;
+use zexe_r1cs_std::test_constraint_counter::TestConstraintCounter;
 
 use phase2::parameters::{circuit_to_qap, MPCParameters};
-use snark_utils::{Groth16Params, Result, UseCompression};
+use snark_utils::{log_2, Groth16Params, Result, UseCompression};
 
 use std::fs::OpenOptions;
 
@@ -25,9 +27,6 @@ pub struct NewOpts {
         default = "100"
     )]
     pub num_validators: usize,
-
-    #[options(help = "the number of constraints to be taken from phase 1")]
-    pub num_constraints: usize,
 }
 
 const COMPRESSION: UseCompression = UseCompression::Yes;
@@ -46,10 +45,6 @@ pub fn new(opt: &NewOpts) -> Result<()> {
 
     let maximum_non_signers = (opt.num_validators - 1) / 3;
 
-    // Read the data from the file
-    let phase1 =
-        Groth16Params::<SW6>::read(&mut phase1_transcript, COMPRESSION, opt.num_constraints)?;
-
     // Create an empty circuit
     let valset = ValidatorSetUpdate::empty(
         opt.num_validators,
@@ -57,6 +52,27 @@ pub fn new(opt: &NewOpts) -> Result<()> {
         maximum_non_signers,
         None, // The hashes are done over SW6 so no helper is provided for the setup
     );
+
+    let num_constraints = {
+        let mut counter = TestConstraintCounter::new();
+        valset
+            .clone()
+            .generate_constraints(&mut counter)
+            .expect("could not calculate number of required constraints");
+        let constraints = counter.num_constraints();
+        let power = log_2(constraints) as u32;
+        // get the nearest power of 2
+        if constraints < 2usize.pow(power) {
+            2usize.pow(power + 1)
+        } else {
+            constraints
+        }
+    };
+
+    // Read `num_constraints` Lagrange coefficients from the Phase1 Powers of Tau which were
+    // prepared for this step. This will fail if Phase 1 was too small.
+    let phase1 = Groth16Params::<SW6>::read(&mut phase1_transcript, COMPRESSION, num_constraints)?;
+
     // Convert it to a QAP
     let keypair = circuit_to_qap(valset)?;
 
