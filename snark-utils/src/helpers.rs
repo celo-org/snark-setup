@@ -12,7 +12,7 @@ use std::ops::{AddAssign, Mul};
 use std::sync::Arc;
 use typenum::consts::U64;
 use zexe_algebra::{
-    AffineCurve, BigInteger, CanonicalSerialize, Field, One, PairingEngine, ConstantSerializedSize,
+    AffineCurve, BigInteger, CanonicalSerialize, ConstantSerializedSize, Field, One, PairingEngine,
     PrimeField, ProjectiveCurve, UniformRand, Zero,
 };
 
