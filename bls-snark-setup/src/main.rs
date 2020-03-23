@@ -17,6 +17,10 @@ fn main() {
 
     let now = Instant::now();
     let res = match command {
+        Command::Constraints(ref opt) => {
+            println!("Circuit requires {} constraints", empty_circuit(&opt).1);
+            Ok(())
+        }
         Command::New(ref opt) => new(&opt),
         Command::Contribute(ref opt) => {
             // contribute to the randomness
@@ -33,14 +37,11 @@ fn main() {
         Command::Verify(ref opt) => verify(&opt),
     };
 
-    if let Err(e) = res {
-        eprintln!("Failed to execute {:?}: {}", command, e);
-    }
-
     let new_now = Instant::now();
     println!(
-        "Executing {:?} took: {:?}",
+        "Executing {:?} took: {:?}. Result {:?}",
         opts,
-        new_now.duration_since(now)
+        new_now.duration_since(now),
+        res,
     );
 }

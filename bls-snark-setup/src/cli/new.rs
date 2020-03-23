@@ -1,7 +1,7 @@
 use gumdrop::Options;
 
 use bls_snark::gadgets::ValidatorSetUpdate;
-use zexe_algebra::SW6;
+use zexe_algebra::{Bls12_377, SW6};
 use zexe_r1cs_core::ConstraintSynthesizer;
 use zexe_r1cs_std::test_constraint_counter::TestConstraintCounter;
 
@@ -31,18 +31,7 @@ pub struct NewOpts {
 
 const COMPRESSION: UseCompression = UseCompression::Yes;
 
-pub fn new(opt: &NewOpts) -> Result<()> {
-    let mut phase1_transcript = OpenOptions::new()
-        .read(true)
-        .open(&opt.phase1)
-        .expect("could not read phase 1 transcript file");
-    let output = OpenOptions::new()
-        .read(false)
-        .write(true)
-        .create_new(true)
-        .open(&opt.output)
-        .expect("could not open file for writing the MPC parameters ");
-
+pub fn empty_circuit(opt: &NewOpts) -> (ValidatorSetUpdate<Bls12_377>, usize) {
     let maximum_non_signers = (opt.num_validators - 1) / 3;
 
     // Create an empty circuit
@@ -68,6 +57,23 @@ pub fn new(opt: &NewOpts) -> Result<()> {
             constraints
         }
     };
+
+    (valset, num_constraints)
+}
+
+pub fn new(opt: &NewOpts) -> Result<()> {
+    let mut phase1_transcript = OpenOptions::new()
+        .read(true)
+        .open(&opt.phase1)
+        .expect("could not read phase 1 transcript file");
+    let output = OpenOptions::new()
+        .read(false)
+        .write(true)
+        .create_new(true)
+        .open(&opt.output)
+        .expect("could not open file for writing the MPC parameters ");
+
+    let (valset, num_constraints) = empty_circuit(&opt);
 
     // Read `num_constraints` Lagrange coefficients from the Phase1 Powers of Tau which were
     // prepared for this step. This will fail if Phase 1 was too small.
