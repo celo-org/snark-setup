@@ -12,7 +12,7 @@ use std::ops::{AddAssign, Mul};
 use std::sync::Arc;
 use typenum::consts::U64;
 use zexe_algebra::{
-    AffineCurve, BigInteger, CanonicalSerialize, ConstantSerializedSize, Field, One, PairingEngine,
+    AffineCurve, BigInteger, CanonicalSerialize, Field, One, PairingEngine, ConstantSerializedSize,
     PrimeField, ProjectiveCurve, UniformRand, Zero,
 };
 
@@ -399,7 +399,7 @@ pub fn compute_g2_s<E: PairingEngine>(
     let mut h = Blake2b::default();
     h.input(&[personalization]);
     h.input(digest);
-    let size = E::G1Affine::constant_serialized_size();
+    let size = E::G1Affine::SERIALIZED_SIZE;
     let mut data = vec![0; 2 * size];
     g1_s.serialize(&mut &mut data[..size])?;
     g1_s_x.serialize(&mut &mut data[size..])?;

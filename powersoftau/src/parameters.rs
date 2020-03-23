@@ -18,11 +18,11 @@ pub struct CurveParams<E> {
 
 impl<E: PairingEngine> CurveParams<E> {
     pub fn new() -> CurveParams<E> {
-        let g1_compressed = <E as PairingEngine>::G1Affine::constant_serialized_size();
-        let g1_size = <E as PairingEngine>::G1Affine::constant_uncompressed_size();
+        let g1_compressed = <E as PairingEngine>::G1Affine::SERIALIZED_SIZE;
+        let g1_size = <E as PairingEngine>::G1Affine::UNCOMPRESSED_SIZE;
 
-        let g2_compressed = <E as PairingEngine>::G2Affine::constant_serialized_size();
-        let g2_size = <E as PairingEngine>::G2Affine::constant_uncompressed_size();
+        let g2_compressed = <E as PairingEngine>::G2Affine::SERIALIZED_SIZE;
+        let g2_size = <E as PairingEngine>::G2Affine::UNCOMPRESSED_SIZE;
 
         CurveParams {
             g1: g1_size,

@@ -5,9 +5,3 @@ members = [
     "./snark-utils",
     "./test-helpers",
 ]
-
-[patch."https://github.com/scipr-lab/zexe"]
-zexe_algebra = { version = "0.1.0", package = "algebra", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
-zexe_fft = { package = "ff-fft", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
-zexe_groth16 = { package = "groth16", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }
-zexe_r1cs_core = { package = "r1cs-core", git = "https://github.com/nimiq/zexe", branch = "paberr/constant-serialized-size" }

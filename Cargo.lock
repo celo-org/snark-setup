@@ -3,7 +3,7 @@
 [[package]]
 name = "algebra"
 version = "0.1.0"
-source = "git+https://github.com/nimiq/zexe?branch=paberr/constant-serialized-size#ff37c6de0a94719690314c3a8225a3352d97acf5"
+source = "git+https://github.com/scipr-lab/zexe#4ab4b17ecec7ac6c635b4873321f7015a308273a"
 dependencies = [
  "algebra-core",
 ]
@@ -11,7 +11,7 @@ dependencies = [
 [[package]]
 name = "algebra-core"
 version = "0.1.0"
-source = "git+https://github.com/nimiq/zexe?branch=paberr/constant-serialized-size#ff37c6de0a94719690314c3a8225a3352d97acf5"
+source = "git+https://github.com/scipr-lab/zexe#4ab4b17ecec7ac6c635b4873321f7015a308273a"
 dependencies = [
  "algebra-core-derive",
  "derivative",
@@ -23,7 +23,7 @@ dependencies = [
 [[package]]
 name = "algebra-core-derive"
 version = "0.1.0"
-source = "git+https://github.com/nimiq/zexe?branch=paberr/constant-serialized-size#ff37c6de0a94719690314c3a8225a3352d97acf5"
+source = "git+https://github.com/scipr-lab/zexe#4ab4b17ecec7ac6c635b4873321f7015a308273a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -50,7 +50,7 @@ checksum = "f8aac770f1885fd7e387acedd76065302551364496e46b3dd00860b2f8359b9d"
 [[package]]
 name = "bench-utils"
 version = "0.1.0"
-source = "git+https://github.com/nimiq/zexe?branch=paberr/constant-serialized-size#ff37c6de0a94719690314c3a8225a3352d97acf5"
+source = "git+https://github.com/scipr-lab/zexe#4ab4b17ecec7ac6c635b4873321f7015a308273a"
 
 [[package]]
 name = "bitflags"
@@ -299,7 +299,7 @@ checksum = "bb1f6b1ce1c140482ea30ddd3335fc0024ac7ee112895426e0a629a6c20adfe3"
 [[package]]
 name = "ff-fft"
 version = "0.1.0"
-source = "git+https://github.com/nimiq/zexe?branch=paberr/constant-serialized-size#ff37c6de0a94719690314c3a8225a3352d97acf5"
+source = "git+https://github.com/scipr-lab/zexe#4ab4b17ecec7ac6c635b4873321f7015a308273a"
 dependencies = [
  "algebra-core",
  "rand 0.7.3",
@@ -341,7 +341,7 @@ dependencies = [
 [[package]]
 name = "groth16"
 version = "0.1.0"
-source = "git+https://github.com/nimiq/zexe?branch=paberr/constant-serialized-size#ff37c6de0a94719690314c3a8225a3352d97acf5"
+source = "git+https://github.com/scipr-lab/zexe#4ab4b17ecec7ac6c635b4873321f7015a308273a"
 dependencies = [
  "algebra-core",
  "bench-utils",
@@ -595,7 +595,7 @@ dependencies = [
 [[package]]
 name = "r1cs-core"
 version = "0.1.0"
-source = "git+https://github.com/nimiq/zexe?branch=paberr/constant-serialized-size#ff37c6de0a94719690314c3a8225a3352d97acf5"
+source = "git+https://github.com/scipr-lab/zexe#4ab4b17ecec7ac6c635b4873321f7015a308273a"
 dependencies = [
  "algebra-core",
  "smallvec",

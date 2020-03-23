@@ -99,7 +99,7 @@ pub fn keypair<E: PairingEngine, R: Rng>(
 impl<E: PairingEngine> PublicKey<E> {
     /// Serialize the public key. Points are always in uncompressed form.
     pub fn serialize(&self, writer: &mut [u8]) -> Result<(), Error> {
-        let g1_size = E::G1Affine::constant_uncompressed_size();
+        let g1_size = E::G1Affine::UNCOMPRESSED_SIZE;
         let g1_elements = &[
             self.tau_g1.0,
             self.tau_g1.1,
@@ -131,7 +131,7 @@ impl<E: PairingEngine> PublicKey<E> {
     /// always checked, since there aren't very many of them. Does not allow an
     /// points at infinity.
     pub fn deserialize(reader: &[u8]) -> Result<PublicKey<E>, Error> {
-        let g1_size = E::G1Affine::constant_uncompressed_size();
+        let g1_size = E::G1Affine::UNCOMPRESSED_SIZE;
         // Deserialize the first 6 G1 elements
         let g1_els = (&reader[..6 * g1_size]).read_batch(UseCompression::No)?;
         // Deserialize the remaining 3 G2 elements

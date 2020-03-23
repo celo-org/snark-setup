@@ -10,9 +10,9 @@ use zexe_algebra::AffineCurve;
 
 pub fn buffer_size<C: AffineCurve>(compression: UseCompression) -> usize {
     if compression == UseCompression::Yes {
-        C::constant_serialized_size()
+        C::SERIALIZED_SIZE
     } else {
-        C::constant_uncompressed_size()
+        C::UNCOMPRESSED_SIZE
     }
 }
 
