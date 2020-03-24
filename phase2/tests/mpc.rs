@@ -47,9 +47,6 @@ where
 
     before.verify(&mpc).unwrap();
 
-    let mut v = vec![];
-    mpc.write(&mut v).unwrap();
-
     mpc
 }
 
