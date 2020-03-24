@@ -24,7 +24,7 @@ pub fn contribute<R: Rng>(opts: &ContributeOpts, rng: &mut R) -> Result<()> {
         .read(true)
         .open(&opts.input)
         .expect("could not read the MPC transcript file");
-    let output = OpenOptions::new()
+    let mut output = OpenOptions::new()
         .read(false)
         .write(true)
         .create_new(true)
@@ -33,7 +33,7 @@ pub fn contribute<R: Rng>(opts: &ContributeOpts, rng: &mut R) -> Result<()> {
 
     let mut mpc = MPCParameters::<SW6>::read(&mut mpc_transcript)?;
     mpc.contribute(rng)?;
-    mpc.write(output)?;
+    mpc.write(&mut output)?;
 
     Ok(())
 }
