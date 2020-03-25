@@ -222,7 +222,25 @@ impl<E: PairingEngine> MPCParameters<E> {
         ensure_unchanged_vec(
             &before.params.vk.gamma_abc_g1,
             &after.params.vk.gamma_abc_g1,
-            InvariantKind::GammaAbcG1,
+            &InvariantKind::GammaAbcG1,
+        )?;
+
+        ensure_unchanged_vec(
+            &before.params.a_query,
+            &after.params.a_query,
+            &InvariantKind::AlphaG1Query,
+        )?;
+
+        ensure_unchanged_vec(
+            &before.params.b_g1_query,
+            &after.params.b_g1_query,
+            &InvariantKind::BetaG1Query,
+        )?;
+
+        ensure_unchanged_vec(
+            &before.params.b_g2_query,
+            &after.params.b_g2_query,
+            &InvariantKind::BetaG2Query,
         )?;
 
         // === Query related consistency checks ===
@@ -285,35 +303,36 @@ pub fn contains_contribution(contributions: &[[u8; 64]], my_contribution: &[u8; 
 }
 
 // Helpers for invariant checking
-fn ensure_same_length<T, U>(a: &[T], b: &[U]) -> Result<()> {
+pub fn ensure_same_length<T, U>(a: &[T], b: &[U]) -> Result<()> {
     if a.len() != b.len() {
         return Err(Phase2Error::InvalidLength.into());
     }
     Ok(())
 }
 
-fn ensure_unchanged_vec<T: PartialEq>(
+pub fn ensure_unchanged_vec<T: PartialEq>(
     before: &[T],
     after: &[T],
-    kind: InvariantKind,
+    kind: &InvariantKind,
 ) -> Result<()> {
     if before.len() != after.len() {
         return Err(Phase2Error::InvalidLength.into());
     }
     for (before, after) in before.iter().zip(after) {
+        // TODO: Make the error take a reference
         ensure_unchanged(before, after, kind.clone())?
     }
     Ok(())
 }
 
-fn ensure_unchanged<T: PartialEq>(before: T, after: T, kind: InvariantKind) -> Result<()> {
+pub fn ensure_unchanged<T: PartialEq>(before: T, after: T, kind: InvariantKind) -> Result<()> {
     if before != after {
         return Err(Phase2Error::BrokenInvariant(kind).into());
     }
     Ok(())
 }
 
-fn verify_transcript<E: PairingEngine>(
+pub fn verify_transcript<E: PairingEngine>(
     cs_hash: [u8; 64],
     contributions: &[PublicKey<E>],
 ) -> Result<Vec<[u8; 64]>> {
