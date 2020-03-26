@@ -1,9 +1,8 @@
 /// Utilities to read/write and convert the Powers of Tau from Phase 1
 /// to Phase 2-compatible Lagrange Coefficients.
-use crate::{buffer_size, Deserializer, Error, Result, Serializer, UseCompression};
+use crate::{buffer_size, Deserializer, Result, Serializer, UseCompression};
 use std::fmt::Debug;
 use std::io::Write;
-use std::io::{Read, Seek, SeekFrom};
 use zexe_algebra::{AffineCurve, PairingEngine, PrimeField, ProjectiveCurve};
 use zexe_fft::EvaluationDomain;
 
@@ -59,7 +58,7 @@ where
 /// x^i * (x^m - 1) for i in 0..=(m-2) a.k.a.
 /// x^(i + m) - x^i for i in 0..=(m-2)
 /// for radix2 evaluation domains
-fn h_query_groth16<C: AffineCurve>(powers: Vec<C>, degree: usize) -> Vec<C> {
+fn h_query_groth16<C: AffineCurve>(powers: &[C], degree: usize) -> Vec<C> {
     cfg_into_iter!(0..degree - 1)
         .map(|i| powers[i + degree] + powers[i].neg())
         .collect()
@@ -79,31 +78,38 @@ impl<E: PairingEngine> Groth16Params<E> {
         alpha_tau_powers_g1: Vec<E::G1Affine>,
         beta_tau_powers_g1: Vec<E::G1Affine>,
         beta_g2: E::G2Affine,
-    ) -> Self {
+    ) -> Result<Self> {
         // Create the evaluation domain
         let domain = EvaluationDomain::<E::Fr>::new(phase2_size).expect("could not create domain");
 
-        // Convert the accumulated powers to Lagrange coefficients
-        let coeffs_g1 = to_coeffs(&domain, &tau_powers_g1[0..phase2_size]);
-        let coeffs_g2 = to_coeffs(&domain, &tau_powers_g2[0..phase2_size]);
-        let alpha_coeffs_g1 = to_coeffs(&domain, &alpha_tau_powers_g1[0..phase2_size]);
-        let beta_coeffs_g1 = to_coeffs(&domain, &beta_tau_powers_g1[0..phase2_size]);
+        Ok(crossbeam::scope(|s| -> Result<_> {
+            // Convert the accumulated powers to Lagrange coefficients
+            let coeffs_g1 = s.spawn(|_| to_coeffs(&domain, &tau_powers_g1[0..phase2_size]));
+            let coeffs_g2 = s.spawn(|_| to_coeffs(&domain, &tau_powers_g2[0..phase2_size]));
+            let alpha_coeffs_g1 =
+                s.spawn(|_| to_coeffs(&domain, &alpha_tau_powers_g1[0..phase2_size]));
+            let beta_coeffs_g1 =
+                s.spawn(|_| to_coeffs(&domain, &beta_tau_powers_g1[0..phase2_size]));
+            // Calculate the query for the Groth16 proving system
+            let h_g1 = s.spawn(|_| h_query_groth16(&tau_powers_g1, phase2_size));
 
-        // Calculate the query for the Groth16 proving system
-        // todo: we might want to abstract this so that it works generically
-        // over various proving systems in the future
-        let h_g1 = h_query_groth16(tau_powers_g1, phase2_size);
+            let coeffs_g1 = coeffs_g1.join()?;
+            let coeffs_g2 = coeffs_g2.join()?;
+            let alpha_coeffs_g1 = alpha_coeffs_g1.join()?;
+            let beta_coeffs_g1 = beta_coeffs_g1.join()?;
+            let h_g1 = h_g1.join()?;
 
-        Groth16Params {
-            alpha_g1: alpha_tau_powers_g1[0],
-            beta_g1: beta_tau_powers_g1[0],
-            beta_g2,
-            coeffs_g1,
-            coeffs_g2,
-            alpha_coeffs_g1,
-            beta_coeffs_g1,
-            h_g1,
-        }
+            Ok(Groth16Params {
+                alpha_g1: alpha_tau_powers_g1[0],
+                beta_g1: beta_tau_powers_g1[0],
+                beta_g2,
+                coeffs_g1,
+                coeffs_g2,
+                alpha_coeffs_g1,
+                beta_coeffs_g1,
+                h_g1,
+            })
+        })??)
     }
 
     /// Writes the data structure to the provided writer, in compressed or uncompressed form.
@@ -236,12 +242,6 @@ fn split_transcript<E: PairingEngine>(
     )
 }
 
-fn skip<R: Read + Seek>(reader: &mut R, num_els: usize, el_size: usize) -> Result<()> {
-    reader.seek(SeekFrom::Current((num_els * el_size) as i64))?;
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -295,7 +295,7 @@ mod tests {
             accumulator.alpha_tau_powers_g1,
             accumulator.beta_tau_powers_g1,
             accumulator.beta_g2,
-        );
+        ).unwrap();
 
         let mut writer = vec![];
         groth_params.write(&mut writer, compat(compressed)).unwrap();

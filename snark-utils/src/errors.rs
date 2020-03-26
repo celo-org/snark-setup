@@ -31,7 +31,7 @@ pub enum Error {
 }
 
 impl From<Box<dyn std::any::Any + Send>> for Error {
-    fn from(src: Box<dyn std::any::Any + Send>) -> Error {
+    fn from(_: Box<dyn std::any::Any + Send>) -> Error {
         Error::CrossBeamError
     }
 }
