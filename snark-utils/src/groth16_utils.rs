@@ -1,8 +1,9 @@
 /// Utilities to read/write and convert the Powers of Tau from Phase 1
 /// to Phase 2-compatible Lagrange Coefficients.
-use crate::{Deserializer, Result, Serializer, UseCompression};
+use crate::{buffer_size, Deserializer, Result, Serializer, UseCompression};
 use std::fmt::Debug;
 use std::io::Write;
+use std::io::{Read, Seek, SeekFrom};
 use zexe_algebra::{AffineCurve, PairingEngine, PrimeField, ProjectiveCurve};
 use zexe_fft::EvaluationDomain;
 
@@ -143,18 +144,33 @@ impl<E: PairingEngine> Groth16Params<E> {
         Ok(())
     }
 
-    pub fn read<R: std::io::Read>(
+    /// Reads the first `num_constraints` coefficients from the provided processed
+    /// Phase 1 transcript with size `phase1_size`.
+    pub fn read<R: Read + std::io::Seek>(
         reader: &mut R,
         compressed: UseCompression,
+        phase1_size: usize,
         num_constraints: usize,
     ) -> Result<Groth16Params<E>> {
         let alpha_g1 = reader.read_element(compressed)?;
         let beta_g1 = reader.read_element(compressed)?;
         let beta_g2 = reader.read_element(compressed)?;
+
+        let g1_size = buffer_size::<E::G1Affine>(compressed);
+        let g2_size = buffer_size::<E::G2Affine>(compressed);
+
         let coeffs_g1 = reader.read_elements_exact(num_constraints, compressed)?;
+        skip(reader, phase1_size - num_constraints, g1_size)?;
+
         let coeffs_g2 = reader.read_elements_exact(num_constraints, compressed)?;
+        skip(reader, phase1_size - num_constraints, g2_size)?;
+
         let alpha_coeffs_g1 = reader.read_elements_exact(num_constraints, compressed)?;
+        skip(reader, phase1_size - num_constraints, g1_size)?;
+
         let beta_coeffs_g1 = reader.read_elements_exact(num_constraints, compressed)?;
+        skip(reader, phase1_size - num_constraints, g1_size)?;
+
         let h_g1 = reader.read_elements_exact(num_constraints - 1, compressed)?;
 
         Ok(Groth16Params {
@@ -168,6 +184,12 @@ impl<E: PairingEngine> Groth16Params<E> {
             h_g1,
         })
     }
+}
+
+fn skip<R: Read + Seek>(reader: &mut R, num_els: usize, el_size: usize) -> Result<()> {
+    reader.seek(SeekFrom::Current((num_els * el_size) as i64))?;
+
+    Ok(())
 }
 
 #[cfg(test)]
