@@ -169,6 +169,7 @@ dependencies = [
  "gumdrop",
  "hex 0.4.2",
  "hex-literal",
+ "memmap",
  "phase2",
  "r1cs-core",
  "r1cs-std",

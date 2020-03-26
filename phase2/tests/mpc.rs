@@ -30,16 +30,14 @@ where
         accumulator.alpha_tau_powers_g1,
         accumulator.beta_tau_powers_g1,
         accumulator.beta_g2,
-    );
+    ).unwrap();
     // write the transcript to a file
     let mut writer = vec![];
     groth_params.write(&mut writer, compressed).unwrap();
 
-    let mut transcript = std::io::Cursor::new(writer);
-    transcript.set_position(0);
     // read only the first 8 coefficients from the prepared 32
     let mut mpc =
-        MPCParameters::<E>::new_from_buffer(c, &mut transcript, compressed, 32, phase2_size)
+        MPCParameters::<E>::new_from_buffer(c, writer.as_mut(), compressed, 32, phase2_size)
             .unwrap();
 
     let before = mpc.clone();

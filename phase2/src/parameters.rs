@@ -1,6 +1,6 @@
 use snark_utils::*;
 use std::fmt;
-use std::io::{self, Read, Seek, Write};
+use std::io::{self, Read, Write};
 
 use zexe_algebra::{
     AffineCurve, CanonicalDeserialize, CanonicalSerialize, Field, One, PairingEngine,
@@ -44,9 +44,9 @@ impl<E: PairingEngine + PartialEq> PartialEq for MPCParameters<E> {
 }
 
 impl<E: PairingEngine> MPCParameters<E> {
-    pub fn new_from_buffer<R: Read + Seek, C>(
+    pub fn new_from_buffer<C>(
         circuit: C,
-        transcript: &mut R,
+        transcript: &mut [u8],
         compressed: UseCompression,
         phase1_size: usize,
         phase2_size: usize,
@@ -549,7 +549,7 @@ mod tests {
             accumulator.alpha_tau_powers_g1,
             accumulator.beta_tau_powers_g1,
             accumulator.beta_g2,
-        );
+        ).unwrap();
 
         // this circuit requires 7 constraints, so a ceremony with size 8 is sufficient
         let c = TestCircuit::<E>(None);

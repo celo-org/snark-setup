@@ -65,11 +65,18 @@ pub fn empty_circuit(opt: &NewOpts) -> (ValidatorSetUpdate<Bls12_377>, usize) {
     (valset, num_constraints)
 }
 
+use memmap::MmapOptions;
+
 pub fn new(opt: &NewOpts) -> Result<()> {
-    let mut phase1_transcript = OpenOptions::new()
+    let phase1_transcript = OpenOptions::new()
         .read(true)
         .open(&opt.phase1)
         .expect("could not read phase 1 transcript file");
+    let mut phase1_transcript = unsafe {
+        MmapOptions::new()
+            .map_mut(&phase1_transcript)
+            .expect("unable to create a memory map for input")
+    };
     let mut output = OpenOptions::new()
         .read(false)
         .write(true)
