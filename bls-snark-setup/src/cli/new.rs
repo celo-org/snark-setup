@@ -29,7 +29,7 @@ pub struct NewOpts {
     pub num_validators: usize,
 }
 
-const COMPRESSION: UseCompression = UseCompression::Yes;
+const COMPRESSION: UseCompression = UseCompression::No;
 
 pub fn empty_circuit(opt: &NewOpts) -> (ValidatorSetUpdate<Bls12_377>, usize) {
     let maximum_non_signers = (opt.num_validators - 1) / 3;
