@@ -30,7 +30,8 @@ where
         accumulator.alpha_tau_powers_g1,
         accumulator.beta_tau_powers_g1,
         accumulator.beta_g2,
-    ).unwrap();
+    )
+    .unwrap();
     // write the transcript to a file
     let mut writer = vec![];
     groth_params.write(&mut writer, compressed).unwrap();
