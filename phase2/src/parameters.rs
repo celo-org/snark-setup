@@ -423,10 +423,7 @@ pub fn circuit_to_qap<E: PairingEngine, C: ConstraintSynthesizer<E::Fr>>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        chunked_groth16::{contribute, verify},
-        keypair::PUBKEY_SIZE,
-    };
+    use crate::chunked_groth16::{contribute, verify};
     use powersoftau::{parameters::CeremonyParams, BatchedAccumulator};
     use rand::thread_rng;
     use snark_utils::{Groth16Params, UseCompression};
@@ -486,8 +483,6 @@ mod tests {
 
         // first contribution
         let mut contribution1 = mpc.clone();
-        dbg!(contribution1.params.h_query.len());
-        dbg!(contribution1.params.l_query.len());
         contribution1.contribute(rng).unwrap();
         let mut c1_serialized = vec![];
         contribution1.write(&mut c1_serialized).unwrap();
@@ -503,7 +498,7 @@ mod tests {
 
         // second contribution via batched method
         let mut c2_buf = c1_serialized;
-        c2_buf.resize(c2_buf.len() + PUBKEY_SIZE, 0); // make the buffer larger by 1 contribution
+        c2_buf.resize(c2_buf.len() + PublicKey::<E>::size(), 0); // make the buffer larger by 1 contribution
         contribute::<E, _>(&mut c2_buf, rng, 4).unwrap();
         let mut c2_cursor = std::io::Cursor::new(c2_buf);
         c2_cursor.set_position(0);

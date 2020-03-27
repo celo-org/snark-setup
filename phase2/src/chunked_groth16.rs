@@ -3,7 +3,7 @@
 //! Large MPCs can require >50GB of elements to be loaded in memory. This module provides
 //! utilities for operating directly on raw items which implement `Read`, `Write` and `Seek`
 //! such that contributing and verifying the MPC can be done in chunks which fit in memory.
-use crate::keypair::{Keypair, PublicKey, PUBKEY_SIZE};
+use crate::keypair::{Keypair, PublicKey};
 use crate::parameters::*;
 use byteorder::{BigEndian, WriteBytesExt};
 use rand::Rng;
@@ -226,7 +226,7 @@ pub fn contribute<E: PairingEngine, R: Rng>(
 
     // advance to where the next pubkey would be in the buffer and append it
     buffer.seek(SeekFrom::Current(
-        (PUBKEY_SIZE * contributions.len()) as i64,
+        (PublicKey::<E>::size() * contributions.len()) as i64,
     ))?;
     public_key.write(buffer)?;
 

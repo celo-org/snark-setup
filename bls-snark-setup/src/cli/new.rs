@@ -69,6 +69,7 @@ pub fn empty_circuit(opt: &NewOpts) -> (ValidatorSetUpdate<Bls12_377>, usize) {
 pub fn new(opt: &NewOpts) -> Result<()> {
     let phase1_transcript = OpenOptions::new()
         .read(true)
+        .write(true)
         .open(&opt.phase1)
         .expect("could not read phase 1 transcript file");
     let mut phase1_transcript = unsafe {
