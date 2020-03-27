@@ -795,6 +795,7 @@ dependencies = [
  "num_cpus",
  "powersoftau",
  "r1cs-core",
+ "r1cs-std",
  "rand 0.7.3",
  "rayon",
  "snark-utils",
