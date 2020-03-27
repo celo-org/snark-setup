@@ -199,8 +199,8 @@ pub fn contribute<E: PairingEngine, R: Rng>(
 
     // spawn 2 scoped threads to perform the contribution
     crossbeam::scope(|s| {
-        s.spawn(|| chunked_mul_queries::<E::G1Affine>(h, h_query_len, &delta_inv, batch_size));
-        s.spawn(|| {
+        s.spawn(|_| chunked_mul_queries::<E::G1Affine>(h, h_query_len, &delta_inv, batch_size));
+        s.spawn(|_| {
             chunked_mul_queries::<E::G1Affine>(
                 // since we read the l_query length we will pass the buffer
                 // after it
@@ -210,7 +210,7 @@ pub fn contribute<E: PairingEngine, R: Rng>(
                 batch_size,
             )
         });
-    });
+    })?;
 
     // we processed the 2 elements via the raw buffer, so we have to modify the cursor accordingly
     let pos = position
