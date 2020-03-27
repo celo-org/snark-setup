@@ -59,36 +59,48 @@ pub fn verify<E: PairingEngine>(
         &InvariantKind::GammaAbcG1,
     )?;
 
+    // Split the before-after buffers in non-overlapping slices and spawn a thread for each group
+    // of variables
     let position = before.position() as usize;
     let remaining_before = &mut before.get_mut()[position..];
     let position = after.position() as usize;
     let remaining_after = &mut after.get_mut()[position..];
-    let (b0, b1, b2, b3, b4) = split_transcript::<E>(remaining_before)?;
-    let (a0, a1, a2, a3, a4) = split_transcript::<E>(remaining_after)?;
+    let (before_alpha_g1, before_beta_g1, before_beta_g2, before_h, before_l) =
+        split_transcript::<E>(remaining_before)?;
+    let (after_alpha_g1, after_beta_g1, after_beta_g2, after_h, after_l) =
+        split_transcript::<E>(remaining_after)?;
+    // Save the position where the cursor should be after the threads execute
+    let pos = position
+        + 5 * u64::SERIALIZED_SIZE
+        + before_alpha_g1.len()
+        + before_beta_g1.len()
+        + before_beta_g2.len()
+        + before_h.len()
+        + before_l.len();
 
     crossbeam::scope(|s| {
         // Alpha G1, Beta G1/G2 queries are same
         // (do this in chunks since the vectors may be large)
         s.spawn(|_| {
             chunked_ensure_unchanged_vec::<E::G1Affine>(
-                b0,
-                a0,
+                before_alpha_g1,
+                after_alpha_g1,
                 batch_size,
                 &InvariantKind::AlphaG1Query,
             )
         });
         s.spawn(|_| {
             chunked_ensure_unchanged_vec::<E::G1Affine>(
-                b1,
-                a1,
+                before_beta_g1,
+                after_beta_g1,
                 batch_size,
                 &InvariantKind::BetaG1Query,
             )
         });
         s.spawn(|_| {
             chunked_ensure_unchanged_vec::<E::G2Affine>(
-                b2,
-                a2,
+                before_beta_g2,
+                after_beta_g2,
                 batch_size,
                 &InvariantKind::BetaG2Query,
             )
@@ -97,9 +109,9 @@ pub fn verify<E: PairingEngine>(
         // H and L queries should be updated with delta^-1
         s.spawn(|_| {
             chunked_check_ratio::<E>(
-                b3,
+                before_h,
                 vk_before.delta_g2,
-                a3,
+                after_h,
                 vk_after.delta_g2,
                 batch_size,
                 "H_query ratio check failed",
@@ -107,9 +119,9 @@ pub fn verify<E: PairingEngine>(
         });
         s.spawn(|_| {
             chunked_check_ratio::<E>(
-                b4,
+                before_l,
                 vk_before.delta_g2,
-                a4,
+                after_l,
                 vk_after.delta_g2,
                 batch_size,
                 "L_query ratio check failed",
@@ -117,10 +129,6 @@ pub fn verify<E: PairingEngine>(
         });
     })?;
 
-    // Get the buffer where it should be
-    // (5 buffers later)
-    let pos =
-        position + 5 * u64::SERIALIZED_SIZE + b0.len() + b1.len() + b2.len() + b3.len() + b4.len();
     before.seek(SeekFrom::Start(pos as u64))?;
     after.seek(SeekFrom::Start(pos as u64))?;
 
