@@ -95,7 +95,8 @@ fn prepare_phase2<E: PairingEngine + Sync>(opts: &PreparePhase2Opts) -> Result<(
         current_accumulator.alpha_tau_powers_g1,
         current_accumulator.beta_tau_powers_g1,
         current_accumulator.beta_g2,
-    ).expect("could not create Groth16 Lagrange coefficients");
+    )
+    .expect("could not create Groth16 Lagrange coefficients");
 
     // Write the parameters
     groth16_params.write(&mut writer, UseCompression::No)?;

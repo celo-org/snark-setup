@@ -8,6 +8,7 @@ use zexe_r1cs_std::test_constraint_counter::ConstraintCounter;
 use phase2::parameters::{circuit_to_qap, MPCParameters};
 use snark_utils::{log_2, Groth16Params, Result, UseCompression};
 
+use memmap::MmapOptions;
 use std::fs::OpenOptions;
 
 #[derive(Debug, Options, Clone)]
@@ -64,8 +65,6 @@ pub fn empty_circuit(opt: &NewOpts) -> (ValidatorSetUpdate<Bls12_377>, usize) {
 
     (valset, num_constraints)
 }
-
-use memmap::MmapOptions;
 
 pub fn new(opt: &NewOpts) -> Result<()> {
     let phase1_transcript = OpenOptions::new()

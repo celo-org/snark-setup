@@ -1,4 +1,5 @@
 use gumdrop::Options;
+use memmap::MmapOptions;
 use phase2::chunked_groth16::contribute as chunked_contribute;
 use rand::Rng;
 use snark_utils::Result;
@@ -23,13 +24,18 @@ pub struct ContributeOpts {
 }
 
 pub fn contribute<R: Rng>(opts: &ContributeOpts, rng: &mut R) -> Result<()> {
-    let mut file = OpenOptions::new()
+    let file = OpenOptions::new()
         .read(true)
         .write(true)
         .open(&opts.data)
         .expect("could not open file for writing the new MPC parameters ");
+    let mut file = unsafe {
+        MmapOptions::new()
+            .map_mut(&file)
+            .expect("unable to create a memory map for input")
+    };
 
-    chunked_contribute::<SW6, _, _>(&mut file, rng, opts.batch)?;
+    chunked_contribute::<SW6, _>(&mut file, rng, opts.batch)?;
 
     Ok(())
 }

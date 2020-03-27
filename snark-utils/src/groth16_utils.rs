@@ -295,7 +295,8 @@ mod tests {
             accumulator.alpha_tau_powers_g1,
             accumulator.beta_tau_powers_g1,
             accumulator.beta_g2,
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut writer = vec![];
         groth_params.write(&mut writer, compat(compressed)).unwrap();
