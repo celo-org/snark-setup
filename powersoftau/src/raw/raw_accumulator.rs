@@ -176,7 +176,7 @@ pub fn verify<E: PairingEngine>(
     digest: &[u8],
     parameters: &CeremonyParams<E>,
 ) -> Result<()> {
-    let span = info_span!("verify");
+    let span = info_span!("phase1-verify");
     let _enter = span.enter();
 
     info!("starting...");
@@ -451,7 +451,7 @@ pub fn contribute<E: PairingEngine>(
     key: &PrivateKey<E>,
     parameters: &CeremonyParams<E>,
 ) -> Result<()> {
-    let span = info_span!("contribute");
+    let span = info_span!("phase1-contribute");
     let _enter = span.enter();
 
     info!("starting...");
