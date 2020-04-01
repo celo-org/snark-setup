@@ -3,7 +3,7 @@
 use crate::{buffer_size, Deserializer, Result, Serializer, UseCompression};
 use std::fmt::Debug;
 use std::io::Write;
-use tracing::{debug, info, span, Level};
+use tracing::{debug, info, info_span};
 use zexe_algebra::{AffineCurve, PairingEngine, PrimeField, ProjectiveCurve};
 use zexe_fft::EvaluationDomain;
 
@@ -80,7 +80,7 @@ impl<E: PairingEngine> Groth16Params<E> {
         beta_tau_powers_g1: Vec<E::G1Affine>,
         beta_g2: E::G2Affine,
     ) -> Result<Self> {
-        let span = span!(Level::TRACE, "Groth16Utils_new");
+        let span = info_span!("Groth16Utils_new");
         let _enter = span.enter();
 
         // Create the evaluation domain
@@ -171,7 +171,7 @@ impl<E: PairingEngine> Groth16Params<E> {
         phase1_size: usize,
         num_constraints: usize,
     ) -> Result<Groth16Params<E>> {
-        let span = span!(Level::TRACE, "Groth16Utils_read");
+        let span = info_span!("Groth16Utils_read");
         let _enter = span.enter();
 
         let mut reader = std::io::Cursor::new(reader);

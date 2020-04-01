@@ -9,7 +9,7 @@ use snark_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer};
 use zexe_algebra::{AffineCurve, PairingEngine, ProjectiveCurve, Zero};
 
 use itertools::{Itertools, MinMaxResult};
-use tracing::{debug, info, span, trace, Level};
+use tracing::{debug, info, info_span, trace};
 
 /// Mutable buffer, compression
 type Output<'a> = (&'a mut [u8], UseCompression);
@@ -73,7 +73,7 @@ pub fn init<'a, E: PairingEngine>(
     parameters: &'a CeremonyParams<E>,
     compressed: UseCompression,
 ) {
-    let span = span!(Level::TRACE, "initialize");
+    let span = info_span!("initialize");
     let _enter = span.enter();
     let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split_mut(output, parameters, compressed);
     let g1_one = &E::G1Affine::prime_subgroup_generator();
@@ -176,7 +176,7 @@ pub fn verify<E: PairingEngine>(
     digest: &[u8],
     parameters: &CeremonyParams<E>,
 ) -> Result<()> {
-    let span = span!(Level::TRACE, "verify");
+    let span = info_span!("verify");
     let _enter = span.enter();
 
     info!("starting...");
@@ -257,7 +257,7 @@ pub fn verify<E: PairingEngine>(
     // load `batch_size` chunks on each iteration and perform the transformation
     iter_chunk(&parameters, |start, end| {
         debug!("verifying chunk from {} to {}", start, end);
-        let span = span!(Level::TRACE, "batch", start, end);
+        let span = info_span!("batch", start, end);
         let _enter = span.enter();
         rayon::scope(|t| {
             let _enter = span.enter();
@@ -451,7 +451,7 @@ pub fn contribute<E: PairingEngine>(
     key: &PrivateKey<E>,
     parameters: &CeremonyParams<E>,
 ) -> Result<()> {
-    let span = span!(Level::TRACE, "contribute");
+    let span = info_span!("contribute");
     let _enter = span.enter();
 
     info!("starting...");
@@ -479,7 +479,7 @@ pub fn contribute<E: PairingEngine>(
     // load `batch_size` chunks on each iteration and perform the transformation
     iter_chunk(&parameters, |start, end| {
         debug!("contributing to chunk from {} to {}", start, end);
-        let span = span!(Level::TRACE, "batch", start, end);
+        let span = info_span!("batch", start, end);
         let _enter = span.enter();
         rayon::scope(|t| {
             let _enter = span.enter();
