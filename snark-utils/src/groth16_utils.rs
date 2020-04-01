@@ -86,7 +86,7 @@ impl<E: PairingEngine> Groth16Params<E> {
         // Create the evaluation domain
         let domain = EvaluationDomain::<E::Fr>::new(phase2_size).expect("could not create domain");
 
-        info!("converting powers of tau to Lagrange coefficients");
+        info!("converting powers of tau to lagrange coefficients");
 
         Ok(crossbeam::scope(|s| -> Result<_> {
             // Convert the accumulated powers to Lagrange coefficients
@@ -100,15 +100,15 @@ impl<E: PairingEngine> Groth16Params<E> {
             let h_g1 = s.spawn(|_| h_query_groth16(&tau_powers_g1, phase2_size));
 
             let coeffs_g1 = coeffs_g1.join()?;
-            debug!("Tau G1 Coefficients calculated");
+            debug!("tau g1 coefficients calculated");
             let coeffs_g2 = coeffs_g2.join()?;
-            debug!("Tau G2 Coefficients calculated");
+            debug!("tau g2 coefficients calculated");
             let alpha_coeffs_g1 = alpha_coeffs_g1.join()?;
-            debug!("Alpha Tau G1 Coefficients calculated");
+            debug!("alpha tau g1 coefficients calculated");
             let beta_coeffs_g1 = beta_coeffs_g1.join()?;
-            debug!("Beta Tau G1 Coefficients calculated");
+            debug!("beta tau g1 coefficients calculated");
             let h_g1 = h_g1.join()?;
-            debug!("H query Coefficients calculated");
+            debug!("h query coefficients calculated");
 
             info!("successfully created groth16 parameters from powers of tau");
 
@@ -200,15 +200,15 @@ impl<E: PairingEngine> Groth16Params<E> {
             let h_g1 = s.spawn(|_| in_h_g1.read_batch::<E::G1Affine>(compressed));
 
             let coeffs_g1 = coeffs_g1.join()??;
-            debug!("Read Tau G1 Coefficients");
+            debug!("read tau g1 Coefficients");
             let coeffs_g2 = coeffs_g2.join()??;
-            debug!("Read Tau G2 Coefficients");
+            debug!("read tau g2 coefficients");
             let alpha_coeffs_g1 = alpha_coeffs_g1.join()??;
-            debug!("Read Alpha G1 Coefficients");
+            debug!("read alpha g1 coefficients");
             let beta_coeffs_g1 = beta_coeffs_g1.join()??;
-            debug!("Read Beta G1 Coefficients");
+            debug!("read beta g1 coefficients");
             let h_g1 = h_g1.join()??;
-            debug!("Read H query Coefficients");
+            debug!("read h query coefficients");
 
             info!("successfully read groth16 parameters");
 

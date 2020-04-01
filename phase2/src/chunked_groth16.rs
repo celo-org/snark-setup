@@ -272,13 +272,13 @@ pub fn contribute<E: PairingEngine, R: Rng>(
     // write delta_g1
     delta_g1.serialize(buffer)?;
 
-    debug!("Updated Delta G1 and VK Delta G2");
+    debug!("updated delta g1 and vk delta g2");
 
     skip_vec::<E::G1Affine, _>(buffer)?; // Alpha G1
     skip_vec::<E::G1Affine, _>(buffer)?; // Beta G1
     skip_vec::<E::G2Affine, _>(buffer)?; // Beta G2
 
-    debug!("Skipped unused elements...");
+    debug!("skipped unused elements...");
 
     // The previous operations are all on small size elements so do them serially
     // the `h` and `l` queries are relatively large, so we can get a nice speedup

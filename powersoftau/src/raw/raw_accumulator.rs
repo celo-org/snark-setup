@@ -105,7 +105,7 @@ pub fn init<'a, E: PairingEngine>(
                 .expect("could not initialize the Beta G2 element")
         });
     });
-    info!("Accumulator has been initialized");
+    info!("accumulator has been initialized");
 }
 
 /// Given a public key and the accumulator's digest, it hashes each G1 element
@@ -271,7 +271,7 @@ pub fn verify<E: PairingEngine>(
                     &g2_check,
                 )
                 .expect("could not check ratios for Tau G1");
-                trace!("Tau G1 verification successful");
+                trace!("tau g1 verification successful");
             });
 
             if start < parameters.powers_length {
@@ -296,7 +296,7 @@ pub fn verify<E: PairingEngine>(
                             &g1_check,
                         )
                         .expect("could not check ratios for Tau G2");
-                        trace!("Tau G2 verification successful");
+                        trace!("tau g2 verification successful");
                     });
 
                     t.spawn(|_| {
@@ -309,7 +309,7 @@ pub fn verify<E: PairingEngine>(
                             &g2_check,
                         )
                         .expect("could not check ratios for Alpha G1");
-                        trace!("Alpha G1 verification successful");
+                        trace!("alpha g1 verification successful");
                     });
 
                     t.spawn(|_| {
@@ -322,7 +322,7 @@ pub fn verify<E: PairingEngine>(
                             &g2_check,
                         )
                         .expect("could not check ratios for Beta G1");
-                        trace!("Beta G1 verification successful");
+                        trace!("beta g1 verification successful");
                     });
                 });
             }
@@ -504,7 +504,7 @@ pub fn contribute<E: PairingEngine>(
                             None,
                         )
                         .expect("could not apply powers of tau to the TauG1 elements");
-                        trace!("applied powers to Tau G1 elements");
+                        trace!("applied powers to tau g1 elements");
                     });
                     if start < parameters.powers_length {
                         // if the `end` would be out of bounds, then just process until
@@ -528,7 +528,7 @@ pub fn contribute<E: PairingEngine>(
                                     None,
                                 )
                                 .expect("could not apply powers of tau to the TauG2 elements");
-                                trace!("applied powers to Tau G2 elements");
+                                trace!("applied powers to tau g2 elements");
                             });
                             t.spawn(|_| {
                                 let _enter = span.enter();
@@ -540,7 +540,7 @@ pub fn contribute<E: PairingEngine>(
                                     Some(&key.alpha),
                                 )
                                 .expect("could not apply powers of tau to the AlphaG1 elements");
-                                trace!("applied powers to Alpha G1 elements");
+                                trace!("applied powers to alpha g1 elements");
                             });
                             t.spawn(|_| {
                                 let _enter = span.enter();
@@ -552,7 +552,7 @@ pub fn contribute<E: PairingEngine>(
                                     Some(&key.beta),
                                 )
                                 .expect("could not apply powers of tau to the BetaG1 elements");
-                                trace!("applied powers to Beta G1 elements");
+                                trace!("applied powers to beta g1 elements");
                             });
                         });
                     }
