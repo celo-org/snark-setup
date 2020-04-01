@@ -3,9 +3,9 @@
 use crate::{buffer_size, Deserializer, Result, Serializer, UseCompression};
 use std::fmt::Debug;
 use std::io::Write;
+use tracing::{debug, info, span, Level};
 use zexe_algebra::{AffineCurve, PairingEngine, PrimeField, ProjectiveCurve};
 use zexe_fft::EvaluationDomain;
-use tracing::{span, info, debug, Level};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;

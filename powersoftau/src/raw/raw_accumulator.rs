@@ -9,6 +9,7 @@ use snark_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer};
 use zexe_algebra::{AffineCurve, PairingEngine, ProjectiveCurve, Zero};
 
 use itertools::{Itertools, MinMaxResult};
+use tracing::{debug, info, span, trace, Level};
 
 /// Mutable buffer, compression
 type Output<'a> = (&'a mut [u8], UseCompression);
@@ -72,6 +73,8 @@ pub fn init<'a, E: PairingEngine>(
     parameters: &'a CeremonyParams<E>,
     compressed: UseCompression,
 ) {
+    let span = span!(Level::TRACE, "initialize");
+    let _enter = span.enter();
     let (tau_g1, tau_g2, alpha_g1, beta_g1, beta_g2) = split_mut(output, parameters, compressed);
     let g1_one = &E::G1Affine::prime_subgroup_generator();
     let g2_one = &E::G2Affine::prime_subgroup_generator();
@@ -102,6 +105,7 @@ pub fn init<'a, E: PairingEngine>(
                 .expect("could not initialize the Beta G2 element")
         });
     });
+    info!("Accumulator has been initialized");
 }
 
 /// Given a public key and the accumulator's digest, it hashes each G1 element
@@ -421,6 +425,9 @@ pub fn contribute<E: PairingEngine>(
     key: &PrivateKey<E>,
     parameters: &CeremonyParams<E>,
 ) -> Result<()> {
+    let span = span!(Level::TRACE, "contribute");
+    let _enter = span.enter();
+
     let (input, compressed_input) = (input.0, input.1);
     let (output, compressed_output) = (output.0, output.1);
     // get an immutable reference to the input chunks
@@ -443,16 +450,24 @@ pub fn contribute<E: PairingEngine>(
 
     // load `batch_size` chunks on each iteration and perform the transformation
     iter_chunk(&parameters, |start, end| {
+        debug!("batch from {} to {}", start, end);
+        let span = span!(Level::TRACE, "batch", start, end);
+        let _enter = span.enter();
         rayon::scope(|t| {
+            let _enter = span.enter();
             t.spawn(|_| {
+                let _enter = span.enter();
                 // generate powers from `start` to `end` (e.g. [0,4) then [4, 8) etc.)
                 let powers = generate_powers_of_tau::<E>(&key.tau, start, end);
+                trace!("generated powers of tau");
 
                 // raise each element from the input buffer to the powers of tau
                 // and write the updated value (without allocating) to the
                 // output buffer
                 rayon::scope(|t| {
+                    let _enter = span.enter();
                     t.spawn(|_| {
+                        let _enter = span.enter();
                         apply_powers::<E::G1Affine>(
                             (tau_g1, compressed_output),
                             (in_tau_g1, compressed_input),
@@ -460,7 +475,8 @@ pub fn contribute<E: PairingEngine>(
                             &powers,
                             None,
                         )
-                        .expect("could not apply powers of tau to the TauG1 elements")
+                        .expect("could not apply powers of tau to the TauG1 elements");
+                        trace!("applied powers to Tau G1 elements");
                     });
                     if start < parameters.powers_length {
                         // if the `end` would be out of bounds, then just process until
@@ -473,7 +489,9 @@ pub fn contribute<E: PairingEngine>(
                         };
 
                         rayon::scope(|t| {
+                            let _enter = span.enter();
                             t.spawn(|_| {
+                                let _enter = span.enter();
                                 apply_powers::<E::G2Affine>(
                                     (tau_g2, compressed_output),
                                     (in_tau_g2, compressed_input),
@@ -481,9 +499,11 @@ pub fn contribute<E: PairingEngine>(
                                     &powers,
                                     None,
                                 )
-                                .expect("could not apply powers of tau to the TauG2 elements")
+                                .expect("could not apply powers of tau to the TauG2 elements");
+                                trace!("applied powers to Tau G2 elements");
                             });
                             t.spawn(|_| {
+                                let _enter = span.enter();
                                 apply_powers::<E::G1Affine>(
                                     (alpha_g1, compressed_output),
                                     (in_alpha_g1, compressed_input),
@@ -491,9 +511,11 @@ pub fn contribute<E: PairingEngine>(
                                     &powers,
                                     Some(&key.alpha),
                                 )
-                                .expect("could not apply powers of tau to the AlphaG1 elements")
+                                .expect("could not apply powers of tau to the AlphaG1 elements");
+                                trace!("applied powers to Alpha G1 elements");
                             });
                             t.spawn(|_| {
+                                let _enter = span.enter();
                                 apply_powers::<E::G1Affine>(
                                     (beta_g1, compressed_output),
                                     (in_beta_g1, compressed_input),
@@ -501,7 +523,8 @@ pub fn contribute<E: PairingEngine>(
                                     &powers,
                                     Some(&key.beta),
                                 )
-                                .expect("could not apply powers of tau to the BetaG1 elements")
+                                .expect("could not apply powers of tau to the BetaG1 elements");
+                                trace!("applied powers to Beta G1 elements");
                             });
                         });
                     }
@@ -510,7 +533,11 @@ pub fn contribute<E: PairingEngine>(
         });
 
         Ok(())
-    })
+    })?;
+
+    info!("contribution complete");
+
+    Ok(())
 }
 
 /// Takes a compressed input buffer and decompresses it

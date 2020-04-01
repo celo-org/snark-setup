@@ -7,11 +7,11 @@ use snark_utils::{beacon_randomness, get_rng, user_system_randomness};
 
 use std::process;
 use std::time::Instant;
-use zexe_algebra::{Bls12_377, Bls12_381, PairingEngine as Engine, SW6};
 use tracing_subscriber::{
     filter::EnvFilter,
     fmt::{time::ChronoUtc, Subscriber},
 };
+use zexe_algebra::{Bls12_377, Bls12_381, PairingEngine as Engine, SW6};
 
 #[macro_use]
 extern crate hex_literal;
