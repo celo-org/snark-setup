@@ -22,6 +22,7 @@ use zexe_groth16::VerifyingKey;
 /// Given two serialized contributions to the ceremony, this will check that `after`
 /// has been correctly calculated from `before`. Large vectors will be read in
 /// `batch_size` batches
+#[allow(clippy::cognitive_complexity)]
 pub fn verify<E: PairingEngine>(
     before: &mut [u8],
     after: &mut [u8],
@@ -356,6 +357,7 @@ fn skip_vec<C: AffineCurve, B: Read + Seek>(buffer: &mut B) -> Result<()> {
 /// Multiplies a vector of affine elements by `element` in `batch_size` batches
 /// The first 8 bytes read from the buffer are the vector's length. The result
 /// is written back to the buffer in place
+#[allow(clippy::cognitive_complexity)]
 fn chunked_mul_queries<C: AffineCurve>(
     buffer: &mut [u8],
     query_len: usize,
@@ -418,6 +420,7 @@ fn mul_query<C: AffineCurve, B: Read + Write + Seek>(
 }
 
 /// Checks that 2 vectors read from the 2 buffers are the same in chunks
+#[allow(clippy::cognitive_complexity)]
 fn chunked_ensure_unchanged_vec<C: AffineCurve>(
     before: &mut [u8],
     after: &mut [u8],
