@@ -64,7 +64,6 @@ fn test_groth_bls12_381() {
 }
 
 #[test]
-#[ignore]
 fn test_groth_bw6() {
     groth_test_curve::<BW6_761>()
 }
