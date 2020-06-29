@@ -4,7 +4,7 @@ use snark_utils::{Groth16Params, UseCompression};
 use test_helpers::{setup_verify, TestCircuit};
 
 use rand::{thread_rng, Rng};
-use zexe_algebra::{Bls12_377, Bls12_381, PairingEngine, SW6};
+use zexe_algebra::{Bls12_377, Bls12_381, PairingEngine, BW6_761};
 use zexe_groth16::{create_random_proof, prepare_verifying_key, verify_proof, Parameters};
 use zexe_r1cs_core::ConstraintSynthesizer;
 
@@ -65,8 +65,8 @@ fn test_groth_bls12_381() {
 
 #[test]
 #[ignore]
-fn test_groth_sw6() {
-    groth_test_curve::<SW6>()
+fn test_groth_bw6() {
+    groth_test_curve::<BW6_761>()
 }
 
 fn groth_test_curve<E: PairingEngine>() {
