@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use std::io::Write;
 use tracing::{debug, info, info_span};
 use zexe_algebra::{AffineCurve, PairingEngine, PrimeField, ProjectiveCurve};
-use zexe_fft::domain::{EvaluationDomain, radix2::Radix2EvaluationDomain};
+use zexe_fft::domain::{radix2::Radix2EvaluationDomain, EvaluationDomain};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -85,7 +85,8 @@ impl<E: PairingEngine> Groth16Params<E> {
         let _enter = span.enter();
 
         // Create the evaluation domain
-        let domain = Radix2EvaluationDomain::<E::Fr>::new(phase2_size).expect("could not create domain");
+        let domain =
+            Radix2EvaluationDomain::<E::Fr>::new(phase2_size).expect("could not create domain");
 
         info!("converting powers of tau to lagrange coefficients");
 
