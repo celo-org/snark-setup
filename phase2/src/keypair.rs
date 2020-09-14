@@ -2,16 +2,22 @@
 //!
 //! A Groth16 keypair. Generate one with the Keypair::new method.
 //! Dispose of the private key ASAP once it's been used.
+use setup_utils::{hash_to_g2, CheckForCorrectness, Deserializer, HashWriter, Result, Serializer, UseCompression};
+
+use zexe_algebra::{
+    AffineCurve,
+    CanonicalSerialize,
+    ConstantSerializedSize,
+    PairingEngine,
+    ProjectiveCurve,
+    UniformRand,
+};
+
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use rand::Rng;
-use snark_utils::{
-    hash_to_g2, CheckForCorrectness, Deserializer, HashWriter, Result, Serializer, UseCompression,
-};
-use std::fmt;
-use std::io::{self, Read, Write};
-use zexe_algebra::{
-    AffineCurve, CanonicalSerialize, ConstantSerializedSize, PairingEngine, ProjectiveCurve,
-    UniformRand,
+use std::{
+    fmt,
+    io::{self, Read, Write},
 };
 
 /// This needs to be destroyed by at least one participant
@@ -64,11 +70,11 @@ impl<E: PairingEngine> PublicKey<E> {
         Ok(())
     }
 
-    pub fn read_batch<R: Read>(mut reader: R) -> Result<Vec<Self>> {
+    pub fn read_batch<R: Read>(reader: &mut R) -> Result<Vec<Self>> {
         let mut contributions = vec![];
         let contributions_len = reader.read_u32::<BigEndian>()? as usize;
         for _ in 0..contributions_len {
-            contributions.push(PublicKey::read(&mut reader)?);
+            contributions.push(PublicKey::read(reader)?);
         }
         Ok(contributions)
     }
@@ -90,11 +96,11 @@ impl<E: PairingEngine> PublicKey<E> {
 
     /// Reads the key's **uncompressed** points from the provided
     /// reader
-    pub fn read<R: Read>(mut reader: R) -> Result<PublicKey<E>> {
-        let delta_after = reader.read_element(UseCompression::No, CheckForCorrectness::Both)?;
-        let s = reader.read_element(UseCompression::No, CheckForCorrectness::Both)?;
-        let s_delta = reader.read_element(UseCompression::No, CheckForCorrectness::Both)?;
-        let r_delta = reader.read_element(UseCompression::No, CheckForCorrectness::Both)?;
+    pub fn read<R: Read>(reader: &mut R) -> Result<PublicKey<E>> {
+        let delta_after = reader.read_element(UseCompression::No, CheckForCorrectness::Full)?;
+        let s = reader.read_element(UseCompression::No, CheckForCorrectness::Full)?;
+        let s_delta = reader.read_element(UseCompression::No, CheckForCorrectness::Full)?;
+        let r_delta = reader.read_element(UseCompression::No, CheckForCorrectness::Full)?;
         let mut transcript = [0u8; 64];
         reader.read_exact(&mut transcript)?;
 
@@ -119,12 +125,7 @@ impl<E: PairingEngine> Keypair<E> {
     /// Compute a keypair, given the current parameters. Keypairs
     /// cannot be reused for multiple contributions or contributions
     /// in different parameters.
-    pub fn new(
-        delta_g1: E::G1Affine,
-        cs_hash: [u8; 64],
-        contributions: &[PublicKey<E>],
-        rng: &mut impl Rng,
-    ) -> Self {
+    pub fn new(delta_g1: E::G1Affine, cs_hash: [u8; 64], contributions: &[PublicKey<E>], rng: &mut impl Rng) -> Self {
         // Sample random delta -- THIS MUST BE DESTROYED
         let delta: E::Fr = E::Fr::rand(rng);
         let delta_after = delta_g1.mul(delta).into_affine();
@@ -183,7 +184,15 @@ pub fn hash_cs_pubkeys<E: PairingEngine>(
 
 impl<E: PairingEngine> fmt::Debug for PublicKey<E> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "PublicKey {{ delta_after: {}, s: {:?}, s_delta: {:?} r_delta: {:?}, transcript : {:?}}}", self.delta_after, self.s, self.s_delta, self.r_delta, &self.transcript[..])
+        write!(
+            f,
+            "PublicKey {{ delta_after: {}, s: {:?}, s_delta: {:?} r_delta: {:?}, transcript : {:?}}}",
+            self.delta_after,
+            self.s,
+            self.s_delta,
+            self.r_delta,
+            &self.transcript[..]
+        )
     }
 }
 

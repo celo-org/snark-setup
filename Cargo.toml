@@ -1,8 +1,9 @@
 [workspace]
 members = [
-    "./bls-snark-setup",
-    "./powersoftau",
+#    "./bls-snark-setup",
+    "./phase1",
+    "./phase1-cli",
+    "./phase1-wasm",
     "./phase2",
-    "./snark-utils",
-    "./test-helpers",
+    "./setup-utils",
 ]

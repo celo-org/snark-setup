@@ -3,31 +3,36 @@
 //! Large MPCs can require >50GB of elements to be loaded in memory. This module provides
 //! utilities for operating directly on raw items which implement `Read`, `Write` and `Seek`
 //! such that contributing and verifying the MPC can be done in chunks which fit in memory.
-use crate::keypair::{Keypair, PublicKey};
-use crate::parameters::*;
+use crate::{
+    keypair::{Keypair, PublicKey},
+    parameters::*,
+};
+use setup_utils::{batch_mul, check_same_ratio, merge_pairs, InvariantKind, Phase2Error, Result};
+
+use zexe_algebra::{
+    AffineCurve,
+    CanonicalDeserialize,
+    CanonicalSerialize,
+    ConstantSerializedSize,
+    Field,
+    PairingEngine,
+    ProjectiveCurve,
+};
+use zexe_groth16::VerifyingKey;
+
 use byteorder::{BigEndian, WriteBytesExt};
 use rand::Rng;
-use snark_utils::{batch_mul, check_same_ratio, merge_pairs, InvariantKind, Phase2Error, Result};
 use std::{
     io::{Read, Seek, SeekFrom, Write},
     ops::Neg,
 };
 use tracing::{debug, info, info_span, trace};
-use zexe_algebra::{
-    AffineCurve, CanonicalDeserialize, CanonicalSerialize, ConstantSerializedSize, Field,
-    PairingEngine, ProjectiveCurve,
-};
-use zexe_groth16::VerifyingKey;
 
 /// Given two serialized contributions to the ceremony, this will check that `after`
 /// has been correctly calculated from `before`. Large vectors will be read in
 /// `batch_size` batches
 #[allow(clippy::cognitive_complexity)]
-pub fn verify<E: PairingEngine>(
-    before: &mut [u8],
-    after: &mut [u8],
-    batch_size: usize,
-) -> Result<Vec<[u8; 64]>> {
+pub fn verify<E: PairingEngine>(before: &mut [u8], after: &mut [u8], batch_size: usize) -> Result<Vec<[u8; 64]>> {
     let span = info_span!("phase2-verify");
     let _enter = span.enter();
     info!("starting...");
@@ -47,18 +52,10 @@ pub fn verify<E: PairingEngine>(
     // VK parameters remain unchanged, except for Delta G2
     // which we check at the end of the function against the new contribution's
     // pubkey
-    ensure_unchanged(
-        vk_before.alpha_g1,
-        vk_after.alpha_g1,
-        InvariantKind::AlphaG1,
-    )?;
+    ensure_unchanged(vk_before.alpha_g1, vk_after.alpha_g1, InvariantKind::AlphaG1)?;
     ensure_unchanged(beta_g1_before, beta_g1_after, InvariantKind::BetaG1)?;
     ensure_unchanged(vk_before.beta_g2, vk_after.beta_g2, InvariantKind::BetaG2)?;
-    ensure_unchanged(
-        vk_before.gamma_g2,
-        vk_after.gamma_g2,
-        InvariantKind::GammaG2,
-    )?;
+    ensure_unchanged(vk_before.gamma_g2, vk_after.gamma_g2, InvariantKind::GammaG2)?;
     ensure_unchanged_vec(
         &vk_before.gamma_abc_g1,
         &vk_after.gamma_abc_g1,
@@ -75,8 +72,7 @@ pub fn verify<E: PairingEngine>(
     let remaining_after = &mut after.get_mut()[position..];
     let (before_alpha_g1, before_beta_g1, before_beta_g2, before_h, before_l) =
         split_transcript::<E>(remaining_before)?;
-    let (after_alpha_g1, after_beta_g1, after_beta_g2, after_h, after_l) =
-        split_transcript::<E>(remaining_after)?;
+    let (after_alpha_g1, after_beta_g1, after_beta_g2, after_h, after_l) = split_transcript::<E>(remaining_after)?;
     // Save the position where the cursor should be after the threads execute
     let pos = position
         + 5 * u64::SERIALIZED_SIZE
@@ -170,17 +166,13 @@ pub fn verify<E: PairingEngine>(
     before.read_exact(&mut cs_hash_before)?;
     let mut cs_hash_after = [0u8; 64];
     after.read_exact(&mut cs_hash_after)?;
-    ensure_unchanged(
-        &cs_hash_before[..],
-        &cs_hash_after[..],
-        InvariantKind::CsHash,
-    )?;
+    ensure_unchanged(&cs_hash_before[..], &cs_hash_after[..], InvariantKind::CsHash)?;
 
     debug!("cs hash was unchanged");
 
     // None of the previous transformations should change
-    let contributions_before = PublicKey::<E>::read_batch(before)?;
-    let contributions_after = PublicKey::<E>::read_batch(after)?;
+    let contributions_before = PublicKey::<E>::read_batch(&mut before)?;
+    let contributions_after = PublicKey::<E>::read_batch(&mut after)?;
     ensure_unchanged(
         &contributions_before[..],
         &contributions_after[0..contributions_before.len()],
@@ -219,11 +211,7 @@ pub fn verify<E: PairingEngine>(
 /// followed by the contributions array and the contributions hash), this will modify the
 /// Delta_g1, the VK's Delta_g2 and will update the H and L queries in place while leaving
 /// everything else unchanged
-pub fn contribute<E: PairingEngine, R: Rng>(
-    buffer: &mut [u8],
-    rng: &mut R,
-    batch_size: usize,
-) -> Result<[u8; 64]> {
+pub fn contribute<E: PairingEngine, R: Rng>(buffer: &mut [u8], rng: &mut R, batch_size: usize) -> Result<[u8; 64]> {
     let span = info_span!("phase2-contribute");
     let _enter = span.enter();
 
@@ -324,9 +312,7 @@ pub fn contribute<E: PairingEngine, R: Rng>(
     debug!("appending contribution...");
 
     // we processed the 2 elements via the raw buffer, so we have to modify the cursor accordingly
-    let pos = position
-        + (l_query_len + h_query_len) * E::G1Affine::SERIALIZED_SIZE
-        + u64::SERIALIZED_SIZE;
+    let pos = position + (l_query_len + h_query_len) * E::G1Affine::SERIALIZED_SIZE + u64::SERIALIZED_SIZE;
     buffer.seek(SeekFrom::Start(pos as u64))?;
 
     // leave the cs_hash unchanged (64 bytes size)
@@ -336,9 +322,7 @@ pub fn contribute<E: PairingEngine, R: Rng>(
     buffer.write_u32::<BigEndian>((contributions.len() + 1) as u32)?;
 
     // advance to where the next pubkey would be in the buffer and append it
-    buffer.seek(SeekFrom::Current(
-        (PublicKey::<E>::size() * contributions.len()) as i64,
-    ))?;
+    buffer.seek(SeekFrom::Current((PublicKey::<E>::size() * contributions.len()) as i64))?;
     public_key.write(&mut buffer)?;
 
     info!("done.");
@@ -408,9 +392,7 @@ fn mul_query<C: AffineCurve, B: Read + Write + Seek>(
     batch_mul(&mut query, element)?;
 
     // seek back to update the elements
-    buffer.seek(SeekFrom::Current(
-        ((num_els * C::SERIALIZED_SIZE) as i64).neg(),
-    ))?;
+    buffer.seek(SeekFrom::Current(((num_els * C::SERIALIZED_SIZE) as i64).neg()))?;
     query
         .iter()
         .map(|el| el.serialize(&mut buffer))
@@ -492,15 +474,13 @@ fn chunked_check_ratio<E: PairingEngine>(
     let iters = len_before / batch_size;
     let leftovers = len_before % batch_size;
     for _ in 0..iters {
-        let (els_before, els_after) =
-            read_batch::<E::G1Affine, _>(&mut before, &mut after, batch_size)?;
+        let (els_before, els_after) = read_batch::<E::G1Affine, _>(&mut before, &mut after, batch_size)?;
         let pairs = merge_pairs(&els_before, &els_after);
         check_same_ratio::<E>(&pairs, &(after_delta_g2, before_delta_g2), err)?;
     }
     // in case the batch size did not evenly divide the number of queries
     if leftovers > 0 {
-        let (els_before, els_after) =
-            read_batch::<E::G1Affine, _>(&mut before, &mut after, leftovers)?;
+        let (els_before, els_after) = read_batch::<E::G1Affine, _>(&mut before, &mut after, leftovers)?;
         let pairs = merge_pairs(&els_before, &els_after);
         check_same_ratio::<E>(&pairs, &(after_delta_g2, before_delta_g2), err)?;
     }
@@ -524,13 +504,7 @@ fn read_batch<C: AffineCurve, B: Read + Write + Seek>(
     Ok((els_before, els_after))
 }
 
-type SplitBuf<'a> = (
-    &'a mut [u8],
-    &'a mut [u8],
-    &'a mut [u8],
-    &'a mut [u8],
-    &'a mut [u8],
-);
+type SplitBuf<'a> = (&'a mut [u8], &'a mut [u8], &'a mut [u8], &'a mut [u8], &'a mut [u8]);
 
 /// splits the transcript from phase 1 after it's been prepared and converted to coefficient form
 fn split_transcript<E: PairingEngine>(input: &mut [u8]) -> Result<SplitBuf> {
@@ -540,16 +514,13 @@ fn split_transcript<E: PairingEngine>(input: &mut [u8]) -> Result<SplitBuf> {
     let (a_g1, others) = input[len_size..].split_at_mut(a_g1_length * E::G1Affine::SERIALIZED_SIZE);
 
     let b_g1_length = u64::deserialize(&mut &*others)? as usize;
-    let (b_g1, others) =
-        others[len_size..].split_at_mut(b_g1_length * E::G1Affine::SERIALIZED_SIZE);
+    let (b_g1, others) = others[len_size..].split_at_mut(b_g1_length * E::G1Affine::SERIALIZED_SIZE);
 
     let b_g2_length = u64::deserialize(&mut &*others)? as usize;
-    let (b_g2, others) =
-        others[len_size..].split_at_mut(b_g2_length * E::G2Affine::SERIALIZED_SIZE);
+    let (b_g2, others) = others[len_size..].split_at_mut(b_g2_length * E::G2Affine::SERIALIZED_SIZE);
 
     let h_g1_length = u64::deserialize(&mut &*others)? as usize;
-    let (h_g1, others) =
-        others[len_size..].split_at_mut(h_g1_length * E::G1Affine::SERIALIZED_SIZE);
+    let (h_g1, others) = others[len_size..].split_at_mut(h_g1_length * E::G1Affine::SERIALIZED_SIZE);
 
     let l_g1_length = u64::deserialize(&mut &*others)? as usize;
     let (l_g1, _) = others[len_size..].split_at_mut(l_g1_length * E::G1Affine::SERIALIZED_SIZE);
