@@ -32,11 +32,11 @@ jobs:
           command: cd phase1-cli && ./scripts/phase1_full.sh groth16
           no_output_timeout: 60m
       - run:
-          name: Test chunked powers of tau Groth16
+          name: Test chunked powers of tau Marlin
           command: cd phase1-cli && ./scripts/phase1_chunked.sh marlin
           no_output_timeout: 60m
       - run:
-          name: Test full powers of tau Groth16
+          name: Test full powers of tau Marlin
           command: cd phase1-cli && ./scripts/phase1_full.sh marlin
           no_output_timeout: 60m
       - run:
