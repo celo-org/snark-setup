@@ -30,13 +30,15 @@ jobs:
       - run:
           name: Test full powers of tau Groth16
           command: cd phase1-cli && bash ./phase1_full.sh marlin
-      - name: Install WASM
-          run: |
+      - run:
+          name: Install WASM
+          command: |
             rustup target add wasm32-unknown-unknown --toolchain nightly
             cargo install wasm-bindgen-cli
             cargo update -p wasm-bindgen
-      - name: Run WASM tests
-          run: |
+      - run:
+          name: Run WASM tests
+          command: |
             cd phase1-wasm
             cargo test --release --target wasm32-unknown-unknown --no-default-features --features wasm
       - run:
