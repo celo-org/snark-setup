@@ -48,6 +48,7 @@ mod test {
     type MarlinSonicInst = Marlin<Fr, MultiPCSonic, Blake2s>;
 
     #[test]
+    #[ignore]
     fn test_marlin_sonic_pc() {
         let powers = 16usize;
         let batch = 1usize << 12;
