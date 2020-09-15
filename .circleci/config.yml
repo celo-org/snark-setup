@@ -21,7 +21,7 @@ jobs:
           no_output_timeout: 60m
       - run:
           name: Test Release
-          command: cargo test --release --all
+          command: cargo test --release --all -- --ignored
           no_output_timeout: 60m
       - run:
           name: Test chunked powers of tau Groth16
