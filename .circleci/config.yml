@@ -22,15 +22,19 @@ jobs:
       - run:
           name: Test chunked powers of tau Groth16
           command: cd phase1-cli && bash ./scripts/phase1_chunked.sh groth16
+          no_output_timeout: 60m
       - run:
           name: Test full powers of tau Groth16
           command: cd phase1-cli && bash ./scripts/phase1_full.sh groth16
+          no_output_timeout: 60m
       - run:
           name: Test chunked powers of tau Groth16
           command: cd phase1-cli && bash ./scripts/phase1_chunked.sh marlin
+          no_output_timeout: 60m
       - run:
           name: Test full powers of tau Groth16
           command: cd phase1-cli && bash ./scripts/phase1_full.sh marlin
+          no_output_timeout: 60m
       - run:
           name: Install WASM
           command: |
@@ -42,6 +46,7 @@ jobs:
           command: |
             cd phase1-wasm
             cargo test --release --target wasm32-unknown-unknown --no-default-features --features wasm
+          no_output_timeout: 60m
       - run:
           name: Check Style
           command: |
