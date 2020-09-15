@@ -21,16 +21,16 @@ jobs:
           no_output_timeout: 60m
       - run:
           name: Test chunked powers of tau Groth16
-          command: cd phase1-cli && bash ./phase1_chunked.sh groth16
+          command: cd phase1-cli && bash ./scripts/phase1_chunked.sh groth16
       - run:
           name: Test full powers of tau Groth16
-          command: cd phase1-cli && bash ./phase1_full.sh groth16
+          command: cd phase1-cli && bash ./scripts/phase1_full.sh groth16
       - run:
           name: Test chunked powers of tau Groth16
-          command: cd phase1-cli && bash ./phase1_chunked.sh marlin
+          command: cd phase1-cli && bash ./scripts/phase1_chunked.sh marlin
       - run:
           name: Test full powers of tau Groth16
-          command: cd phase1-cli && bash ./phase1_full.sh marlin
+          command: cd phase1-cli && bash ./scripts/phase1_full.sh marlin
       - run:
           name: Install WASM
           command: |
