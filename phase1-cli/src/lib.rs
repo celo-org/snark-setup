@@ -8,6 +8,9 @@ pub use combine::combine;
 mod contribute;
 pub use contribute::contribute;
 
+mod split;
+pub use split::split;
+
 mod new_challenge;
 pub use new_challenge::new_challenge;
 
@@ -82,6 +85,8 @@ pub enum Command {
     // this receives a list of chunked responses and combines them into a single response.
     #[options(help = "receive a list of chunked responses and combines them into a single response")]
     Combine(CombineOpts),
+    #[options(help = "receive a full contribution and splits it into chunks")]
+    Split(SplitOpts),
 }
 
 // Options for the Contribute command
@@ -135,4 +140,13 @@ pub struct CombineOpts {
     pub response_list_fname: String,
     #[options(help = "the combined response file", default = "combined")]
     pub combined_fname: String,
+}
+
+#[derive(Debug, Options, Clone)]
+pub struct SplitOpts {
+    help: bool,
+    #[options(help = "the prefix for the chunked response files", default = "response")]
+    pub chunk_fname_prefix: String,
+    #[options(help = "the full response file", default = "full")]
+    pub full_fname: String,
 }

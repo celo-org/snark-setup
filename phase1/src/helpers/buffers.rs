@@ -86,6 +86,75 @@ pub(crate) fn apply_powers<C: AffineCurve>(
 /// Splits the full buffer in 5 non overlapping mutable slice for a given chunk and batch size.
 /// Each slice corresponds to the group elements in the following order
 /// [TauG1, TauG2, AlphaG1, BetaG1, BetaG2]
+pub(crate) fn split_at_chunk<'a, E: PairingEngine>(
+    buffer: &'a [u8],
+    parameters: &'a Phase1Parameters<E>,
+    compressed: UseCompression,
+) -> SplitBuf<'a> {
+    let g1_size = buffer_size::<E::G1Affine>(compressed);
+    let g2_size = buffer_size::<E::G2Affine>(compressed);
+
+    let buffer_to_chunk = |buffer: &'a [u8], element_size: usize, is_other: bool| -> &'a [u8] {
+        // Determine whether to return an empty chunk based on the size of 'other'.
+        if is_other && parameters.other_chunk_size == 0 {
+            return &[];
+        }
+
+        // Determine the chunk size based on the proof system.
+        let chunk_size = match (parameters.proving_system, is_other) {
+            (ProvingSystem::Groth16, true) => parameters.other_chunk_size,
+            (ProvingSystem::Groth16, false) => parameters.g1_chunk_size,
+            (ProvingSystem::Marlin, true) => return &[],
+            (ProvingSystem::Marlin, false) => parameters.g1_chunk_size,
+        };
+
+        let start = parameters.chunk_index * parameters.chunk_size * element_size;
+        let end = start + chunk_size * element_size;
+
+        &buffer[start..end]
+    };
+
+    match parameters.proving_system {
+        ProvingSystem::Groth16 => {
+            // leave the first 64 bytes for the hash
+            let (_, others) = buffer.split_at(parameters.hash_size);
+            let (tau_g1, others) = others.split_at(g1_size * parameters.powers_g1_length);
+            let (tau_g2, others) = others.split_at(g2_size * parameters.powers_length);
+            let (alpha_g1, others) = others.split_at(g1_size * parameters.powers_length);
+            let (beta_g1, beta_g2) = others.split_at(g1_size * parameters.powers_length);
+
+            // We take up to g2_size for beta_g2, since there might be other
+            // elements after it at the end of the buffer.
+            (
+                buffer_to_chunk(tau_g1, g1_size, false),
+                buffer_to_chunk(tau_g2, g2_size, true),
+                buffer_to_chunk(alpha_g1, g1_size, true),
+                buffer_to_chunk(beta_g1, g1_size, true),
+                &beta_g2[0..g2_size],
+            )
+        }
+        ProvingSystem::Marlin => {
+            let (g2_chunk_size, alpha_chunk_size) = if parameters.chunk_index == 0 {
+                (parameters.total_size_in_log2 + 2, 3 + 3 * parameters.total_size_in_log2)
+            } else {
+                (0, 0)
+            };
+
+            // leave the first 64 bytes for the hash
+            let (_, others) = buffer.split_at(parameters.hash_size);
+            let (tau_g1, others) = others.split_at(g1_size * parameters.powers_length);
+            let (tau_g2, others) = others.split_at(g2_size * g2_chunk_size);
+            let (alpha_g1, _) = others.split_at(g1_size * alpha_chunk_size);
+
+            (buffer_to_chunk(tau_g1, g1_size, false), tau_g2, alpha_g1, &[], &[])
+        }
+    }
+}
+
+#[cfg(not(feature = "wasm"))]
+/// Splits the full buffer in 5 non overlapping mutable slice for a given chunk and batch size.
+/// Each slice corresponds to the group elements in the following order
+/// [TauG1, TauG2, AlphaG1, BetaG1, BetaG2]
 pub(crate) fn split_at_chunk_mut<'a, E: PairingEngine>(
     buffer: &'a mut [u8],
     parameters: &'a Phase1Parameters<E>,

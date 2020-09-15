@@ -3,6 +3,7 @@ use phase1_cli::{
     combine,
     contribute,
     new_challenge,
+    split,
     transform_pok_and_correctness,
     transform_ratios,
     Command,
@@ -71,6 +72,9 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
         }
         Command::Combine(opt) => {
             combine(&opt.response_list_fname, &opt.combined_fname, &parameters);
+        }
+        Command::Split(opt) => {
+            split(&opt.chunk_fname_prefix, &opt.full_fname, &parameters);
         }
     };
 
