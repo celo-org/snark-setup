@@ -34,8 +34,8 @@ phase1 = { path = "./", features = ["testing"] }
 
 zexe_algebra = { git = "https://github.com/celo-org/zexe", rev = "72ad6a13011ce96eb92e686bda59dedc5ece59ee", package = "algebra", features = ["full", "derive"] }
 zexe_r1cs_core = { git = "https://github.com/celo-org/zexe", rev = "72ad6a13011ce96eb92e686bda59dedc5ece59ee", package = "r1cs-core" }
-marlin = { git = "https://github.com/celo-org/marlin", rev = "a926b8aa18925ac883892f2c91d4d8ccdf36994b" }
-poly-commit = { git = "https://github.com/celo-org/poly-commit", rev = "1fc90ca5cc2d8a67f5ea44f5367e02fe1319d166" }
+marlin = { git = "https://github.com/celo-org/marlin", rev = "2fab572c0dcd6860de3f8a66393319614fea1a7b" }
+poly-commit = { git = "https://github.com/celo-org/poly-commit", rev = "b041d623a66775841c921fb6a512208da04e7e27" }
 
 anyhow = { version = "1.0.31" }
 blake2 = { version = "0.8", default-features = false }

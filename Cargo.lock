@@ -586,7 +586,7 @@ dependencies = [
 [[package]]
 name = "marlin"
 version = "0.1.0"
-source = "git+https://github.com/celo-org/marlin?rev=a926b8aa18925ac883892f2c91d4d8ccdf36994b#a926b8aa18925ac883892f2c91d4d8ccdf36994b"
+source = "git+https://github.com/celo-org/marlin?rev=2fab572c0dcd6860de3f8a66393319614fea1a7b#2fab572c0dcd6860de3f8a66393319614fea1a7b"
 dependencies = [
  "algebra-core",
  "bench-utils",
@@ -801,7 +801,7 @@ dependencies = [
 [[package]]
 name = "poly-commit"
 version = "0.1.0"
-source = "git+https://github.com/celo-org/poly-commit?rev=1fc90ca5cc2d8a67f5ea44f5367e02fe1319d166#1fc90ca5cc2d8a67f5ea44f5367e02fe1319d166"
+source = "git+https://github.com/celo-org/poly-commit?rev=b041d623a66775841c921fb6a512208da04e7e27#b041d623a66775841c921fb6a512208da04e7e27"
 dependencies = [
  "algebra-core",
  "bench-utils",
