@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 
 rm -f challenge* response* new_challenge* new_response* new_new_challenge_* processed* initial_ceremony* response_list* combined* seed* chunk*
 
