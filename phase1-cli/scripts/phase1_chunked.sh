@@ -12,9 +12,9 @@ else
   MAX_CHUNK_INDEX=1 # we have 2 chunks, since we have a total of 2^11-1 powers
 fi
 CURVE="bw6"
-SEED1=$(tr -dc 'A-F0-9' < /dev/random | head -c32)
+SEED1=$(tr -dc 'A-F0-9' < /dev/urandom | head -c32)
 echo $SEED1 > seed1
-SEED2=$(tr -dc 'A-F0-9' < /dev/random | head -c32)
+SEED2=$(tr -dc 'A-F0-9' < /dev/urandom | head -c32)
 echo $SEED2 > seed2
 
 phase1_1="cargo run --release --bin phase1 -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode chunked --chunk-size $CHUNK_SIZE --power $POWER --seed seed1 --proving-system $PROVING_SYSTEM"
