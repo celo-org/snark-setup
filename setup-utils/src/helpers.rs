@@ -245,9 +245,9 @@ pub fn hash_to_g2<E: PairingEngine>(digest: &[u8]) -> E::G2Projective {
     loop {
         let bytes: Vec<u8> = (0..E::G2Affine::SERIALIZED_SIZE).map(|_| rng.gen()).collect();
         if let Some(p) = E::G2Affine::from_random_bytes(&bytes) {
-            let scaled = p.scale_by_cofactor();
+            let scaled = p.mul_by_cofactor_to_projective();
             if !scaled.is_zero() {
-                return p.into_projective();
+                return scaled;
             }
         }
     }
