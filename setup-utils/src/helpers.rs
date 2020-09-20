@@ -242,7 +242,12 @@ pub fn calculate_hash(input_map: &[u8]) -> GenericArray<u8, U64> {
 pub fn hash_to_g2<E: PairingEngine>(digest: &[u8]) -> E::G2Projective {
     let seed = from_slice(digest);
     let mut rng = ChaChaRng::from_seed(seed);
-    E::G2Projective::rand(&mut rng)
+    loop {
+        let bytes: Vec<u8> = (0..E::G2Affine::SERIALIZED_SIZE).map(|_| rng.gen()).collect();
+        if let Some(p) = E::G2Affine::from_random_bytes(&bytes[..]) {
+            return p.into_projective();
+        }
+    }
 }
 
 pub fn from_slice(bytes: &[u8]) -> [u8; 32] {
