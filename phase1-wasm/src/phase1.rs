@@ -36,8 +36,24 @@ pub struct ContributionResponse {
     contribution_hash: Vec<u8>,
 }
 
+/// Initialize the following hooks:
+///
+/// + console error panic hook - to display panic messages in the console
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+pub fn init_hooks() {
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+}
+
 #[wasm_bindgen]
 pub struct Phase1WASM {}
+
+fn convert_contribution_result_to_wasm(result: &Result<ContributionResponse, String>) -> Result<JsValue, JsValue> {
+    match result {
+        Ok(response) => JsValue::from_serde(&response).map_err(|e| JsValue::from_str(&e.to_string())),
+        Err(e) => Err(JsValue::from_str(&e)),
+    }
+}
 
 #[wasm_bindgen]
 impl Phase1WASM {
@@ -54,16 +70,16 @@ impl Phase1WASM {
         let res = match curve_from_str(curve_kind).expect("invalid curve_kind") {
             CurveKind::Bls12_377 => contribute_challenge(
                 &challenge,
-                &get_parameters_full::<Bls12_377>(proving_system, batch_size, power),
+                &get_parameters_full::<Bls12_377>(proving_system, power, batch_size),
                 rng,
             ),
             CurveKind::BW6 => contribute_challenge(
                 &challenge,
-                &get_parameters_full::<BW6_761>(proving_system, batch_size, power),
+                &get_parameters_full::<BW6_761>(proving_system, power, batch_size),
                 rng,
             ),
         };
-        return Ok(JsValue::from_serde(&res.ok().unwrap()).unwrap());
+        convert_contribution_result_to_wasm(&res)
     }
 
     #[wasm_bindgen]
@@ -82,16 +98,16 @@ impl Phase1WASM {
         let res = match curve_from_str(curve_kind).expect("invalid curve_kind") {
             CurveKind::Bls12_377 => contribute_challenge(
                 &challenge,
-                &get_parameters_chunked::<Bls12_377>(proving_system, batch_size, power, chunk_index, chunk_size),
+                &get_parameters_chunked::<Bls12_377>(proving_system, power, batch_size, chunk_index, chunk_size),
                 rng,
             ),
             CurveKind::BW6 => contribute_challenge(
                 &challenge,
-                &get_parameters_chunked::<BW6_761>(proving_system, batch_size, power, chunk_index, chunk_size),
+                &get_parameters_chunked::<BW6_761>(proving_system, power, batch_size, chunk_index, chunk_size),
                 rng,
             ),
         };
-        return Ok(JsValue::from_serde(&res.ok().unwrap()).unwrap());
+        convert_contribution_result_to_wasm(&res)
     }
 }
 
@@ -177,8 +193,8 @@ pub fn contribute_challenge<E: PairingEngine + Sync>(
                     contribution_hash: contribution_hash.as_slice().iter().cloned().collect(),
                 });
             }
-            Err(_) => {
-                return Err("unable to write public key".to_string());
+            Err(e) => {
+                return Err(e.to_string());
             }
         },
         Err(_) => {
