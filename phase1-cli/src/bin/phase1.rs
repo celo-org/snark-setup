@@ -50,9 +50,9 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
             let rng = derive_rng_from_seed(&seed);
             contribute(
                 &opt.challenge_fname,
-                &opt.current_accumulator_hash_fname,
+                &opt.challenge_hash_fname,
                 &opt.response_fname,
-                &opt.contribution_hash_fname,
+                &opt.response_hash_fname,
                 &parameters,
                 rng,
             );
@@ -64,9 +64,9 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
             let rng = derive_rng_from_seed(&beacon_randomness(from_slice(&beacon_hash)));
             contribute(
                 &opt.challenge_fname,
-                &opt.current_accumulator_hash_fname,
+                &opt.challenge_hash_fname,
                 &opt.response_fname,
-                &opt.contribution_hash_fname,
+                &opt.response_hash_fname,
                 &parameters,
                 rng,
             );
@@ -75,8 +75,11 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
             // we receive a previous participation, verify it, and generate a new challenge from it
             transform_pok_and_correctness(
                 &opt.challenge_fname,
+                &opt.challenge_hash_fname,
                 &opt.response_fname,
+                &opt.response_hash_fname,
                 &opt.new_challenge_fname,
+                &opt.new_challenge_hash_fname,
                 &parameters,
             );
         }

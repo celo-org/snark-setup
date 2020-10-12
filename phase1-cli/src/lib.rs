@@ -103,12 +103,12 @@ pub struct ContributeOpts {
     help: bool,
     #[options(help = "the provided challenge file", default = "challenge")]
     pub challenge_fname: String,
-    #[options(help = "the provided challenge hash file", default = "challenge.hash")]
-    pub current_accumulator_hash_fname: String,
+    #[options(help = "the provided challenge file hash", default = "challenge.hash")]
+    pub challenge_hash_fname: String,
     #[options(help = "the response file which will be generated")]
     pub response_fname: String,
     #[options(help = "the response file which will be generated hash", default = "response.hash")]
-    pub contribution_hash_fname: String,
+    pub response_hash_fname: String,
     #[options(
         help = "the beacon hash to be used if running a beacon contribution",
         default = "0000000000000000000a558a61ddc8ee4e488d647a747fe4dcc362fe2026c620"
@@ -121,13 +121,22 @@ pub struct VerifyPokAndCorrectnessOpts {
     help: bool,
     #[options(help = "the provided challenge file", default = "challenge")]
     pub challenge_fname: String,
+    #[options(help = "the provided challenge hash", default = "challenge.verified.hash")]
+    pub challenge_hash_fname: String,
     #[options(help = "the provided response file which will be verified", default = "response")]
     pub response_fname: String,
+    #[options(help = "the response file hash", default = "response.verified.hash")]
+    pub response_hash_fname: String,
     #[options(
         help = "the new challenge file which will be generated in response",
         default = "new_challenge"
     )]
     pub new_challenge_fname: String,
+    #[options(
+        help = "the new challenge file which will be generated in response hash",
+        default = "new_challenge.verified.hash"
+    )]
+    pub new_challenge_hash_fname: String,
 }
 
 #[derive(Debug, Options, Clone)]
