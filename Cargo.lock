@@ -3,6 +3,7 @@
 [[package]]
 name = "algebra"
 version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe?rev=7f2f2b53e6770d28228891edb4dfe27e50f7741c#7f2f2b53e6770d28228891edb4dfe27e50f7741c"
 dependencies = [
  "algebra-core",
 ]
@@ -10,6 +11,7 @@ dependencies = [
 [[package]]
 name = "algebra-core"
 version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe?rev=7f2f2b53e6770d28228891edb4dfe27e50f7741c#7f2f2b53e6770d28228891edb4dfe27e50f7741c"
 dependencies = [
  "algebra-core-derive",
  "cc",
@@ -28,6 +30,7 @@ dependencies = [
 [[package]]
 name = "algebra-core-derive"
 version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe?rev=7f2f2b53e6770d28228891edb4dfe27e50f7741c#7f2f2b53e6770d28228891edb4dfe27e50f7741c"
 dependencies = [
  "proc-macro2 1.0.21",
  "quote 1.0.7",
@@ -81,6 +84,7 @@ checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 [[package]]
 name = "bench-utils"
 version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe?rev=7f2f2b53e6770d28228891edb4dfe27e50f7741c#7f2f2b53e6770d28228891edb4dfe27e50f7741c"
 dependencies = [
  "colored",
 ]
@@ -402,6 +406,7 @@ dependencies = [
 [[package]]
 name = "ff-fft"
 version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe?rev=7f2f2b53e6770d28228891edb4dfe27e50f7741c#7f2f2b53e6770d28228891edb4dfe27e50f7741c"
 dependencies = [
  "algebra-core",
  "rand 0.7.3",
@@ -459,6 +464,7 @@ dependencies = [
 [[package]]
 name = "groth16"
 version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe?rev=7f2f2b53e6770d28228891edb4dfe27e50f7741c#7f2f2b53e6770d28228891edb4dfe27e50f7741c"
 dependencies = [
  "algebra-core",
  "bench-utils",
@@ -869,6 +875,7 @@ dependencies = [
 [[package]]
 name = "r1cs-core"
 version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe?rev=7f2f2b53e6770d28228891edb4dfe27e50f7741c#7f2f2b53e6770d28228891edb4dfe27e50f7741c"
 dependencies = [
  "algebra-core",
  "tracing",
@@ -878,7 +885,7 @@ dependencies = [
 [[package]]
 name = "r1cs-std"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/scipr-lab/zexe#38e792fffc78c0bfc4d780ee21257c8cb70a2e2a"
+source = "git+https://github.com/scipr-lab/zexe#85cac1770dddd4da79e9993c5d1dcb5732db08f5"
 dependencies = [
  "algebra",
  "derivative",

@@ -8,12 +8,12 @@ members = [
 ]
 
 [patch.'https://github.com/scipr-lab/zexe']
-zexe_algebra_core = { git = "https://github.com/celo-org/zexe", rev = "7f2f2b53e6770d28228891edb4dfe27e50f7741c", package = "algebra-core", default-features = false, features = ["derive"] }
-zexe_algebra = { git = "https://github.com/celo-org/zexe", rev = "7f2f2b53e6770d28228891edb4dfe27e50f7741c", package = "algebra", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
-zexe_fft = { git = "https://github.com/celo-org/zexe", rev = "7f2f2b53e6770d28228891edb4dfe27e50f7741c", package = "ff-fft", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
-zexe_bench_utils = { git = "https://github.com/celo-org/zexe", rev = "7f2f2b53e6770d28228891edb4dfe27e50f7741c", package = "bench-utils", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
-zexe_r1cs_core = { git = "https://github.com/celo-org/zexe", rev = "7f2f2b53e6770d28228891edb4dfe27e50f7741c", package = "r1cs-core", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
-zexe_groth16 = { git = "https://github.com/celo-org/zexe", rev = "7f2f2b53e6770d28228891edb4dfe27e50f7741c", package = "groth16", default-features = false, features = [] }
+zexe_algebra_core = { git = "https://github.com/celo-org/zexe", rev = "67eb9235b83b76982556504897778f2b283d785c", package = "algebra-core", default-features = false, features = ["derive"] }
+zexe_algebra = { git = "https://github.com/celo-org/zexe", rev = "67eb9235b83b76982556504897778f2b283d785c", package = "algebra", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
+zexe_fft = { git = "https://github.com/celo-org/zexe", rev = "67eb9235b83b76982556504897778f2b283d785c", package = "ff-fft", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
+zexe_bench_utils = { git = "https://github.com/celo-org/zexe", rev = "67eb9235b83b76982556504897778f2b283d785c", package = "bench-utils", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
+zexe_r1cs_core = { git = "https://github.com/celo-org/zexe", rev = "67eb9235b83b76982556504897778f2b283d785c", package = "r1cs-core", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
+zexe_groth16 = { git = "https://github.com/celo-org/zexe", rev = "67eb9235b83b76982556504897778f2b283d785c", package = "groth16", default-features = false, features = [] }
 
 #zexe_algebra_core = { path = "../zexe/algebra-core", package = "algebra-core", default-features = false, features = ["derive"] }
 #zexe_algebra = { path = "../zexe/algebra", package = "algebra", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
