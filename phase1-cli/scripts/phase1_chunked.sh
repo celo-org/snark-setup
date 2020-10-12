@@ -2,6 +2,8 @@
 
 rm -f challenge* response* new_challenge* new_response* new_new_challenge_* processed* initial_ceremony* response_list* combined* seed* chunk*
 
+export RUSTFLAGS="-C target-feature=+bmi2,+adx"
+CARGO_VER="+nightly"
 PROVING_SYSTEM=$1
 POWER=16
 BATCH=65536
@@ -17,10 +19,10 @@ echo $SEED1 > seed1
 SEED2=$(tr -dc 'A-F0-9' < /dev/urandom | head -c32)
 echo $SEED2 > seed2
 
-phase1_1="cargo run --release --bin phase1 -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode chunked --chunk-size $CHUNK_SIZE --power $POWER --seed seed1 --proving-system $PROVING_SYSTEM"
-phase1_2="cargo run --release --bin phase1 -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode chunked --chunk-size $CHUNK_SIZE --power $POWER --seed seed2 --proving-system $PROVING_SYSTEM"
-phase1_combine="cargo run --release --bin phase1 -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode chunked --chunk-size $CHUNK_SIZE --power $POWER --proving-system $PROVING_SYSTEM"
-phase1_full="cargo run --release --bin phase1 -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode full --power $POWER --proving-system $PROVING_SYSTEM"
+phase1_1="cargo $CARGO_VER run --release --bin phase1 -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode chunked --chunk-size $CHUNK_SIZE --power $POWER --seed seed1 --proving-system $PROVING_SYSTEM"
+phase1_2="cargo $CARGO_VER run --release --bin phase1 -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode chunked --chunk-size $CHUNK_SIZE --power $POWER --seed seed2 --proving-system $PROVING_SYSTEM"
+phase1_combine="cargo $CARGO_VER run --release --bin phase1 -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode chunked --chunk-size $CHUNK_SIZE --power $POWER --proving-system $PROVING_SYSTEM"
+phase1_full="cargo $CARGO_VER run --release --bin phase1 -- --curve-kind $CURVE --batch-size $BATCH --contribution-mode full --power $POWER --proving-system $PROVING_SYSTEM"
 
 ####### Phase 1
 
