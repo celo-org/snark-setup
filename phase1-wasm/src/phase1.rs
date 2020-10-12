@@ -1,17 +1,9 @@
 use phase1::{
     helpers::{curve_from_str, proving_system_from_str, CurveKind},
-    ContributionMode,
-    Phase1,
-    Phase1Parameters,
-    ProvingSystem,
+    ContributionMode, Phase1, Phase1Parameters, ProvingSystem,
 };
 use setup_utils::{
-    calculate_hash,
-    derive_rng_from_seed,
-    get_rng,
-    user_system_randomness,
-    CheckForCorrectness,
-    UseCompression,
+    calculate_hash, derive_rng_from_seed, get_rng, user_system_randomness, CheckForCorrectness, UseCompression,
 };
 
 use zexe_algebra::{Bls12_377, PairingEngine, BW6_761};

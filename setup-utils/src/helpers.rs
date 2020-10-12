@@ -3,18 +3,8 @@ use crate::{
     Result,
 };
 use zexe_algebra::{
-    BatchGroupArithmeticSlice,
-    AffineCurve,
-    BigInteger,
-    CanonicalSerialize,
-    ConstantSerializedSize,
-    Field,
-    One,
-    PairingEngine,
-    PrimeField,
-    ProjectiveCurve,
-    UniformRand,
-    Zero,
+    AffineCurve, BatchGroupArithmeticSlice, BigInteger, CanonicalSerialize, ConstantSerializedSize, Field, One,
+    PairingEngine, PrimeField, ProjectiveCurve, UniformRand, Zero,
 };
 use zexe_fft::{cfg_into_iter, cfg_iter, cfg_iter_mut};
 
@@ -89,11 +79,7 @@ pub fn batch_exp<C: AffineCurve>(
             .map(|(base, exp)| {
                 // If a coefficient was provided, multiply the exponent
                 // by that coefficient
-                let exp = if let Some(coeff) = coeff {
-                    exp.mul(coeff)
-                } else {
-                    *exp
-                };
+                let exp = if let Some(coeff) = coeff { exp.mul(coeff) } else { *exp };
 
                 // Raise the base to the exponent (additive notation so it is executed
                 // via a multiplication)
@@ -121,8 +107,7 @@ pub fn batch_exp<C: AffineCurve>(
         //
         // &mut bases[..].cpu_gpu_scalar_mul(&powers_vec[..], 1 << 5, CPU_CHUNK_SIZE);
 
-        bases.batch_scalar_mul_in_place::<<C::ScalarField as PrimeField>::BigInt>
-            (&mut powers_vec[..], 5);
+        bases.batch_scalar_mul_in_place::<<C::ScalarField as PrimeField>::BigInt>(&mut powers_vec[..], 5);
     }
     Ok(())
 }

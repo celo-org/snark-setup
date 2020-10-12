@@ -769,20 +769,18 @@ mod tests {
                     drop(private_key_1);
 
                     // Verify that the chunked contribution is correct.
-                    assert!(
-                        Phase1::verification(
-                            &input,
-                            &output_1,
-                            &public_key_1,
-                            &digest,
-                            compressed_input,
-                            compressed_output,
-                            correctness,
-                            correctness,
-                            &parameters,
-                        )
-                        .is_ok()
-                    );
+                    assert!(Phase1::verification(
+                        &input,
+                        &output_1,
+                        &public_key_1,
+                        &digest,
+                        compressed_input,
+                        compressed_output,
+                        correctness,
+                        correctness,
+                        &parameters,
+                    )
+                    .is_ok());
 
                     output_1
                 };
@@ -820,37 +818,33 @@ mod tests {
                 drop(private_key_2);
 
                 // Verify that the chunked contribution is correct.
-                assert!(
-                    Phase1::verification(
+                assert!(Phase1::verification(
+                    &output_1,
+                    &output_2,
+                    &public_key_2,
+                    &digest,
+                    compressed_output,
+                    compressed_output,
+                    correctness,
+                    correctness,
+                    &parameters,
+                )
+                .is_ok());
+
+                // Verification will fail if the old hash is used.
+                if parameters.chunk_index == 0 {
+                    assert!(Phase1::verification(
                         &output_1,
                         &output_2,
                         &public_key_2,
-                        &digest,
+                        &blank_hash(),
                         compressed_output,
                         compressed_output,
                         correctness,
                         correctness,
                         &parameters,
                     )
-                    .is_ok()
-                );
-
-                // Verification will fail if the old hash is used.
-                if parameters.chunk_index == 0 {
-                    assert!(
-                        Phase1::verification(
-                            &output_1,
-                            &output_2,
-                            &public_key_2,
-                            &blank_hash(),
-                            compressed_output,
-                            compressed_output,
-                            correctness,
-                            correctness,
-                            &parameters,
-                        )
-                        .is_err()
-                    );
+                    .is_err());
                 }
 
                 /* Test is disabled for now as it doesn't always work and when it does, it panics.

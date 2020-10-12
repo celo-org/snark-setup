@@ -2,10 +2,10 @@
 
 use crate::{helpers::buffers::*, Phase1Parameters, ProvingSystem};
 use cfg_if::cfg_if;
-use setup_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer};
 use setup_utils::*;
+use setup_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer};
 
-use zexe_algebra::{AffineCurve, PairingEngine, batch_verify_in_subgroup};
+use zexe_algebra::{batch_verify_in_subgroup, AffineCurve, PairingEngine};
 
 #[cfg(not(feature = "wasm"))]
 use crate::ContributionMode;
