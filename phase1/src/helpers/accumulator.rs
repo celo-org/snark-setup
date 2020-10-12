@@ -2,14 +2,13 @@
 
 use crate::{helpers::buffers::*, Phase1Parameters, ProvingSystem};
 use cfg_if::cfg_if;
-use setup_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer, *};
+use setup_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer};
+use setup_utils::*;
 
-use zexe_algebra::{AffineCurve, PairingEngine};
+use zexe_algebra::{AffineCurve, PairingEngine, batch_verify_in_subgroup};
 
 #[cfg(not(feature = "wasm"))]
 use crate::ContributionMode;
-#[cfg(not(feature = "wasm"))]
-use zexe_algebra::{FpParameters, PrimeField, Zero};
 
 #[allow(type_alias_bounds)]
 type AccumulatorElements<E: PairingEngine> = (
@@ -95,10 +94,14 @@ cfg_if! {
                 CheckForCorrectness::OnlyNonZero,
             )?;
             // TODO(kobi): replace with batch subgroup check
-            let all_in_prime_order_subgroup = elements.iter().all(|p| {
-                p.mul(<<C::ScalarField as PrimeField>::Params as FpParameters>::MODULUS)
-                    .is_zero()
-            });
+            const SECURITY_PARAM: usize = 128;
+            let now = std::time::Instant::now();
+            let all_in_prime_order_subgroup =
+                match batch_verify_in_subgroup(elements, SECURITY_PARAM, &mut rand::thread_rng()) {
+                    Ok(()) => true,
+                    _ => false,
+                };
+            println!("Subgroup verification for {} elems: {}us", end - start, now.elapsed().as_micros());
             if !all_in_prime_order_subgroup {
                 return Err(Error::IncorrectSubgroup);
             }

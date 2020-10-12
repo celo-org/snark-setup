@@ -100,6 +100,12 @@ pub struct NewOpts {
 // Options for the Contribute command
 #[derive(Debug, Options, Clone)]
 pub struct ContributeOpts {
+    #[options(
+        help = "whether to check whether incoming challenges are in correct subgroup
+            and satisfy ratio checks & PoK",
+        default = "false"
+    )]
+    correctness_checks: bool,
     help: bool,
     #[options(help = "the provided challenge file", default = "challenge")]
     pub challenge_fname: String,

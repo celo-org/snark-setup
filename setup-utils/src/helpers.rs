@@ -3,6 +3,7 @@ use crate::{
     Result,
 };
 use zexe_algebra::{
+    BatchGroupArithmeticSlice,
     AffineCurve,
     BigInteger,
     CanonicalSerialize,
@@ -68,40 +69,61 @@ pub fn batch_mul<C: AffineCurve>(bases: &mut [C], coeff: &C::ScalarField) -> Res
     Ok(())
 }
 
-/// Exponentiate a large number of points, with an optional coefficient to be applied to the
-/// exponent.
 pub fn batch_exp<C: AffineCurve>(
     bases: &mut [C],
     exps: &[C::ScalarField],
     coeff: Option<&C::ScalarField>,
 ) -> Result<()> {
+    const CPU_CHUNK_SIZE: usize = 1 << 12;
     if bases.len() != exps.len() {
         return Err(Error::InvalidLength {
             expected: bases.len(),
             got: exps.len(),
         });
     }
-    // raise the base to the exponent and assign it back to the base
-    // this will return the points as projective
-    let mut points: Vec<_> = cfg_iter_mut!(bases)
-        .zip(exps)
-        .map(|(base, exp)| {
-            // If a coefficient was provided, multiply the exponent
-            // by that coefficient
-            let exp = if let Some(coeff) = coeff { exp.mul(coeff) } else { *exp };
+    if false {
+        // raise the base to the exponent and assign it back to the base
+        // this will return the points as projective
+        let mut points: Vec<_> = cfg_iter_mut!(bases)
+            .zip(exps)
+            .map(|(base, exp)| {
+                // If a coefficient was provided, multiply the exponent
+                // by that coefficient
+                let exp = if let Some(coeff) = coeff {
+                    exp.mul(coeff)
+                } else {
+                    *exp
+                };
 
-            // Raise the base to the exponent (additive notation so it is executed
-            // via a multiplication)
-            base.mul(exp)
-        })
-        .collect();
-    // we do not use Zexe's batch_normalization_into_affine because it allocates
-    // a new vector
-    C::Projective::batch_normalization(&mut points);
-    cfg_iter_mut!(bases)
-        .zip(points)
-        .for_each(|(base, proj)| *base = proj.into_affine());
+                // Raise the base to the exponent (additive notation so it is executed
+                // via a multiplication)
+                base.mul(exp)
+            })
+            .collect();
+        // we do not use Zexe's batch_normalization_into_affine because it allocates
+        // a new vector
+        C::Projective::batch_normalization(&mut points);
+        cfg_iter_mut!(bases)
+            .zip(points)
+            .for_each(|(base, proj)| *base = proj.into_affine());
+    } else {
+        // let powers_vec: Vec<_> = exps
+        //     .to_vec()
+        //     .iter()
+        //     .map(|s| {
+        //         let s = &mut match coeff {
+        //             Some(k) => *s * k,
+        //             None => *s,
+        //         };
+        //         s.into_repr()
+        //     })
+        //     .collect();
+        //
+        // &mut bases[..].cpu_gpu_scalar_mul(&powers_vec[..], 1 << 5, CPU_CHUNK_SIZE);
 
+        bases.batch_scalar_mul_in_place::<<C::ScalarField as PrimeField>::BigInt>
+            (&mut powers_vec[..], 5);
+    }
     Ok(())
 }
 
@@ -135,18 +157,18 @@ pub fn beacon_randomness(mut beacon_hash: [u8; 32]) -> [u8; 32] {
     // Performs 2^n hash iterations over it
     const N: u64 = 10;
 
-    for i in 0..(1u64 << N) {
+    for _ in 0..(1u64 << N) {
         // Print 1024 of the interstitial states
         // so that verification can be
         // parallelized
 
-        if i % (1u64 << (N - 10)) == 0 {
-            print!("{}: ", i);
-            for b in beacon_hash.iter() {
-                print!("{:02x}", b);
-            }
-            println!();
-        }
+        // if i % (1u64 << (N - 10)) == 0 {
+        //     // print!("{}: ", i);
+        //     for b in beacon_hash.iter() {
+        //         // print!("{:02x}", b);
+        //     }
+        //     // println!();
+        // }
 
         let mut h = Sha256::new();
         h.input(&beacon_hash);
