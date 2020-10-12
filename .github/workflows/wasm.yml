@@ -30,7 +30,7 @@ jobs:
 
       - name: Install WASM
         run: |
-          rustup target add wasm32-unknown-unknown --toolchain nightly
+          rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-04
           cargo install wasm-bindgen-cli
           cargo update -p wasm-bindgen
 
