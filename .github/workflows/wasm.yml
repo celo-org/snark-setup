@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         rust:
-          - nightly-2020-10-04
+          - nightly
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -30,7 +30,7 @@ jobs:
 
       - name: Install WASM
         run: |
-          rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-04
+          rustup target add wasm32-unknown-unknown --toolchain nightly
           cargo install wasm-bindgen-cli
           cargo update -p wasm-bindgen
 
