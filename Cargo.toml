@@ -14,6 +14,3 @@ zexe_fft = { git = "https://github.com/celo-org/zexe", rev = "e5cea4a5b66fe9e24d
 zexe_bench_utils = { git = "https://github.com/celo-org/zexe", rev = "e5cea4a5b66fe9e24df2a7fe5ee89e38b664e34d", package = "bench-utils", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
 zexe_r1cs_core = { git = "https://github.com/celo-org/zexe", rev = "e5cea4a5b66fe9e24df2a7fe5ee89e38b664e34d", package = "r1cs-core", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
 zexe_groth16 = { git = "https://github.com/celo-org/zexe", rev = "e5cea4a5b66fe9e24df2a7fe5ee89e38b664e34d", package = "groth16", default-features = false, features = [] }
-
-[patch.crates-io]
-voracious_radix_sort = { version = "0.1.0" }
