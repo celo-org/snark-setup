@@ -95,6 +95,8 @@ pub struct NewOpts {
     help: bool,
     #[options(help = "the challenge file name to be created", default = "challenge")]
     pub challenge_fname: String,
+    #[options(help = "the new challenge file hash", default = "challenge.verified.hash")]
+    pub challenge_hash_fname: String,
 }
 
 // Options for the Contribute command

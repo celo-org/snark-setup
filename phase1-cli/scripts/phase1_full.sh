@@ -19,7 +19,7 @@ phase1="cargo run --release --bin phase1 -- --curve-kind $CURVE --batch-size $BA
 
 ####### Phase 1
 
-$phase1 new --challenge-fname challenge
+$phase1 new --challenge-fname challenge --challenge-hash-fname challenge.verified.hash
 yes | $phase1 contribute --challenge-fname challenge --challenge-hash-fname challenge.hash --response-fname response --response-hash-fname response.hash
 check_hash challenge
 check_hash response

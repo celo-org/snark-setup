@@ -41,7 +41,7 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
     let now = Instant::now();
     match command {
         Command::New(opt) => {
-            new_challenge(&opt.challenge_fname, &parameters);
+            new_challenge(&opt.challenge_fname, &opt.challenge_hash_fname, &parameters);
         }
         Command::Contribute(opt) => {
             // contribute to the randomness

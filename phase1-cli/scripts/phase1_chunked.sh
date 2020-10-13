@@ -31,7 +31,7 @@ phase1_full="cargo run --release --bin phase1 -- --curve-kind $CURVE --batch-siz
 ####### Phase 1
 
 for i in $(seq 0 $(($MAX_CHUNK_INDEX/2))); do
-  $phase1_1 --chunk-index $i new --challenge-fname challenge_$i
+  $phase1_1 --chunk-index $i new --challenge-fname challenge_$i --challenge-hash-fname challenge_$i.verified.hash
   yes | $phase1_1 --chunk-index $i contribute --challenge-fname challenge_$i --challenge-hash-fname challenge_$i.hash --response-fname response_$i --response-hash-fname response_$i.hash
   check_hash challenge_$i
   check_hash response_$i
@@ -45,7 +45,7 @@ for i in $(seq 0 $(($MAX_CHUNK_INDEX/2))); do
 done
 
 for i in $(seq $(($MAX_CHUNK_INDEX/2 + 1)) $MAX_CHUNK_INDEX); do
-  $phase1_1 --chunk-index $i new --challenge-fname challenge_$i
+  $phase1_1 --chunk-index $i new --challenge-fname challenge_$i --challenge-hash-fname challenge_$i.verified.hash
   yes | $phase1_2 --chunk-index $i contribute --challenge-fname challenge_$i --challenge-hash-fname challenge_$i.hash --response-fname response_$i --response-hash-fname response_$i.hash
   check_hash challenge_$i
   check_hash response_$i

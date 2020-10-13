@@ -3,7 +3,7 @@
 [[package]]
 name = "algebra"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe?rev=7f2f2b53e6770d28228891edb4dfe27e50f7741c#7f2f2b53e6770d28228891edb4dfe27e50f7741c"
+source = "git+https://github.com/celo-org/zexe?rev=a339dbdc9dda9baaa119185b4482a3e4f868c0ec#a339dbdc9dda9baaa119185b4482a3e4f868c0ec"
 dependencies = [
  "algebra-core",
 ]
@@ -11,7 +11,7 @@ dependencies = [
 [[package]]
 name = "algebra-core"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe?rev=7f2f2b53e6770d28228891edb4dfe27e50f7741c#7f2f2b53e6770d28228891edb4dfe27e50f7741c"
+source = "git+https://github.com/celo-org/zexe?rev=a339dbdc9dda9baaa119185b4482a3e4f868c0ec#a339dbdc9dda9baaa119185b4482a3e4f868c0ec"
 dependencies = [
  "algebra-core-derive",
  "cc",
@@ -30,7 +30,7 @@ dependencies = [
 [[package]]
 name = "algebra-core-derive"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe?rev=7f2f2b53e6770d28228891edb4dfe27e50f7741c#7f2f2b53e6770d28228891edb4dfe27e50f7741c"
+source = "git+https://github.com/celo-org/zexe?rev=a339dbdc9dda9baaa119185b4482a3e4f868c0ec#a339dbdc9dda9baaa119185b4482a3e4f868c0ec"
 dependencies = [
  "proc-macro2 1.0.21",
  "quote 1.0.7",
@@ -84,7 +84,7 @@ checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 [[package]]
 name = "bench-utils"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe?rev=7f2f2b53e6770d28228891edb4dfe27e50f7741c#7f2f2b53e6770d28228891edb4dfe27e50f7741c"
+source = "git+https://github.com/celo-org/zexe?rev=a339dbdc9dda9baaa119185b4482a3e4f868c0ec#a339dbdc9dda9baaa119185b4482a3e4f868c0ec"
 dependencies = [
  "colored",
 ]
@@ -406,7 +406,7 @@ dependencies = [
 [[package]]
 name = "ff-fft"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe?rev=7f2f2b53e6770d28228891edb4dfe27e50f7741c#7f2f2b53e6770d28228891edb4dfe27e50f7741c"
+source = "git+https://github.com/celo-org/zexe?rev=a339dbdc9dda9baaa119185b4482a3e4f868c0ec#a339dbdc9dda9baaa119185b4482a3e4f868c0ec"
 dependencies = [
  "algebra-core",
  "rand 0.7.3",
@@ -464,7 +464,7 @@ dependencies = [
 [[package]]
 name = "groth16"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe?rev=7f2f2b53e6770d28228891edb4dfe27e50f7741c#7f2f2b53e6770d28228891edb4dfe27e50f7741c"
+source = "git+https://github.com/celo-org/zexe?rev=a339dbdc9dda9baaa119185b4482a3e4f868c0ec#a339dbdc9dda9baaa119185b4482a3e4f868c0ec"
 dependencies = [
  "algebra-core",
  "bench-utils",
@@ -875,7 +875,7 @@ dependencies = [
 [[package]]
 name = "r1cs-core"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe?rev=7f2f2b53e6770d28228891edb4dfe27e50f7741c#7f2f2b53e6770d28228891edb4dfe27e50f7741c"
+source = "git+https://github.com/celo-org/zexe?rev=a339dbdc9dda9baaa119185b4482a3e4f868c0ec#a339dbdc9dda9baaa119185b4482a3e4f868c0ec"
 dependencies = [
  "algebra-core",
  "tracing",
@@ -1404,12 +1404,9 @@ dependencies = [
 
 [[package]]
 name = "voracious_radix_sort"
-version = "1.0.0"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "732f3569f94108f58997a17d7e4f665c8ae991c9f54a929d6e742cd9b0179211"
-dependencies = [
- "rayon",
-]
+checksum = "616c76cba4a47731b29152961b4b6861156b03cdb339683a9cef81d0cc5e53cf"
 
 [[package]]
 name = "walkdir"
