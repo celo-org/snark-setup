@@ -3,15 +3,15 @@
 rm -f challenge* response* new_challenge* new_response* new_new_challenge_* processed* initial_ceremony* response_list* combined* seed* chunk*
 
 PROVING_SYSTEM=$1
-POWER=8
+POWER=10
 BATCH=64
-CHUNK_SIZE=170
+CHUNK_SIZE=512
 if [ "$PROVING_SYSTEM" == "groth16" ]; then
   MAX_CHUNK_INDEX=3 # we have 4 chunks, since we have a total of 2^11-1 powers
 else
   MAX_CHUNK_INDEX=1 # we have 2 chunks, since we have a total of 2^11-1 powers
 fi
-CURVE="bls12_377"
+CURVE="bw6"
 SEED1=$(tr -dc 'A-F0-9' < /dev/urandom | head -c32)
 echo $SEED1 > seed1
 SEED2=$(tr -dc 'A-F0-9' < /dev/urandom | head -c32)
@@ -40,7 +40,7 @@ for i in $(seq 0 $(($MAX_CHUNK_INDEX/2))); do
   check_hash new_challenge_$i
   check_hash new_response_$i
   $phase1_2 --chunk-index $i verify-and-transform-pok-and-correctness --challenge-fname new_challenge_$i  --challenge-hash-fname new_challenge_$i.verified.hash --response-fname new_response_$i --new-challenge-fname new_new_challenge_$i --response-hash-fname new_response_$i.verified.hash --new-challenge-hash-fname new_new_challenge_$i.verified.hash
-  #rm challenge_$i new_challenge_$i new_new_challenge_$i # no longer needed
+  rm challenge_$i new_challenge_$i new_new_challenge_$i # no longer needed
   echo new_response_$i >> response_list
 done
 
