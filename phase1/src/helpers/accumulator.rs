@@ -3,8 +3,9 @@
 use crate::{helpers::buffers::*, Phase1Parameters, ProvingSystem};
 use cfg_if::cfg_if;
 use setup_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer, *};
-
 use zexe_algebra::{AffineCurve, PairingEngine};
+
+use rayon::prelude::*;
 
 #[cfg(not(feature = "wasm"))]
 use crate::ContributionMode;
