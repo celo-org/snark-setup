@@ -95,7 +95,7 @@ cfg_if! {
                 CheckForCorrectness::OnlyNonZero,
             )?;
             // TODO(kobi): replace with batch subgroup check
-            let all_in_prime_order_subgroup = elements.iter().all(|p| {
+            let all_in_prime_order_subgroup = elements.par_iter().all(|p| {
                 p.mul(<<C::ScalarField as PrimeField>::Params as FpParameters>::MODULUS)
                     .is_zero()
             });
