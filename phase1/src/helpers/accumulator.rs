@@ -11,6 +11,9 @@ use crate::ContributionMode;
 #[cfg(not(feature = "wasm"))]
 use zexe_algebra::{FpParameters, PrimeField, Zero};
 
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
+
 #[allow(type_alias_bounds)]
 type AccumulatorElements<E: PairingEngine> = (
     Vec<E::G1Affine>,
