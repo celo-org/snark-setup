@@ -4,15 +4,11 @@ use crate::{helpers::buffers::*, Phase1Parameters, ProvingSystem};
 use cfg_if::cfg_if;
 use setup_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer, *};
 use zexe_algebra::{AffineCurve, PairingEngine};
-use zexe_fft::cfg_iter;
 
 #[cfg(not(feature = "wasm"))]
 use crate::ContributionMode;
 #[cfg(not(feature = "wasm"))]
 use zexe_algebra::{FpParameters, PrimeField, Zero};
-
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
 
 #[allow(type_alias_bounds)]
 type AccumulatorElements<E: PairingEngine> = (
@@ -35,6 +31,11 @@ type AccumulatorElementsRef<'a, E: PairingEngine> = (
 
 cfg_if! {
     if #[cfg(not(feature = "wasm"))] {
+        use zexe_fft::cfg_iter;
+
+        #[cfg(feature = "parallel")]
+        use rayon::prelude::*;
+
         use crate::PublicKey;
         /// Given a public key and the accumulator's digest, it hashes each G1 element
         /// along with the digest, and then hashes it to G2.
