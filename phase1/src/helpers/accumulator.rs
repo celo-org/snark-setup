@@ -4,8 +4,7 @@ use crate::{helpers::buffers::*, Phase1Parameters, ProvingSystem};
 use cfg_if::cfg_if;
 use setup_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer, *};
 use zexe_algebra::{AffineCurve, PairingEngine};
-
-use rayon::prelude::*;
+use zexe_fft::cfg_iter;
 
 #[cfg(not(feature = "wasm"))]
 use crate::ContributionMode;
@@ -96,7 +95,7 @@ cfg_if! {
                 CheckForCorrectness::OnlyNonZero,
             )?;
             // TODO(kobi): replace with batch subgroup check
-            let all_in_prime_order_subgroup = elements.par_iter().all(|p| {
+            let all_in_prime_order_subgroup = cfg_iter!(elements).all(|p| {
                 p.mul(<<C::ScalarField as PrimeField>::Params as FpParameters>::MODULUS)
                     .is_zero()
             });
