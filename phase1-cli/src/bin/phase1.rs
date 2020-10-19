@@ -8,6 +8,7 @@ use zexe_algebra::{Bls12_377, PairingEngine as Engine, BW6_761};
 
 use gumdrop::Options;
 use std::{fs::read_to_string, process, time::Instant};
+use tracing::{error, info};
 use tracing_subscriber::{
     filter::EnvFilter,
     fmt::{time::ChronoUtc, Subscriber},
@@ -26,36 +27,53 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
     );
 
     let command = opts.clone().command.unwrap_or_else(|| {
-        eprintln!("No command was provided.");
-        eprintln!("{}", Phase1Opts::usage());
+        error!("No command was provided.");
+        error!("{}", Phase1Opts::usage());
         process::exit(2)
     });
 
     let now = Instant::now();
     match command {
         Command::New(opt) => {
-            new_challenge(&opt.challenge_fname, &parameters);
+            new_challenge(&opt.challenge_fname, &opt.challenge_hash_fname, &parameters);
         }
         Command::Contribute(opt) => {
             // contribute to the randomness
             let seed = hex::decode(&read_to_string(&opts.seed).expect("should have read seed").trim())
                 .expect("seed should be a hex string");
             let rng = derive_rng_from_seed(&seed);
-            contribute(&opt.challenge_fname, &opt.response_fname, &parameters, rng);
+            contribute(
+                &opt.challenge_fname,
+                &opt.challenge_hash_fname,
+                &opt.response_fname,
+                &opt.response_hash_fname,
+                &parameters,
+                rng,
+            );
         }
         Command::Beacon(opt) => {
             // use the beacon's randomness
             // Place block hash here (block number #564321)
             let beacon_hash = hex::decode(&opt.beacon_hash).expect("could not hex decode beacon hash");
             let rng = derive_rng_from_seed(&beacon_randomness(from_slice(&beacon_hash)));
-            contribute(&opt.challenge_fname, &opt.response_fname, &parameters, rng);
+            contribute(
+                &opt.challenge_fname,
+                &opt.challenge_hash_fname,
+                &opt.response_fname,
+                &opt.response_hash_fname,
+                &parameters,
+                rng,
+            );
         }
         Command::VerifyAndTransformPokAndCorrectness(opt) => {
             // we receive a previous participation, verify it, and generate a new challenge from it
             transform_pok_and_correctness(
                 &opt.challenge_fname,
+                &opt.challenge_hash_fname,
                 &opt.response_fname,
+                &opt.response_hash_fname,
                 &opt.new_challenge_fname,
+                &opt.new_challenge_hash_fname,
                 &parameters,
             );
         }
@@ -72,7 +90,7 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
     };
 
     let new_now = Instant::now();
-    println!("Executing {:?} took: {:?}", opts, new_now.duration_since(now));
+    info!("Executing {:?} took: {:?}", opts, new_now.duration_since(now));
 }
 
 fn main() {
