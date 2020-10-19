@@ -31,6 +31,10 @@ type AccumulatorElementsRef<'a, E: PairingEngine> = (
 
 cfg_if! {
     if #[cfg(not(feature = "wasm"))] {
+        use zexe_algebra::{PrimeField, FpParameters, cfg_iter, Zero};
+        #[cfg(feature = "parallel")]
+        use rayon::prelude::*;
+
         use crate::PublicKey;
         /// Given a public key and the accumulator's digest, it hashes each G1 element
         /// along with the digest, and then hashes it to G2.
@@ -50,7 +54,7 @@ cfg_if! {
             (start, end): (usize, usize),
             elements: &mut [E::G1Affine],
             check: &(E::G2Affine, E::G2Affine),
-        ) -> Resulverift<()> {
+        ) -> Result<()> {
             let size = buffer_size::<E::G1Affine>(compression);
             buffer[start * size..end * size].read_batch_preallocated(
                 &mut elements[0..end - start],
@@ -95,12 +99,19 @@ cfg_if! {
             )?;
             // TODO(kobi): replace with batch subgroup check
             const SECURITY_PARAM: usize = 128;
+            const BATCH_SIZE: usize = 1 << 12;
             let now = std::time::Instant::now();
-            let all_in_prime_order_subgroup =
+            let all_in_prime_order_subgroup = if elements.len() > BATCH_SIZE {
                 match batch_verify_in_subgroup(elements, SECURITY_PARAM, &mut rand::thread_rng()) {
                     Ok(()) => true,
                     _ => false,
-                };
+                }
+            } else {
+                cfg_iter!(elements).all(|p| {
+                    p.mul(<<C::ScalarField as PrimeField>::Params as FpParameters>::MODULUS)
+                        .is_zero()
+                })
+            };
             println!("Subgroup verification for {} elems: {}us", end - start, now.elapsed().as_micros());
             if !all_in_prime_order_subgroup {
                 return Err(Error::IncorrectSubgroup);
