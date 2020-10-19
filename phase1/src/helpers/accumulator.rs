@@ -5,10 +5,10 @@ use cfg_if::cfg_if;
 use setup_utils::*;
 use setup_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer};
 
-use zexe_algebra::{batch_verify_in_subgroup, AffineCurve, PairingEngine};
+use zexe_algebra::{AffineCurve, PairingEngine};
 
 #[cfg(not(feature = "wasm"))]
-use crate::ContributionMode;
+use {crate::ContributionMode, zexe_algebra::batch_verify_in_subgroup};
 
 #[allow(type_alias_bounds)]
 type AccumulatorElements<E: PairingEngine> = (
@@ -50,7 +50,7 @@ cfg_if! {
             (start, end): (usize, usize),
             elements: &mut [E::G1Affine],
             check: &(E::G2Affine, E::G2Affine),
-        ) -> Result<()> {
+        ) -> Resulverift<()> {
             let size = buffer_size::<E::G1Affine>(compression);
             buffer[start * size..end * size].read_batch_preallocated(
                 &mut elements[0..end - start],
