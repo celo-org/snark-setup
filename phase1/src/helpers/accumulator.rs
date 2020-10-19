@@ -31,11 +31,6 @@ type AccumulatorElementsRef<'a, E: PairingEngine> = (
 
 cfg_if! {
     if #[cfg(not(feature = "wasm"))] {
-        use zexe_fft::cfg_iter;
-
-        #[cfg(feature = "parallel")]
-        use rayon::prelude::*;
-
         use crate::PublicKey;
         /// Given a public key and the accumulator's digest, it hashes each G1 element
         /// along with the digest, and then hashes it to G2.
