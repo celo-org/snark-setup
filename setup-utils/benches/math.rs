@@ -3,12 +3,7 @@ use setup_utils::{batch_exp, dense_multiexp, generate_powers_of_tau, BatchExpMod
 
 use zexe_algebra::{
     bls12_377::{Bls12_377, G1Affine},
-    AffineCurve,
-    Field,
-    PairingEngine,
-    PrimeField,
-    UniformRand,
-    Zero,
+    AffineCurve, Field, PairingEngine, PrimeField, UniformRand, Zero,
 };
 
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};

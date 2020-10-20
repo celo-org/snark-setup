@@ -4,18 +4,8 @@ use crate::{
     Result,
 };
 use zexe_algebra::{
-    AffineCurve,
-    BatchGroupArithmeticSlice,
-    BigInteger,
-    CanonicalSerialize,
-    ConstantSerializedSize,
-    Field,
-    One,
-    PairingEngine,
-    PrimeField,
-    ProjectiveCurve,
-    UniformRand,
-    Zero,
+    AffineCurve, BatchGroupArithmeticSlice, BigInteger, CanonicalSerialize, ConstantSerializedSize, Field, One,
+    PairingEngine, PrimeField, ProjectiveCurve, UniformRand, Zero,
 };
 use zexe_fft::{cfg_into_iter, cfg_iter, cfg_iter_mut};
 

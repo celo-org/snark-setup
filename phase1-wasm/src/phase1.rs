@@ -1,17 +1,9 @@
 use phase1::{
     helpers::{curve_from_str, proving_system_from_str, CurveKind},
-    ContributionMode,
-    Phase1,
-    Phase1Parameters,
-    ProvingSystem,
+    ContributionMode, Phase1, Phase1Parameters, ProvingSystem,
 };
 use setup_utils::{
-    calculate_hash,
-    derive_rng_from_seed,
-    get_rng,
-    user_system_randomness,
-    BatchExpMode,
-    CheckForCorrectness,
+    calculate_hash, derive_rng_from_seed, get_rng, user_system_randomness, BatchExpMode, CheckForCorrectness,
     UseCompression,
 };
 

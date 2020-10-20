@@ -22,14 +22,9 @@ pub use transform_ratios::transform_ratios;
 
 use phase1::{
     helpers::{
-        batch_exp_mode_from_str,
-        contribution_mode_from_str,
-        curve_from_str,
-        proving_system_from_str,
-        CurveKind,
+        batch_exp_mode_from_str, contribution_mode_from_str, curve_from_str, proving_system_from_str, CurveKind,
     },
-    ContributionMode,
-    ProvingSystem,
+    ContributionMode, ProvingSystem,
 };
 
 use gumdrop::Options;

@@ -1,21 +1,10 @@
 use phase1::{helpers::CurveKind, CurveParameters, Phase1Parameters};
 use phase1_cli::{
-    combine,
-    contribute,
-    new_challenge,
-    split,
-    transform_pok_and_correctness,
-    transform_ratios,
-    Command,
-    Phase1Opts,
+    combine, contribute, new_challenge, split, transform_pok_and_correctness, transform_ratios, Command, Phase1Opts,
 };
 use setup_utils::{
-    beacon_randomness,
-    derive_rng_from_seed,
-    from_slice,
-    upgrade_correctness_check_config,
-    DEFAULT_CONTRIBUTE_CHECK_INPUT_CORRECTNESS,
-    DEFAULT_VERIFY_CHECK_INPUT_CORRECTNESS,
+    beacon_randomness, derive_rng_from_seed, from_slice, upgrade_correctness_check_config,
+    DEFAULT_CONTRIBUTE_CHECK_INPUT_CORRECTNESS, DEFAULT_VERIFY_CHECK_INPUT_CORRECTNESS,
     DEFAULT_VERIFY_CHECK_OUTPUT_CORRECTNESS,
 };
 

@@ -1,8 +1,7 @@
 use phase1::{
     helpers::testing::{setup_verify, CheckForCorrectness},
     parameters::Phase1Parameters,
-    Phase1,
-    ProvingSystem,
+    Phase1, ProvingSystem,
 };
 use phase2::{helpers::testing::TestCircuit, parameters::MPCParameters};
 use rand::{thread_rng, Rng};
