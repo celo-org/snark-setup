@@ -2,9 +2,9 @@
 
 use crate::{helpers::buffers::*, Phase1Parameters, ProvingSystem};
 use cfg_if::cfg_if;
-use setup_utils::*;
-use setup_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer};
+use setup_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer, *};
 
+use tracing::debug;
 use zexe_algebra::{AffineCurve, PairingEngine};
 
 #[cfg(not(feature = "wasm"))]
@@ -112,7 +112,7 @@ cfg_if! {
                         .is_zero()
                 })
             };
-            println!("Subgroup verification for {} elems: {}us", end - start, now.elapsed().as_micros());
+            debug!("Subgroup verification for {} elems: {}us", end - start, now.elapsed().as_micros());
             if !all_in_prime_order_subgroup {
                 return Err(Error::IncorrectSubgroup);
             }

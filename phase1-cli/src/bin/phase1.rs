@@ -1,8 +1,23 @@
 use phase1::{helpers::CurveKind, CurveParameters, Phase1Parameters};
 use phase1_cli::{
-    combine, contribute, new_challenge, split, transform_pok_and_correctness, transform_ratios, Command, Phase1Opts,
+    combine,
+    contribute,
+    new_challenge,
+    split,
+    transform_pok_and_correctness,
+    transform_ratios,
+    Command,
+    Phase1Opts,
 };
-use setup_utils::{beacon_randomness, derive_rng_from_seed, from_slice};
+use setup_utils::{
+    beacon_randomness,
+    derive_rng_from_seed,
+    from_slice,
+    upgrade_correctness_check_config,
+    DEFAULT_CONTRIBUTE_CHECK_INPUT_CORRECTNESS,
+    DEFAULT_VERIFY_CHECK_INPUT_CORRECTNESS,
+    DEFAULT_VERIFY_CHECK_OUTPUT_CORRECTNESS,
+};
 
 use zexe_algebra::{Bls12_377, PairingEngine as Engine, BW6_761};
 
@@ -33,6 +48,7 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
     });
 
     let now = Instant::now();
+
     match command {
         Command::New(opt) => {
             new_challenge(&opt.challenge_fname, &opt.challenge_hash_fname, &parameters);
@@ -47,6 +63,11 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
                 &opt.challenge_hash_fname,
                 &opt.response_fname,
                 &opt.response_hash_fname,
+                upgrade_correctness_check_config(
+                    DEFAULT_CONTRIBUTE_CHECK_INPUT_CORRECTNESS,
+                    opts.force_correctness_checks,
+                ),
+                opts.batch_exp_mode,
                 &parameters,
                 rng,
             );
@@ -61,6 +82,11 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
                 &opt.challenge_hash_fname,
                 &opt.response_fname,
                 &opt.response_hash_fname,
+                upgrade_correctness_check_config(
+                    DEFAULT_CONTRIBUTE_CHECK_INPUT_CORRECTNESS,
+                    opts.force_correctness_checks,
+                ),
+                opts.batch_exp_mode,
                 &parameters,
                 rng,
             );
@@ -70,8 +96,13 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
             transform_pok_and_correctness(
                 &opt.challenge_fname,
                 &opt.challenge_hash_fname,
+                upgrade_correctness_check_config(DEFAULT_VERIFY_CHECK_INPUT_CORRECTNESS, opts.force_correctness_checks),
                 &opt.response_fname,
                 &opt.response_hash_fname,
+                upgrade_correctness_check_config(
+                    DEFAULT_VERIFY_CHECK_OUTPUT_CORRECTNESS,
+                    opts.force_correctness_checks,
+                ),
                 &opt.new_challenge_fname,
                 &opt.new_challenge_hash_fname,
                 &parameters,
@@ -79,7 +110,11 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
         }
         Command::VerifyAndTransformRatios(opt) => {
             // we receive a previous participation, verify it, and generate a new challenge from it
-            transform_ratios(&opt.response_fname, &parameters);
+            transform_ratios(
+                &opt.response_fname,
+                upgrade_correctness_check_config(DEFAULT_VERIFY_CHECK_INPUT_CORRECTNESS, opts.force_correctness_checks),
+                &parameters,
+            );
         }
         Command::Combine(opt) => {
             combine(&opt.response_list_fname, &opt.combined_fname, &parameters);

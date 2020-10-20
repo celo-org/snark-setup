@@ -1,13 +1,23 @@
 use phase1::{
     helpers::{curve_from_str, proving_system_from_str, CurveKind},
-    ContributionMode, Phase1, Phase1Parameters, ProvingSystem,
+    ContributionMode,
+    Phase1,
+    Phase1Parameters,
+    ProvingSystem,
 };
 use setup_utils::{
-    calculate_hash, derive_rng_from_seed, get_rng, user_system_randomness, CheckForCorrectness, UseCompression,
+    calculate_hash,
+    derive_rng_from_seed,
+    get_rng,
+    user_system_randomness,
+    BatchExpMode,
+    CheckForCorrectness,
+    UseCompression,
 };
 
 use zexe_algebra::{Bls12_377, PairingEngine, BW6_761};
 
+use phase1::helpers::batch_exp_mode_from_str;
 use rand::Rng;
 use wasm_bindgen::prelude::*;
 
@@ -53,20 +63,24 @@ impl Phase1WASM {
     pub fn contribute_full(
         curve_kind: &str,
         proving_system: &str,
+        batch_exp_mode: &str,
         batch_size: usize,
         power: usize,
         challenge: &[u8],
     ) -> Result<JsValue, JsValue> {
         let rng = get_rng(&user_system_randomness());
         let proving_system = proving_system_from_str(proving_system).expect("invalid proving system");
+        let batch_exp_mode = batch_exp_mode_from_str(batch_exp_mode).expect("invalid batch exponentiation mode");
         let res = match curve_from_str(curve_kind).expect("invalid curve_kind") {
             CurveKind::Bls12_377 => contribute_challenge(
                 &challenge,
+                batch_exp_mode,
                 &get_parameters_full::<Bls12_377>(proving_system, power, batch_size),
                 rng,
             ),
             CurveKind::BW6 => contribute_challenge(
                 &challenge,
+                batch_exp_mode,
                 &get_parameters_full::<BW6_761>(proving_system, power, batch_size),
                 rng,
             ),
@@ -78,6 +92,7 @@ impl Phase1WASM {
     pub fn contribute_chunked(
         curve_kind: &str,
         proving_system: &str,
+        batch_exp_mode: &str,
         batch_size: usize,
         power: usize,
         chunk_index: usize,
@@ -87,14 +102,17 @@ impl Phase1WASM {
     ) -> Result<JsValue, JsValue> {
         let rng = derive_rng_from_seed(seed);
         let proving_system = proving_system_from_str(proving_system).expect("invalid proving system");
+        let batch_exp_mode = batch_exp_mode_from_str(batch_exp_mode).expect("invalid batch exponentiation mode");
         let res = match curve_from_str(curve_kind).expect("invalid curve_kind") {
             CurveKind::Bls12_377 => contribute_challenge(
                 &challenge,
+                batch_exp_mode,
                 &get_parameters_chunked::<Bls12_377>(proving_system, power, batch_size, chunk_index, chunk_size),
                 rng,
             ),
             CurveKind::BW6 => contribute_challenge(
                 &challenge,
+                batch_exp_mode,
                 &get_parameters_chunked::<BW6_761>(proving_system, power, batch_size, chunk_index, chunk_size),
                 rng,
             ),
@@ -130,6 +148,7 @@ pub fn get_parameters_chunked<E: PairingEngine>(
 
 pub fn contribute_challenge<E: PairingEngine + Sync>(
     challenge: &[u8],
+    batch_exp_mode: BatchExpMode,
     parameters: &Phase1Parameters<E>,
     mut rng: impl Rng,
 ) -> Result<ContributionResponse, String> {
@@ -172,6 +191,7 @@ pub fn contribute_challenge<E: PairingEngine + Sync>(
         COMPRESSED_INPUT,
         COMPRESSED_OUTPUT,
         CHECK_INPUT_CORRECTNESS,
+        batch_exp_mode,
         &private_key,
         &parameters,
     ) {
