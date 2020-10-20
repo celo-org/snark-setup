@@ -147,22 +147,22 @@ pub fn user_system_randomness() -> Vec<u8> {
 
 #[allow(clippy::modulo_one)]
 #[cfg(not(feature = "wasm"))]
-pub fn beacon_randomness(mut beacon_hash: [u8; 32]) -> [u8; 32] {
+pub fn beacon_randomness_sha256_work(mut beacon_hash: [u8; 32]) -> [u8; 32] {
     // Performs 2^n hash iterations over it
-    const N: u64 = 10;
+    const N: u64 = 42;
 
-    for _ in 0..(1u64 << N) {
+    for i in 0..(1u64 << N) {
         // Print 1024 of the interstitial states
         // so that verification can be
         // parallelized
 
-        // if i % (1u64 << (N - 10)) == 0 {
-        //     // print!("{}: ", i);
-        //     for b in beacon_hash.iter() {
-        //         // print!("{:02x}", b);
-        //     }
-        //     // println!();
-        // }
+        if i % (1u64 << (N - 10)) == 0 {
+            print!("{}: ", i);
+            for b in beacon_hash.iter() {
+                print!("{:02x}", b);
+            }
+            println!();
+        }
 
         let mut h = Sha256::new();
         h.input(&beacon_hash);

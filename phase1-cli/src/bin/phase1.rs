@@ -3,9 +3,8 @@ use phase1_cli::{
     combine, contribute, new_challenge, split, transform_pok_and_correctness, transform_ratios, Command, Phase1Opts,
 };
 use setup_utils::{
-    beacon_randomness, derive_rng_from_seed, from_slice, upgrade_correctness_check_config,
-    DEFAULT_CONTRIBUTE_CHECK_INPUT_CORRECTNESS, DEFAULT_VERIFY_CHECK_INPUT_CORRECTNESS,
-    DEFAULT_VERIFY_CHECK_OUTPUT_CORRECTNESS,
+    derive_rng_from_seed, from_slice, upgrade_correctness_check_config, DEFAULT_CONTRIBUTE_CHECK_INPUT_CORRECTNESS,
+    DEFAULT_VERIFY_CHECK_INPUT_CORRECTNESS, DEFAULT_VERIFY_CHECK_OUTPUT_CORRECTNESS,
 };
 
 use zexe_algebra::{Bls12_377, PairingEngine as Engine, BW6_761};
@@ -65,7 +64,7 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
             // use the beacon's randomness
             // Place block hash here (block number #564321)
             let beacon_hash = hex::decode(&opt.beacon_hash).expect("could not hex decode beacon hash");
-            let rng = derive_rng_from_seed(&beacon_randomness(from_slice(&beacon_hash)));
+            let rng = derive_rng_from_seed(&from_slice(&beacon_hash));
             contribute(
                 &opt.challenge_fname,
                 &opt.challenge_hash_fname,
