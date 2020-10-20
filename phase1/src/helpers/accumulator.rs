@@ -4,7 +4,6 @@ use crate::{helpers::buffers::*, Phase1Parameters, ProvingSystem};
 use cfg_if::cfg_if;
 use setup_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer, *};
 
-use tracing::debug;
 use zexe_algebra::{AffineCurve, PairingEngine};
 
 #[cfg(not(feature = "wasm"))]
@@ -34,6 +33,7 @@ cfg_if! {
         use zexe_algebra::{PrimeField, FpParameters, cfg_iter, Zero};
         #[cfg(feature = "parallel")]
         use rayon::prelude::*;
+        use tracing::debug;
 
         use crate::PublicKey;
         /// Given a public key and the accumulator's digest, it hashes each G1 element
