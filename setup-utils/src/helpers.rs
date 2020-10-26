@@ -71,14 +71,19 @@ pub fn batch_exp<C: AffineCurve>(
     coeff: Option<&C::ScalarField>,
     batch_exp_mode: BatchExpMode,
 ) -> Result<()> {
-    const CPU_CHUNK_SIZE: usize = 1 << 12;
     if bases.len() != exps.len() {
         return Err(Error::InvalidLength {
             expected: bases.len(),
             got: exps.len(),
         });
     }
-    match (batch_exp_mode, bases.len() < CPU_CHUNK_SIZE) {
+    #[cfg(not(feature = "wasm"))]
+    let cpus = num_cpus::get();
+    #[cfg(feature = "wasm")]
+    let cpus = 1;
+    let cpu_chunk_size = (1 << 12) * cpus; // We split computation into threads, so don't run more than 1<<12 on each logical cpu
+
+    match (batch_exp_mode, bases.len() < cpu_chunk_size) {
         (BatchExpMode::Auto, true) | (BatchExpMode::Direct, _) => {
             // raise the base to the exponent and assign it back to the base
             // this will return the points as projective
@@ -102,7 +107,6 @@ pub fn batch_exp<C: AffineCurve>(
                 .for_each(|(base, proj)| *base = proj.into_affine());
         }
         (BatchExpMode::Auto, false) | (BatchExpMode::BatchInversion, _) => {
-            let cpus = num_cpus::get();
             let bases_on_each_cpu = (bases.len() + cpus - 1) / cpus;
             let mut powers_vec: Vec<_> = cfg_iter!(exps)
                 .map(|s| {
