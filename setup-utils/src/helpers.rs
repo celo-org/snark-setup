@@ -77,13 +77,9 @@ pub fn batch_exp<C: AffineCurve>(
             got: exps.len(),
         });
     }
-    #[cfg(not(feature = "wasm"))]
-    let cpus = num_cpus::get();
-    #[cfg(feature = "wasm")]
-    let cpus = 1;
-    let cpu_chunk_size = (1 << 12) * cpus; // We split computation into threads, so don't run more than 1<<12 on each logical cpu
+    const CPU_CHUNK_SIZE: usize = 1 << 12; // The batch version is optimal around this value.
 
-    match (batch_exp_mode, bases.len() < cpu_chunk_size) {
+    match (batch_exp_mode, bases.len() < CPU_CHUNK_SIZE) {
         (BatchExpMode::Auto, true) | (BatchExpMode::Direct, _) => {
             // raise the base to the exponent and assign it back to the base
             // this will return the points as projective
@@ -118,21 +114,14 @@ pub fn batch_exp<C: AffineCurve>(
                     s.into_repr()
                 })
                 .collect();
-            if cpus > 1 {
-                let bases_on_each_cpu = (bases.len() + cpus - 1) / cpus;
-                let chunked_powers_vec = cfg_chunks_mut!(powers_vec, bases_on_each_cpu).collect::<Vec<_>>();
-                cfg_chunks_mut!(bases, bases_on_each_cpu)
-                    .zip(chunked_powers_vec)
-                    .for_each(|(chunk_bases, chunk_exps)| {
-                        // &mut bases[..].cpu_gpu_scalar_mul(&powers_vec[..], 1 << 5, CPU_CHUNK_SIZE);
-                        chunk_bases.batch_scalar_mul_in_place::<<C::ScalarField as PrimeField>::BigInt>(
-                            &mut chunk_exps[..],
-                            5,
-                        );
-                    });
-            } else {
-                bases.batch_scalar_mul_in_place::<<C::ScalarField as PrimeField>::BigInt>(&mut powers_vec[..], 5);
-            }
+            let chunked_powers_vec = cfg_chunks_mut!(powers_vec, CPU_CHUNK_SIZE).collect::<Vec<_>>();
+            cfg_chunks_mut!(bases, CPU_CHUNK_SIZE)
+                .zip(chunked_powers_vec)
+                .for_each(|(chunk_bases, chunk_exps)| {
+                    // &mut bases[..].cpu_gpu_scalar_mul(&powers_vec[..], 1 << 5, CPU_CHUNK_SIZE);
+                    chunk_bases
+                        .batch_scalar_mul_in_place::<<C::ScalarField as PrimeField>::BigInt>(&mut chunk_exps[..], 5);
+                });
         }
     }
     Ok(())
