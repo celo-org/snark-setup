@@ -107,24 +107,41 @@ pub fn batch_exp<C: AffineCurve>(
                 .for_each(|(base, proj)| *base = proj.into_affine());
         }
         (BatchExpMode::Auto, false) | (BatchExpMode::BatchInversion, _) => {
-            let bases_on_each_cpu = (bases.len() + cpus - 1) / cpus;
-            let mut powers_vec: Vec<_> = cfg_iter!(exps)
-                .map(|s| {
-                    let s = &mut match coeff {
-                        Some(k) => *s * k,
-                        None => *s,
-                    };
-                    s.into_repr()
-                })
-                .collect();
-            let chunked_powers_vec = cfg_chunks_mut!(powers_vec, bases_on_each_cpu).collect::<Vec<_>>();
-            cfg_chunks_mut!(bases, bases_on_each_cpu)
-                .zip(chunked_powers_vec)
-                .for_each(|(chunk_bases, chunk_exps)| {
-                    // &mut bases[..].cpu_gpu_scalar_mul(&powers_vec[..], 1 << 5, CPU_CHUNK_SIZE);
-                    chunk_bases
-                        .batch_scalar_mul_in_place::<<C::ScalarField as PrimeField>::BigInt>(&mut chunk_exps[..], 5);
-                });
+            if cpus > 1 {
+                let bases_on_each_cpu = (bases.len() + cpus - 1) / cpus;
+                let mut powers_vec: Vec<_> = cfg_iter!(exps)
+                    .map(|s| {
+                        let s = &mut match coeff {
+                            Some(k) => *s * k,
+                            None => *s,
+                        };
+                        s.into_repr()
+                    })
+                    .collect();
+                let chunked_powers_vec = cfg_chunks_mut!(powers_vec, bases_on_each_cpu).collect::<Vec<_>>();
+                cfg_chunks_mut!(bases, bases_on_each_cpu)
+                    .zip(chunked_powers_vec)
+                    .for_each(|(chunk_bases, chunk_exps)| {
+                        // &mut bases[..].cpu_gpu_scalar_mul(&powers_vec[..], 1 << 5, CPU_CHUNK_SIZE);
+                        chunk_bases.batch_scalar_mul_in_place::<<C::ScalarField as PrimeField>::BigInt>(
+                            &mut chunk_exps[..],
+                            5,
+                        );
+                    });
+            } else {
+                let mut powers_vec: Vec<_> = exps
+                    .to_vec()
+                    .iter()
+                    .map(|s| {
+                        let s = &mut match coeff {
+                            Some(k) => *s * k,
+                            None => *s,
+                        };
+                        s.into_repr()
+                    })
+                    .collect();
+                bases.batch_scalar_mul_in_place::<<C::ScalarField as PrimeField>::BigInt>(&mut powers_vec[..], 5);
+            }
         }
     }
     Ok(())
