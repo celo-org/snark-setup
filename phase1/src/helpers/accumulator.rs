@@ -2,7 +2,7 @@
 
 use crate::{helpers::buffers::*, Phase1Parameters, ProvingSystem};
 use cfg_if::cfg_if;
-use setup_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer, *};
+use setup_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer, SubgroupCheckMode, *};
 
 use zexe_algebra::{AffineCurve, PairingEngine};
 
@@ -90,6 +90,7 @@ cfg_if! {
             (buffer, compression): (&[u8], UseCompression),
             (start, end): (usize, usize),
             elements: &mut [C],
+            subgroup_check_mode: SubgroupCheckMode,
         ) -> Result<()> {
             let size = buffer_size::<C>(compression);
             buffer[start * size..end * size].read_batch_preallocated(
@@ -97,20 +98,22 @@ cfg_if! {
                 compression,
                 CheckForCorrectness::OnlyNonZero,
             )?;
-            // TODO(kobi): replace with batch subgroup check
             const SECURITY_PARAM: usize = 128;
             const BATCH_SIZE: usize = 1 << 12;
             let now = std::time::Instant::now();
-            let all_in_prime_order_subgroup = if elements.len() > BATCH_SIZE {
-                match batch_verify_in_subgroup(elements, SECURITY_PARAM, &mut rand::thread_rng()) {
-                    Ok(()) => true,
-                    _ => false,
+            let all_in_prime_order_subgroup = match (elements.len() > BATCH_SIZE, subgroup_check_mode) {
+                (true, SubgroupCheckMode::Auto) | (_, SubgroupCheckMode::Batched) => {
+                    match batch_verify_in_subgroup(elements, SECURITY_PARAM, &mut rand::thread_rng()) {
+                        Ok(()) => true,
+                        _ => false,
+                    }
                 }
-            } else {
-                cfg_iter!(elements).all(|p| {
-                    p.mul(<<C::ScalarField as PrimeField>::Params as FpParameters>::MODULUS)
-                        .is_zero()
-                })
+                (false, SubgroupCheckMode::Auto) | (_, SubgroupCheckMode::Direct) => {
+                    cfg_iter!(elements).all(|p| {
+                        p.mul(<<C::ScalarField as PrimeField>::Params as FpParameters>::MODULUS)
+                            .is_zero()
+                    })
+                }
             };
             debug!("Subgroup verification for {} elems: {}us", end - start, now.elapsed().as_micros());
             if !all_in_prime_order_subgroup {
