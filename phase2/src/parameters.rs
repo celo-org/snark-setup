@@ -23,6 +23,12 @@ use std::{
     io::{self, Read, Write},
 };
 
+#[derive(Clone, PartialEq, Eq, Debug, Copy)]
+pub enum Phase2ContributionMode {
+    Full,
+    Chunked,
+}
+
 /// MPC parameters are just like Zexe's `Parameters` except, when serialized,
 /// they contain a transcript of contributions at the end, which can be verified.
 #[derive(Clone)]
@@ -76,7 +82,31 @@ impl<E: PairingEngine> MPCParameters<E> {
         Self::new(assembly, params)
     }
 
-    /// Create new Groth16 parameters (compatible with Zexe and snarkOS) for a
+    #[cfg(not(feature = "wasm"))]
+    pub fn new_from_buffer_chunked<C>(
+        circuit: C,
+        transcript: &mut [u8],
+        compressed: UseCompression,
+        check_input_for_correctness: CheckForCorrectness,
+        phase1_size: usize,
+        phase2_size: usize,
+        chunk_size: usize,
+    ) -> Result<(MPCParameters<E>, Parameters<E>, Vec<MPCParameters<E>>)>
+    where
+        C: ConstraintSynthesizer<E::Fr>,
+    {
+        let assembly = circuit_to_qap::<E, _>(circuit)?;
+        let params = Groth16Params::<E>::read(
+            transcript,
+            compressed,
+            check_input_for_correctness,
+            phase1_size,
+            phase2_size,
+        )?;
+        Self::new_chunked(assembly, params, chunk_size)
+    }
+
+    /// Create new Groth16 parameters (compatible with Zexe) for a
     /// given QAP which has been produced from a circuit. The resulting parameters
     /// are unsafe to use until there are contributions (see `contribute()`).
     #[cfg(not(feature = "wasm"))]
@@ -134,6 +164,111 @@ impl<E: PairingEngine> MPCParameters<E> {
             cs_hash,
             contributions: vec![],
         })
+    }
+
+    #[cfg(not(feature = "wasm"))]
+    pub fn new_chunked(
+        cs: ConstraintSystemRef<E::Fr>,
+        params: Groth16Params<E>,
+        chunk_size: usize,
+    ) -> Result<(MPCParameters<E>, Parameters<E>, Vec<MPCParameters<E>>)> {
+        // Evaluate the QAP against the coefficients created from phase 1
+        let (at, bt, ct) = {
+            let matrices = cs.to_matrices().unwrap();
+            (matrices.a, matrices.b, matrices.c)
+        };
+        let (a_g1, b_g1, b_g2, gamma_abc_g1, l) = eval::<E>(
+            // Lagrange coeffs for Tau, read in from Phase 1
+            &params.coeffs_g1,
+            &params.coeffs_g2,
+            &params.alpha_coeffs_g1,
+            &params.beta_coeffs_g1,
+            // QAP polynomials of the circuit
+            &at,
+            &bt,
+            &ct,
+            // Helper
+            cs.num_instance_variables(),
+        );
+
+        // Reject unconstrained elements, so that
+        // the L query is always fully dense.
+        for e in l.iter() {
+            if e.is_zero() {
+                return Err(SynthesisError::UnconstrainedVariable.into());
+            }
+        }
+
+        let vk = VerifyingKey {
+            alpha_g1: params.alpha_g1,
+            beta_g2: params.beta_g2,
+            // Gamma_g2 is always 1, since we're implementing
+            // BGM17, pg14 https://eprint.iacr.org/2017/1050.pdf
+            gamma_g2: E::G2Affine::prime_subgroup_generator(),
+            delta_g2: E::G2Affine::prime_subgroup_generator(),
+            gamma_abc_g1,
+        };
+        let params = Parameters {
+            vk,
+            beta_g1: params.beta_g1,
+            delta_g1: E::G1Affine::prime_subgroup_generator(),
+            a_query: a_g1,
+            b_g1_query: b_g1,
+            b_g2_query: b_g2,
+            h_query: params.h_g1,
+            l_query: l,
+        };
+
+        let query_parameters = Parameters::<E> {
+            vk: params.vk.clone(),
+            beta_g1: params.beta_g1.clone(),
+            delta_g1: params.delta_g1.clone(),
+            a_query: params.a_query.clone(),
+            b_g1_query: params.b_g1_query.clone(),
+            b_g2_query: params.b_g2_query.clone(),
+            h_query: vec![],
+            l_query: vec![],
+        };
+        let cs_hash = hash_params(&params)?;
+        let full_mpc = MPCParameters {
+            params: params.clone(),
+            cs_hash,
+            contributions: vec![],
+        };
+
+        let mut chunks = vec![];
+        let max_query = std::cmp::max(params.h_query.len(), params.l_query.len());
+        let num_chunks = (max_query + chunk_size - 1) / chunk_size;
+        for i in 0..num_chunks {
+            let chunk_start = i * chunk_size;
+            let chunk_end = (i + 1) * chunk_size;
+            let h_query_for_chunk = if chunk_start < params.h_query.len() {
+                params.h_query[chunk_start..std::cmp::min(chunk_end, params.h_query.len())].to_vec()
+            } else {
+                vec![]
+            };
+            let l_query_for_chunk = if chunk_start < params.l_query.len() {
+                params.l_query[chunk_start..std::cmp::min(chunk_end, params.l_query.len())].to_vec()
+            } else {
+                vec![]
+            };
+            let chunk_params = MPCParameters {
+                params: Parameters::<E> {
+                    vk: params.vk.clone(),
+                    beta_g1: params.beta_g1.clone(),
+                    delta_g1: params.delta_g1.clone(),
+                    a_query: vec![],
+                    b_g1_query: vec![],
+                    b_g2_query: vec![],
+                    h_query: h_query_for_chunk,
+                    l_query: l_query_for_chunk,
+                },
+                cs_hash,
+                contributions: vec![],
+            };
+            chunks.push(chunk_params);
+        }
+        Ok((full_mpc, query_parameters, chunks))
     }
 
     /// Get the underlying Groth16 `Parameters`
@@ -257,20 +392,47 @@ impl<E: PairingEngine> MPCParameters<E> {
         )?;
 
         // H and L queries should be updated with delta^-1
-        check_same_ratio::<E>(
-            &merge_pairs(&before.params.h_query, &after.params.h_query),
-            &(after.params.vk.delta_g2, before.params.vk.delta_g2), // reversed for inverse
-            "H_query ratio check failed",
-        )?;
+        if before.params.h_query.len() > 0 {
+            check_same_ratio::<E>(
+                &merge_pairs(&before.params.h_query, &after.params.h_query),
+                &(after.params.vk.delta_g2, before.params.vk.delta_g2), // reversed for inverse
+                "H_query ratio check failed",
+            )?;
+        }
 
-        check_same_ratio::<E>(
-            &merge_pairs(&before.params.l_query, &after.params.l_query),
-            &(after.params.vk.delta_g2, before.params.vk.delta_g2), // reversed for inverse
-            "L_query ratio check failed",
-        )?;
+        if before.params.l_query.len() > 0 {
+            check_same_ratio::<E>(
+                &merge_pairs(&before.params.l_query, &after.params.l_query),
+                &(after.params.vk.delta_g2, before.params.vk.delta_g2), // reversed for inverse
+                "L_query ratio check failed",
+            )?;
+        }
 
         // generate the transcript from the current contributions and the previous cs_hash
         verify_transcript(before.cs_hash, &after.contributions)
+    }
+
+    pub fn combine(queries: &Parameters<E>, mpcs: &[MPCParameters<E>]) -> Result<MPCParameters<E>> {
+        let mut combined_mpc = MPCParameters::<E> {
+            params: Parameters::<E> {
+                vk: mpcs[0].params.vk.clone(),
+                beta_g1: mpcs[0].params.beta_g1.clone(),
+                delta_g1: mpcs[0].params.delta_g1.clone(),
+                a_query: queries.a_query.clone(),
+                b_g1_query: queries.b_g1_query.clone(),
+                b_g2_query: queries.b_g2_query.clone(),
+                h_query: vec![],
+                l_query: vec![],
+            },
+            cs_hash: mpcs[0].cs_hash,
+            contributions: mpcs[0].contributions.clone(),
+        };
+        for mpc in mpcs {
+            combined_mpc.params.h_query.extend_from_slice(&mpc.params.h_query);
+            combined_mpc.params.l_query.extend_from_slice(&mpc.params.l_query);
+        }
+
+        Ok(combined_mpc)
     }
 
     /// Serialize these parameters. The serialized parameters
