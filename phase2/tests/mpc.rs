@@ -1,3 +1,5 @@
+use algebra::{Bls12_377, Bls12_381, PairingEngine, PrimeField, BW6_761};
+use groth16::{create_random_proof, prepare_verifying_key, verify_proof, Parameters};
 use phase1::{
     helpers::testing::{setup_verify, CheckForCorrectness},
     parameters::Phase1Parameters,
@@ -8,11 +10,9 @@ use phase2::{
     helpers::testing::TestCircuit,
     parameters::{MPCParameters, Phase2ContributionMode},
 };
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisMode};
 use rand::{thread_rng, Rng};
 use setup_utils::{derive_rng_from_seed, BatchExpMode, Groth16Params, UseCompression};
-use zexe_algebra::{Bls12_377, Bls12_381, PairingEngine, PrimeField, BW6_761};
-use zexe_groth16::{create_random_proof, prepare_verifying_key, verify_proof, Parameters};
-use zexe_r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisMode};
 
 fn generate_mpc_parameters<E, C>(c: C, rng: &mut impl Rng) -> MPCParameters<E>
 where
@@ -131,7 +131,9 @@ where
     .unwrap();
 
     let mut full_mpc_before_serialized = vec![];
-    full_mpc_before.write(&mut full_mpc_before_serialized).unwrap();
+    full_mpc_before
+        .write(&mut full_mpc_before_serialized, UseCompression::Yes)
+        .unwrap();
 
     for mpc in mpcs.iter_mut() {
         let mut rng = derive_rng_from_seed(&[0u8; 32]);
@@ -144,8 +146,16 @@ where
 
     let full_mpc_after = MPCParameters::<E>::combine(&queries, &mpcs).unwrap();
     let mut full_mpc_after_serialized = vec![];
-    full_mpc_after.write(&mut full_mpc_after_serialized).unwrap();
-    verify::<E>(&mut full_mpc_before_serialized, &mut full_mpc_after_serialized, 3).unwrap();
+    full_mpc_after
+        .write(&mut full_mpc_after_serialized, UseCompression::Yes)
+        .unwrap();
+    verify::<E>(
+        &mut full_mpc_before_serialized,
+        &mut full_mpc_after_serialized,
+        3,
+        UseCompression::Yes,
+    )
+    .unwrap();
 
     full_mpc_after
 }

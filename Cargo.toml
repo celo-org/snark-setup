@@ -4,6 +4,7 @@ members = [
     "./phase1-cli",
     "./phase1-wasm",
     "./phase2",
+    "./phase2-cli",
     "./setup-utils",
 ]
 

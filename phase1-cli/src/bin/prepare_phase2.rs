@@ -1,11 +1,8 @@
-use phase1::{
-    helpers::{curve_from_str, proving_system_from_str, CurveKind},
-    parameters::*,
-    Phase1,
-};
+use phase1::{parameters::*, Phase1};
+use setup_utils::converters::{curve_from_str, proving_system_from_str, CurveKind, ProvingSystem};
 use setup_utils::{CheckForCorrectness, Groth16Params, Result, UseCompression};
 
-use zexe_algebra::{Bls12_377, PairingEngine, BW6_761};
+use algebra::{Bls12_377, PairingEngine, BW6_761};
 
 use gumdrop::Options;
 use memmap::*;

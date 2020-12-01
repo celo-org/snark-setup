@@ -7,13 +7,13 @@ use crate::{
     keypair::{Keypair, PublicKey},
     parameters::*,
 };
-use setup_utils::{batch_mul, check_same_ratio, merge_pairs, InvariantKind, Phase2Error, Result};
+use setup_utils::{batch_mul, check_same_ratio, merge_pairs, InvariantKind, Phase2Error, Result, UseCompression};
 
-use zexe_algebra::{
+use algebra::{
     AffineCurve, CanonicalDeserialize, CanonicalSerialize, ConstantSerializedSize, Field, PairingEngine,
-    ProjectiveCurve,
+    ProjectiveCurve, SerializationError,
 };
-use zexe_groth16::VerifyingKey;
+use groth16::VerifyingKey;
 
 use byteorder::{BigEndian, WriteBytesExt};
 use rand::Rng;
@@ -23,11 +23,26 @@ use std::{
 };
 use tracing::{debug, info, info_span, trace};
 
+fn deserialize<T: CanonicalDeserialize, R: Read>(
+    reader: R,
+    compressed: UseCompression,
+) -> core::result::Result<T, SerializationError> {
+    match compressed {
+        UseCompression::No => CanonicalDeserialize::deserialize_uncompressed(reader),
+        UseCompression::Yes => CanonicalDeserialize::deserialize(reader),
+    }
+}
+
 /// Given two serialized contributions to the ceremony, this will check that `after`
 /// has been correctly calculated from `before`. Large vectors will be read in
 /// `batch_size` batches
 #[allow(clippy::cognitive_complexity)]
-pub fn verify<E: PairingEngine>(before: &mut [u8], after: &mut [u8], batch_size: usize) -> Result<Vec<[u8; 64]>> {
+pub fn verify<E: PairingEngine>(
+    before: &mut [u8],
+    after: &mut [u8],
+    batch_size: usize,
+    compressed: UseCompression,
+) -> Result<Vec<[u8; 64]>> {
     let span = info_span!("phase2-verify");
     let _enter = span.enter();
     info!("starting...");
@@ -35,14 +50,14 @@ pub fn verify<E: PairingEngine>(before: &mut [u8], after: &mut [u8], batch_size:
     let mut before = std::io::Cursor::new(before);
     let mut after = std::io::Cursor::new(after);
 
-    let vk_before = VerifyingKey::<E>::deserialize(&mut before)?;
-    let beta_g1_before = E::G1Affine::deserialize(&mut before)?;
+    let vk_before = deserialize::<VerifyingKey<E>, _>(&mut before, compressed)?;
+    let beta_g1_before = deserialize::<E::G1Affine, _>(&mut before, compressed)?;
     // we don't need the previous delta_g1 so we can skip it
     before.seek(SeekFrom::Current(E::G1Affine::SERIALIZED_SIZE as i64))?;
 
-    let vk_after = VerifyingKey::<E>::deserialize(&mut after)?;
-    let beta_g1_after = E::G1Affine::deserialize(&mut after)?;
-    let delta_g1_after = E::G1Affine::deserialize(&mut after)?;
+    let vk_after = deserialize::<VerifyingKey<E>, _>(&mut after, compressed)?;
+    let beta_g1_after = deserialize::<E::G1Affine, _>(&mut after, compressed)?;
+    let delta_g1_after = deserialize::<E::G1Affine, _>(&mut after, compressed)?;
 
     // VK parameters remain unchanged, except for Delta G2
     // which we check at the end of the function against the new contribution's
@@ -91,6 +106,7 @@ pub fn verify<E: PairingEngine>(before: &mut [u8], after: &mut [u8], batch_size:
                 after_alpha_g1,
                 batch_size,
                 &InvariantKind::AlphaG1Query,
+                compressed,
             )
         }));
         threads.push(s.spawn(|_| {
@@ -102,6 +118,7 @@ pub fn verify<E: PairingEngine>(before: &mut [u8], after: &mut [u8], batch_size:
                 after_beta_g1,
                 batch_size,
                 &InvariantKind::BetaG1Query,
+                compressed,
             )
         }));
         threads.push(s.spawn(|_| {
@@ -113,6 +130,7 @@ pub fn verify<E: PairingEngine>(before: &mut [u8], after: &mut [u8], batch_size:
                 after_beta_g2,
                 batch_size,
                 &InvariantKind::BetaG2Query,
+                compressed,
             )
         }));
 
@@ -127,6 +145,7 @@ pub fn verify<E: PairingEngine>(before: &mut [u8], after: &mut [u8], batch_size:
                 after_h,
                 vk_after.delta_g2,
                 batch_size,
+                compressed,
                 "H_query ratio check failed",
             )
         }));
@@ -140,6 +159,7 @@ pub fn verify<E: PairingEngine>(before: &mut [u8], after: &mut [u8], batch_size:
                 after_l,
                 vk_after.delta_g2,
                 batch_size,
+                compressed,
                 "L_query ratio check failed",
             )
         }));
@@ -206,7 +226,12 @@ pub fn verify<E: PairingEngine>(before: &mut [u8], after: &mut [u8], batch_size:
 /// followed by the contributions array and the contributions hash), this will modify the
 /// Delta_g1, the VK's Delta_g2 and will update the H and L queries in place while leaving
 /// everything else unchanged
-pub fn contribute<E: PairingEngine, R: Rng>(buffer: &mut [u8], rng: &mut R, batch_size: usize) -> Result<[u8; 64]> {
+pub fn contribute<E: PairingEngine, R: Rng>(
+    buffer: &mut [u8],
+    rng: &mut R,
+    batch_size: usize,
+    compressed: UseCompression,
+) -> Result<[u8; 64]> {
     let span = info_span!("phase2-contribute");
     let _enter = span.enter();
 
@@ -214,11 +239,11 @@ pub fn contribute<E: PairingEngine, R: Rng>(buffer: &mut [u8], rng: &mut R, batc
 
     let mut buffer = std::io::Cursor::new(buffer);
     // The VK is small so we read it directly from the start
-    let mut vk = VerifyingKey::<E>::deserialize(&mut buffer)?;
+    let mut vk = deserialize::<VerifyingKey<E>, _>(&mut buffer, compressed)?;
     // leave beta_g1 unchanged
     buffer.seek(SeekFrom::Current(E::G1Affine::SERIALIZED_SIZE as i64))?;
     // read delta_g1
-    let mut delta_g1 = E::G1Affine::deserialize(&mut buffer)?;
+    let mut delta_g1 = deserialize::<E::G1Affine, _>(&mut buffer, compressed)?;
 
     // Skip the vector elements for now so that we can read the contributions
     skip_vec::<E::G1Affine, _>(&mut buffer)?; // Alpha G1
@@ -280,7 +305,7 @@ pub fn contribute<E: PairingEngine, R: Rng>(buffer: &mut [u8], rng: &mut R, batc
             let _enter1 = span.enter();
             let span = info_span!("h_query");
             let _enter = span.enter();
-            chunked_mul_queries::<E::G1Affine>(h, h_query_len, &delta_inv, batch_size)
+            chunked_mul_queries::<E::G1Affine>(h, h_query_len, &delta_inv, batch_size, compressed)
         }));
 
         threads.push(s.spawn(|_| {
@@ -294,6 +319,7 @@ pub fn contribute<E: PairingEngine, R: Rng>(buffer: &mut [u8], rng: &mut R, batc
                 l_query_len,
                 &delta_inv,
                 batch_size,
+                compressed,
             )
         }));
 
@@ -342,6 +368,7 @@ fn chunked_mul_queries<C: AffineCurve>(
     query_len: usize,
     element: &C::ScalarField,
     batch_size: usize,
+    compressed: UseCompression,
 ) -> Result<()> {
     let span = info_span!("multiply_query");
     let _enter = span.enter();
@@ -355,7 +382,7 @@ fn chunked_mul_queries<C: AffineCurve>(
         let span = info_span!("iter", i);
         let _enter = span.enter();
 
-        mul_query::<C, _>(&mut buffer, element, batch_size)?;
+        mul_query::<C, _>(&mut buffer, element, batch_size, compressed)?;
 
         trace!("ok");
     }
@@ -364,7 +391,7 @@ fn chunked_mul_queries<C: AffineCurve>(
         let span = info_span!("iter", i = iters);
         let _enter = span.enter();
 
-        mul_query::<C, _>(&mut buffer, element, leftovers)?;
+        mul_query::<C, _>(&mut buffer, element, leftovers, compressed)?;
 
         trace!("ok");
     }
@@ -379,9 +406,10 @@ fn mul_query<C: AffineCurve, B: Read + Write + Seek>(
     mut buffer: B,
     element: &C::ScalarField,
     num_els: usize,
+    compressed: UseCompression,
 ) -> Result<()> {
     let mut query = (0..num_els)
-        .map(|_| C::deserialize(&mut buffer))
+        .map(|_| deserialize::<C, _>(&mut buffer, compressed))
         .collect::<std::result::Result<Vec<_>, _>>()?; // why can't we use the aliased error type here?
 
     batch_mul(&mut query, element)?;
@@ -403,6 +431,7 @@ fn chunked_ensure_unchanged_vec<C: AffineCurve>(
     after: &mut [u8],
     batch_size: usize,
     kind: &InvariantKind,
+    compressed: UseCompression,
 ) -> Result<()> {
     let span = info_span!("unchanged_vec");
     let _enter = span.enter();
@@ -421,7 +450,7 @@ fn chunked_ensure_unchanged_vec<C: AffineCurve>(
         let span1 = info_span!("iter", i);
         let _enter = span1.enter();
 
-        let (els_before, els_after) = read_batch::<C, _>(&mut before, &mut after, batch_size)?;
+        let (els_before, els_after) = read_batch::<C, _>(&mut before, &mut after, batch_size, compressed)?;
         ensure_unchanged_vec(&els_before, &els_after, kind)?;
 
         trace!("ok");
@@ -432,7 +461,7 @@ fn chunked_ensure_unchanged_vec<C: AffineCurve>(
         let span1 = info_span!("iter", i = iters);
         let _enter = span1.enter();
 
-        let (els_before, els_after) = read_batch::<C, _>(&mut before, &mut after, leftovers)?;
+        let (els_before, els_after) = read_batch::<C, _>(&mut before, &mut after, leftovers, compressed)?;
         ensure_unchanged_vec(&els_before, &els_after, kind)?;
 
         trace!("ok");
@@ -450,6 +479,7 @@ fn chunked_check_ratio<E: PairingEngine>(
     after: &mut [u8],
     after_delta_g2: E::G2Affine,
     batch_size: usize,
+    compressed: UseCompression,
     err: &'static str,
 ) -> Result<()> {
     let span = info_span!("check_ratio");
@@ -469,13 +499,13 @@ fn chunked_check_ratio<E: PairingEngine>(
     let iters = len_before / batch_size;
     let leftovers = len_before % batch_size;
     for _ in 0..iters {
-        let (els_before, els_after) = read_batch::<E::G1Affine, _>(&mut before, &mut after, batch_size)?;
+        let (els_before, els_after) = read_batch::<E::G1Affine, _>(&mut before, &mut after, batch_size, compressed)?;
         let pairs = merge_pairs(&els_before, &els_after);
         check_same_ratio::<E>(&pairs, &(after_delta_g2, before_delta_g2), err)?;
     }
     // in case the batch size did not evenly divide the number of queries
     if leftovers > 0 {
-        let (els_before, els_after) = read_batch::<E::G1Affine, _>(&mut before, &mut after, leftovers)?;
+        let (els_before, els_after) = read_batch::<E::G1Affine, _>(&mut before, &mut after, leftovers, compressed)?;
         let pairs = merge_pairs(&els_before, &els_after);
         check_same_ratio::<E>(&pairs, &(after_delta_g2, before_delta_g2), err)?;
     }
@@ -489,12 +519,13 @@ fn read_batch<C: AffineCurve, B: Read + Write + Seek>(
     mut before: B,
     mut after: B,
     batch_size: usize,
+    compressed: UseCompression,
 ) -> Result<(Vec<C>, Vec<C>)> {
     let els_before = (0..batch_size)
-        .map(|_| C::deserialize(&mut before))
+        .map(|_| deserialize::<C, _>(&mut before, compressed))
         .collect::<std::result::Result<Vec<_>, _>>()?;
     let els_after = (0..batch_size)
-        .map(|_| C::deserialize(&mut after))
+        .map(|_| deserialize::<C, _>(&mut after, compressed))
         .collect::<std::result::Result<Vec<_>, _>>()?;
     Ok((els_before, els_after))
 }

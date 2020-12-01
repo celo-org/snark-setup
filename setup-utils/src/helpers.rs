@@ -3,11 +3,11 @@ use crate::{
     errors::{Error, VerificationError},
     Result,
 };
-use zexe_algebra::{
+use algebra::{
     AffineCurve, BatchGroupArithmeticSlice, BigInteger, CanonicalSerialize, ConstantSerializedSize, Field, One,
     PairingEngine, PrimeField, ProjectiveCurve, UniformRand, Zero,
 };
-use zexe_fft::{cfg_chunks_mut, cfg_into_iter, cfg_iter, cfg_iter_mut};
+use fft::{cfg_chunks_mut, cfg_into_iter, cfg_iter, cfg_iter_mut};
 
 use blake2::{digest::generic_array::GenericArray, Blake2b, Digest};
 use rand::{rngs::OsRng, thread_rng, Rng, SeedableRng};
@@ -286,7 +286,7 @@ pub fn from_slice(bytes: &[u8]) -> [u8; 32] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zexe_algebra::{
+    use algebra::{
         bls12_377::Bls12_377,
         bls12_381::{Bls12_381, Fr, G1Affine, G2Affine},
     };

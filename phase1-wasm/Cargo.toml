@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 phase1 = { path = "../phase1", default-features = false }
 setup-utils = { path = "../setup-utils", default-features = false }
 
-zexe_algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "algebra", features = ["bls12_377", "bw6_761", "derive"] }
+algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "algebra", features = ["bls12_377", "bw6_761", "derive"] }
 
 rand = { version = "0.7" }
 serde = { version = "1.0.114" }

@@ -2,7 +2,7 @@ use crate::phase1::*;
 use phase1::{ContributionMode, Phase1, Phase1Parameters, ProvingSystem};
 use setup_utils::{batch_exp, blank_hash, generate_powers_of_tau, BatchExpMode, UseCompression};
 
-use zexe_algebra::{batch_inversion, AffineCurve, Bls12_377, Field, PairingEngine, ProjectiveCurve, BW6_761};
+use algebra::{batch_inversion, AffineCurve, Bls12_377, Field, PairingEngine, ProjectiveCurve, BW6_761};
 
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;

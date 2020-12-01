@@ -1,5 +1,5 @@
-use zexe_algebra::{Field, PairingEngine};
-use zexe_r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
+use algebra::{Field, PairingEngine};
+use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 
 // circuit proving knowledge of a square root
 // when generating the Setup, the element inside is None
@@ -37,8 +37,8 @@ impl<E: PairingEngine> ConstraintSynthesizer<E::Fr> for TestCircuit<E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zexe_algebra::Bls12_377;
-    use zexe_groth16::{create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof};
+    use algebra::Bls12_377;
+    use groth16::{create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof};
 
     // no need to run these tests, they're just added as a guideline for how to
     // consume the circuit

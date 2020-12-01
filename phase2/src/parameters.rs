@@ -3,9 +3,9 @@ use cfg_if::cfg_if;
 cfg_if! {
     if #[cfg(not(feature = "wasm"))] {
         use super::polynomial::eval;
-        use zexe_algebra::{ Zero };
-        use zexe_groth16::{VerifyingKey};
-        use zexe_r1cs_core::SynthesisError;
+        use algebra::{ Zero };
+        use groth16::{VerifyingKey};
+        use r1cs_core::SynthesisError;
     }
 }
 
@@ -13,9 +13,9 @@ use super::keypair::{hash_cs_pubkeys, Keypair, PublicKey};
 
 use setup_utils::*;
 
-use zexe_algebra::{AffineCurve, CanonicalDeserialize, CanonicalSerialize, Field, PairingEngine, ProjectiveCurve};
-use zexe_groth16::Parameters;
-use zexe_r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisMode, Variable};
+use algebra::{AffineCurve, CanonicalDeserialize, CanonicalSerialize, Field, PairingEngine, ProjectiveCurve};
+use groth16::Parameters;
+use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisMode, Variable};
 
 use rand::Rng;
 use std::{
@@ -437,8 +437,11 @@ impl<E: PairingEngine> MPCParameters<E> {
 
     /// Serialize these parameters. The serialized parameters
     /// can be read by Zexe's Groth16 `Parameters`.
-    pub fn write<W: Write>(&self, mut writer: W) -> Result<()> {
-        self.params.serialize(&mut writer)?;
+    pub fn write<W: Write>(&self, mut writer: W, compressed: UseCompression) -> Result<()> {
+        match compressed {
+            UseCompression::No => self.params.serialize_uncompressed(&mut writer),
+            UseCompression::Yes => self.params.serialize(&mut writer),
+        }?;
         writer.write_all(&self.cs_hash)?;
         PublicKey::write_batch(&mut writer, &self.contributions)?;
 
@@ -446,8 +449,11 @@ impl<E: PairingEngine> MPCParameters<E> {
     }
 
     /// Deserialize these parameters.
-    pub fn read<R: Read>(mut reader: R) -> Result<MPCParameters<E>> {
-        let params = Parameters::deserialize(&mut reader)?;
+    pub fn read<R: Read>(mut reader: R, compressed: UseCompression) -> Result<MPCParameters<E>> {
+        let params = match compressed {
+            UseCompression::No => Parameters::deserialize_uncompressed(&mut reader),
+            UseCompression::Yes => Parameters::deserialize(&mut reader),
+        }?;
 
         let mut cs_hash = [0u8; 64];
         reader.read_exact(&mut cs_hash)?;
@@ -560,6 +566,7 @@ pub fn circuit_to_qap<Zexe: PairingEngine, C: ConstraintSynthesizer<Zexe::Fr>>(
     for i in 0..cs.num_instance_variables() {
         cs.enforce_constraint(lc!() + Variable::Instance(i), lc!(), lc!())?;
     }
+    cs.inline_all_lcs();
 
     Ok(cs)
 }
@@ -574,7 +581,7 @@ mod tests {
     use phase1::{helpers::testing::setup_verify, Phase1, Phase1Parameters, ProvingSystem};
     use setup_utils::{Groth16Params, UseCompression};
 
-    use zexe_algebra::Bls12_377;
+    use algebra::Bls12_377;
 
     use rand::thread_rng;
     use tracing_subscriber::{filter::EnvFilter, fmt::Subscriber};
@@ -588,10 +595,10 @@ mod tests {
         let mpc = generate_ceremony::<E>();
 
         let mut writer = vec![];
-        mpc.write(&mut writer).unwrap();
+        mpc.write(&mut writer, UseCompression::Yes).unwrap();
         let mut reader = vec![0; writer.len()];
         reader.copy_from_slice(&writer);
-        let deserialized = MPCParameters::<E>::read(&reader[..]).unwrap();
+        let deserialized = MPCParameters::<E>::read(&reader[..], UseCompression::Yes).unwrap();
         assert_eq!(deserialized, mpc)
     }
 
@@ -629,19 +636,25 @@ mod tests {
         // original
         let mpc = generate_ceremony::<E>();
         let mut mpc_serialized = vec![];
-        mpc.write(&mut mpc_serialized).unwrap();
+        mpc.write(&mut mpc_serialized, UseCompression::Yes).unwrap();
         let mut mpc_cursor = std::io::Cursor::new(mpc_serialized.clone());
 
         // first contribution
         let mut contribution1 = mpc.clone();
         contribution1.contribute(rng).unwrap();
         let mut c1_serialized = vec![];
-        contribution1.write(&mut c1_serialized).unwrap();
+        contribution1.write(&mut c1_serialized, UseCompression::Yes).unwrap();
         let mut c1_cursor = std::io::Cursor::new(c1_serialized.clone());
 
         // verify it against the previous step
         mpc.verify(&contribution1).unwrap();
-        verify::<E>(&mut mpc_serialized.as_mut(), &mut c1_serialized.as_mut(), 4).unwrap();
+        verify::<E>(
+            &mut mpc_serialized.as_mut(),
+            &mut c1_serialized.as_mut(),
+            4,
+            UseCompression::Yes,
+        )
+        .unwrap();
         // after each call on the cursors the cursor's position is at the end,
         // so we have to reset it for further testing!
         mpc_cursor.set_position(0);
@@ -650,22 +663,34 @@ mod tests {
         // second contribution via batched method
         let mut c2_buf = c1_serialized.clone();
         c2_buf.resize(c2_buf.len() + PublicKey::<E>::size(), 0); // make the buffer larger by 1 contribution
-        contribute::<E, _>(&mut c2_buf, rng, 4).unwrap();
+        contribute::<E, _>(&mut c2_buf, rng, 4, UseCompression::Yes).unwrap();
         let mut c2_cursor = std::io::Cursor::new(c2_buf.clone());
         c2_cursor.set_position(0);
 
         // verify it against the previous step
-        verify::<E>(&mut c1_serialized.as_mut(), &mut c2_buf.as_mut(), 4).unwrap();
+        verify::<E>(
+            &mut c1_serialized.as_mut(),
+            &mut c2_buf.as_mut(),
+            4,
+            UseCompression::Yes,
+        )
+        .unwrap();
         c1_cursor.set_position(0);
         c2_cursor.set_position(0);
 
         // verify it against the original mpc
-        verify::<E>(&mut mpc_serialized.as_mut(), &mut c2_buf.as_mut(), 4).unwrap();
+        verify::<E>(
+            &mut mpc_serialized.as_mut(),
+            &mut c2_buf.as_mut(),
+            4,
+            UseCompression::Yes,
+        )
+        .unwrap();
         mpc_cursor.set_position(0);
         c2_cursor.set_position(0);
 
         // the de-serialized versions are also compatible
-        let contribution2 = MPCParameters::<E>::read(&mut c2_cursor).unwrap();
+        let contribution2 = MPCParameters::<E>::read(&mut c2_cursor, UseCompression::Yes).unwrap();
         c2_cursor.set_position(0);
         mpc.verify(&contribution2).unwrap();
         contribution1.verify(&contribution2).unwrap();

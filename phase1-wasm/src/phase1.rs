@@ -7,7 +7,7 @@ use setup_utils::{
     UseCompression,
 };
 
-use zexe_algebra::{Bls12_377, PairingEngine, BW6_761};
+use algebra::{Bls12_377, PairingEngine, BW6_761};
 
 use phase1::helpers::batch_exp_mode_from_str;
 use rand::Rng;
