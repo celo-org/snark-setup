@@ -13,9 +13,15 @@ use super::keypair::{hash_cs_pubkeys, Keypair, PublicKey};
 
 use setup_utils::*;
 
-use algebra::{AffineCurve, CanonicalDeserialize, CanonicalSerialize, Field, PairingEngine, ProjectiveCurve};
+use algebra::{
+    batch_verify_in_subgroup, cfg_iter, AffineCurve, CanonicalDeserialize, CanonicalSerialize, Field, FpParameters,
+    PairingEngine, PrimeField, ProjectiveCurve, SerializationError,
+};
 use groth16::Parameters;
 use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisMode, Variable};
+
+#[cfg(not(feature = "wasm"))]
+use rayon::prelude::*;
 
 use rand::Rng;
 use std::{
@@ -285,7 +291,7 @@ impl<E: PairingEngine> MPCParameters<E> {
     /// sure their contribution is in the final parameters, by
     /// checking to see if it appears in the output of
     /// `MPCParameters::verify`.
-    pub fn contribute<R: Rng>(&mut self, rng: &mut R) -> Result<[u8; 64]> {
+    pub fn contribute<R: Rng>(&mut self, batch_exp_mode: BatchExpMode, rng: &mut R) -> Result<[u8; 64]> {
         // Generate a keypair
         let Keypair {
             public_key,
@@ -294,8 +300,8 @@ impl<E: PairingEngine> MPCParameters<E> {
 
         // Invert delta and multiply the query's `l` and `h` by it
         let delta_inv = private_key.delta.inverse().expect("nonzero");
-        batch_mul(&mut self.params.l_query, &delta_inv)?;
-        batch_mul(&mut self.params.h_query, &delta_inv)?;
+        batch_mul(&mut self.params.l_query, &delta_inv, batch_exp_mode)?;
+        batch_mul(&mut self.params.h_query, &delta_inv, batch_exp_mode)?;
 
         // Multiply the `delta_g1` and `delta_g2` elements by the private key's delta
         self.params.vk.delta_g2 = self.params.vk.delta_g2.mul(private_key.delta).into_affine();
@@ -448,12 +454,67 @@ impl<E: PairingEngine> MPCParameters<E> {
         Ok(())
     }
 
+    fn check_subgroup<C: AffineCurve>(
+        elements: &[C],
+        subgroup_check_mode: SubgroupCheckMode,
+    ) -> core::result::Result<(), Error> {
+        const SECURITY_PARAM: usize = 128;
+        const BATCH_SIZE: usize = 1 << 12;
+        let all_in_prime_order_subgroup = match (elements.len() > BATCH_SIZE, subgroup_check_mode) {
+            (true, SubgroupCheckMode::Auto) | (_, SubgroupCheckMode::Batched) => {
+                match batch_verify_in_subgroup(elements, SECURITY_PARAM, &mut rand::thread_rng()) {
+                    Ok(()) => true,
+                    _ => false,
+                }
+            }
+            (false, SubgroupCheckMode::Auto) | (_, SubgroupCheckMode::Direct) => cfg_iter!(elements).all(|p| {
+                p.mul(<<C::ScalarField as PrimeField>::Params as FpParameters>::MODULUS)
+                    .is_zero()
+            }),
+        };
+        if !all_in_prime_order_subgroup {
+            return Err(Error::IncorrectSubgroup);
+        }
+
+        Ok(())
+    }
+
     /// Deserialize these parameters.
-    pub fn read<R: Read>(mut reader: R, compressed: UseCompression) -> Result<MPCParameters<E>> {
-        let params = match compressed {
-            UseCompression::No => Parameters::deserialize_uncompressed(&mut reader),
-            UseCompression::Yes => Parameters::deserialize(&mut reader),
+    pub fn read<R: Read>(
+        mut reader: R,
+        compressed: UseCompression,
+        check_correctness: CheckForCorrectness,
+        check_subgroup_membership: bool,
+        subgroup_check_mode: SubgroupCheckMode,
+    ) -> Result<MPCParameters<E>> {
+        let params = match (compressed, check_correctness) {
+            (UseCompression::No, CheckForCorrectness::Full) => Parameters::deserialize_uncompressed(&mut reader),
+            (UseCompression::Yes, CheckForCorrectness::Full) => Parameters::deserialize(&mut reader),
+            (UseCompression::No, CheckForCorrectness::No) | (UseCompression::No, CheckForCorrectness::OnlyNonZero) => {
+                Parameters::deserialize_uncompressed_unchecked(&mut reader)
+            }
+            (UseCompression::Yes, CheckForCorrectness::No)
+            | (UseCompression::Yes, CheckForCorrectness::OnlyNonZero) => Parameters::deserialize_unchecked(&mut reader),
+            (..) => Err(SerializationError::InvalidData),
         }?;
+
+        // In the Full mode, this is already checked
+        if check_subgroup_membership && check_correctness != CheckForCorrectness::Full {
+            Self::check_subgroup(&params.a_query, subgroup_check_mode)?;
+            Self::check_subgroup(&params.b_g1_query, subgroup_check_mode)?;
+            Self::check_subgroup(&params.b_g2_query, subgroup_check_mode)?;
+            Self::check_subgroup(&params.h_query, subgroup_check_mode)?;
+            Self::check_subgroup(&params.l_query, subgroup_check_mode)?;
+            Self::check_subgroup(&params.vk.gamma_abc_g1, subgroup_check_mode)?;
+            Self::check_subgroup(
+                &vec![params.beta_g1, params.delta_g1, params.vk.alpha_g1],
+                subgroup_check_mode,
+            )?;
+            Self::check_subgroup(
+                &vec![params.vk.beta_g2, params.vk.delta_g2, params.vk.gamma_g2],
+                subgroup_check_mode,
+            )?;
+        }
 
         let mut cs_hash = [0u8; 64];
         reader.read_exact(&mut cs_hash)?;
@@ -598,7 +659,14 @@ mod tests {
         mpc.write(&mut writer, UseCompression::Yes).unwrap();
         let mut reader = vec![0; writer.len()];
         reader.copy_from_slice(&writer);
-        let deserialized = MPCParameters::<E>::read(&reader[..], UseCompression::Yes).unwrap();
+        let deserialized = MPCParameters::<E>::read(
+            &reader[..],
+            UseCompression::Yes,
+            CheckForCorrectness::Full,
+            false,
+            SubgroupCheckMode::Auto,
+        )
+        .unwrap();
         assert_eq!(deserialized, mpc)
     }
 
@@ -641,7 +709,7 @@ mod tests {
 
         // first contribution
         let mut contribution1 = mpc.clone();
-        contribution1.contribute(rng).unwrap();
+        contribution1.contribute(BatchExpMode::Auto, rng).unwrap();
         let mut c1_serialized = vec![];
         contribution1.write(&mut c1_serialized, UseCompression::Yes).unwrap();
         let mut c1_cursor = std::io::Cursor::new(c1_serialized.clone());
@@ -653,6 +721,7 @@ mod tests {
             &mut c1_serialized.as_mut(),
             4,
             UseCompression::Yes,
+            CheckForCorrectness::Full,
         )
         .unwrap();
         // after each call on the cursors the cursor's position is at the end,
@@ -663,7 +732,15 @@ mod tests {
         // second contribution via batched method
         let mut c2_buf = c1_serialized.clone();
         c2_buf.resize(c2_buf.len() + PublicKey::<E>::size(), 0); // make the buffer larger by 1 contribution
-        contribute::<E, _>(&mut c2_buf, rng, 4, UseCompression::Yes).unwrap();
+        contribute::<E, _>(
+            &mut c2_buf,
+            rng,
+            4,
+            UseCompression::Yes,
+            CheckForCorrectness::Full,
+            BatchExpMode::Auto,
+        )
+        .unwrap();
         let mut c2_cursor = std::io::Cursor::new(c2_buf.clone());
         c2_cursor.set_position(0);
 
@@ -673,6 +750,7 @@ mod tests {
             &mut c2_buf.as_mut(),
             4,
             UseCompression::Yes,
+            CheckForCorrectness::Full,
         )
         .unwrap();
         c1_cursor.set_position(0);
@@ -684,20 +762,28 @@ mod tests {
             &mut c2_buf.as_mut(),
             4,
             UseCompression::Yes,
+            CheckForCorrectness::Full,
         )
         .unwrap();
         mpc_cursor.set_position(0);
         c2_cursor.set_position(0);
 
         // the de-serialized versions are also compatible
-        let contribution2 = MPCParameters::<E>::read(&mut c2_cursor, UseCompression::Yes).unwrap();
+        let contribution2 = MPCParameters::<E>::read(
+            &mut c2_cursor,
+            UseCompression::Yes,
+            CheckForCorrectness::Full,
+            false,
+            SubgroupCheckMode::Auto,
+        )
+        .unwrap();
         c2_cursor.set_position(0);
         mpc.verify(&contribution2).unwrap();
         contribution1.verify(&contribution2).unwrap();
 
         // third contribution
         let mut contribution3 = contribution2.clone();
-        contribution3.contribute(rng).unwrap();
+        contribution3.contribute(BatchExpMode::Auto, rng).unwrap();
 
         // it's a valid contribution against all previous steps
         mpc.verify(&contribution3).unwrap();

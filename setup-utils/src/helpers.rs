@@ -54,7 +54,13 @@ pub fn print_hash(hash: &[u8]) {
 }
 
 /// Multiply a large number of points by a scalar
-pub fn batch_mul<C: AffineCurve>(bases: &mut [C], coeff: &C::ScalarField) -> Result<()> {
+pub fn batch_mul<C: AffineCurve>(bases: &mut [C], coeff: &C::ScalarField, batch_exp_mode: BatchExpMode) -> Result<()> {
+    let exps = vec![*coeff; bases.len()];
+    batch_exp(bases, &exps, None, batch_exp_mode)
+}
+
+/// Multiply a large number of points by a scalar
+pub fn batch_mul_old<C: AffineCurve>(bases: &mut [C], coeff: &C::ScalarField) -> Result<()> {
     let coeff = coeff.into_repr();
     let mut points: Vec<_> = cfg_iter!(bases).map(|base| base.mul(coeff)).collect();
     C::Projective::batch_normalization(&mut points);

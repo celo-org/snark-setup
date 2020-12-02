@@ -12,7 +12,9 @@ mod groth16_utils;
 pub use groth16_utils::Groth16Params;
 
 mod elements;
-pub use elements::{BatchExpMode, CheckForCorrectness, ElementType, SubgroupCheckMode, UseCompression};
+pub use elements::{
+    deserialize, serialize, BatchExpMode, CheckForCorrectness, ElementType, SubgroupCheckMode, UseCompression,
+};
 
 mod helpers;
 pub use helpers::*;

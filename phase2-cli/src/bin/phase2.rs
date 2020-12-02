@@ -3,7 +3,12 @@ use setup_utils::converters::CurveKind;
 use algebra::{Bls12_377, PairingEngine as Engine, BW6_761};
 
 use gumdrop::Options;
-use phase2_cli::{new_challenge, Command, Phase2Opts};
+use phase2_cli::{combine, contribute, new_challenge, verify, Command, Phase2Opts};
+use setup_utils::{
+    derive_rng_from_seed, upgrade_correctness_check_config, CheckForCorrectness,
+    DEFAULT_CONTRIBUTE_CHECK_INPUT_CORRECTNESS, DEFAULT_VERIFY_CHECK_INPUT_CORRECTNESS,
+};
+use std::fs::read_to_string;
 use std::{process, time::Instant};
 use tracing::{error, info};
 use tracing_subscriber::{
@@ -30,6 +35,42 @@ fn execute_cmd<E: Engine>(opts: Phase2Opts) {
                 opt.phase1_powers,
                 opt.num_validators,
                 opt.num_epochs,
+            );
+        }
+        Command::Contribute(opt) => {
+            let seed = hex::decode(&read_to_string(&opts.seed).expect("should have read seed").trim())
+                .expect("seed should be a hex string");
+            let rng = derive_rng_from_seed(&seed);
+            contribute(
+                &opt.challenge_fname,
+                &opt.challenge_hash_fname,
+                &opt.response_fname,
+                &opt.response_hash_fname,
+                upgrade_correctness_check_config(
+                    DEFAULT_CONTRIBUTE_CHECK_INPUT_CORRECTNESS,
+                    opts.force_correctness_checks,
+                ),
+                opts.batch_exp_mode,
+                rng,
+            );
+        }
+        Command::Verify(opt) => {
+            verify(
+                &opt.challenge_fname,
+                &opt.challenge_hash_fname,
+                DEFAULT_VERIFY_CHECK_INPUT_CORRECTNESS,
+                &opt.response_fname,
+                &opt.response_hash_fname,
+                CheckForCorrectness::OnlyNonZero,
+                opts.subgroup_check_mode,
+            );
+        }
+        Command::Combine(opt) => {
+            combine(
+                &opt.initial_query_fname,
+                &opt.initial_full_fname,
+                &opt.response_list_fname,
+                &opt.combined_fname,
             );
         }
     };

@@ -1035,6 +1035,7 @@ version = "0.3.0"
 dependencies = [
  "algebra",
  "epoch-snark",
+ "groth16",
  "gumdrop",
  "hex 0.4.2",
  "memmap",

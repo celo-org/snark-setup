@@ -68,7 +68,7 @@ where
 
     let before = mpc.clone();
     // it is _not_ safe to use it yet, there must be 1 contribution
-    mpc.contribute(rng).unwrap();
+    mpc.contribute(BatchExpMode::Auto, rng).unwrap();
 
     before.verify(&mpc).unwrap();
 
@@ -139,7 +139,7 @@ where
         let mut rng = derive_rng_from_seed(&[0u8; 32]);
         let before = mpc.clone();
         // it is _not_ safe to use it yet, there must be 1 contribution
-        mpc.contribute(&mut rng).unwrap();
+        mpc.contribute(BatchExpMode::Auto, &mut rng).unwrap();
 
         before.verify(&mpc).unwrap();
     }
@@ -154,6 +154,7 @@ where
         &mut full_mpc_after_serialized,
         3,
         UseCompression::Yes,
+        CheckForCorrectness::Full,
     )
     .unwrap();
 

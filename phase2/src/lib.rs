@@ -28,8 +28,20 @@ cfg_if! {
 
             log!("Initializing phase2");
             let res = match is_inner {
-                true => contribute_challenge(&mut MPCParameters::<Bls12_377>::read(&*params).unwrap()),
-                false => contribute_challenge(&mut MPCParameters::<BW6_761>::read(&*params).unwrap()),
+                true => contribute_challenge(&mut MPCParameters::<Bls12_377>::read(
+                    &*params,
+                    UseCompression::Yes,
+                    CheckForCorrectness::Full,
+                    false,
+                    SubgroupCheckMode::Auto,
+                ).unwrap()),
+                false => contribute_challenge(&mut MPCParameters::<BW6_761>::read(
+                    &*params,
+                    UseCompression::Yes,
+                    CheckForCorrectness::Full,
+                    false,
+                    SubgroupCheckMode::Auto,
+                ).unwrap()),
             };
 
             Ok(res)

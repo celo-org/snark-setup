@@ -1,3 +1,4 @@
+use algebra::{CanonicalDeserialize, CanonicalSerialize, Read, SerializationError, Write};
 use std::fmt;
 
 /// Determines if point compression should be used.
@@ -90,5 +91,32 @@ impl fmt::Display for SubgroupCheckMode {
             SubgroupCheckMode::Direct => write!(f, "Direct"),
             SubgroupCheckMode::Batched => write!(f, "Batched"),
         }
+    }
+}
+
+pub fn deserialize<T: CanonicalDeserialize, R: Read>(
+    reader: R,
+    compressed: UseCompression,
+    check_correctness: CheckForCorrectness,
+) -> core::result::Result<T, SerializationError> {
+    match (compressed, check_correctness) {
+        (UseCompression::No, CheckForCorrectness::No) => {
+            CanonicalDeserialize::deserialize_uncompressed_unchecked(reader)
+        }
+        (UseCompression::Yes, CheckForCorrectness::No) => CanonicalDeserialize::deserialize_unchecked(reader),
+        (UseCompression::No, CheckForCorrectness::Full) => CanonicalDeserialize::deserialize_uncompressed(reader),
+        (UseCompression::Yes, CheckForCorrectness::Full) => CanonicalDeserialize::deserialize(reader),
+        (..) => Err(SerializationError::InvalidData),
+    }
+}
+
+pub fn serialize<T: CanonicalSerialize, W: Write>(
+    element: &T,
+    writer: W,
+    compressed: UseCompression,
+) -> core::result::Result<(), SerializationError> {
+    match compressed {
+        UseCompression::No => CanonicalSerialize::serialize_uncompressed(element, writer),
+        UseCompression::Yes => CanonicalSerialize::serialize(element, writer),
     }
 }
