@@ -8,6 +8,7 @@ PROVING_SYSTEM=$1
 POWER=18
 BATCH=131072
 CHUNK_SIZE=131072
+NUM_CONSTRAINTS=222481
 if [ "$PROVING_SYSTEM" == "groth16" ]; then
   MAX_CHUNK_INDEX=$((4-1)) # we have 4 chunks, since we have a total of 2^11-1 powers
 else
@@ -71,6 +72,6 @@ echo "Verifying..."
 $phase1_full verify-and-transform-pok-and-correctness --challenge-fname combined --challenge-hash-fname combined.verified.hash --response-fname response_beacon --response-hash-fname response_beacon.verified.hash --new-challenge-fname response_beacon_new_challenge --new-challenge-hash-fname response_beacon_new_challenge.verified.hash
 $phase1_full verify-and-transform-ratios --response-fname response_beacon_new_challenge
 echo "Running prepare phase2..."
-$prepare_phase2 --phase2-fname phase1 --response-fname response_beacon --phase2-size $POWER
+$prepare_phase2 --phase2-fname phase1 --response-fname response_beacon --phase2-size $NUM_CONSTRAINTS
 
 echo "Done!"

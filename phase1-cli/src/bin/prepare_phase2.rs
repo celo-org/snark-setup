@@ -39,8 +39,8 @@ struct PreparePhase2Opts {
         default = "21"
     )]
     pub power: usize,
-    #[options(help = "the size (in powers) of the phase 2 circuit", default = "21")]
-    pub phase2_size: u32,
+    #[options(help = "the size (in powers) of the phase 2 circuit")]
+    pub phase2_size: usize,
 }
 
 fn prepare_phase2<E: PairingEngine + Sync>(opts: &PreparePhase2Opts) -> Result<()> {
@@ -75,7 +75,7 @@ fn prepare_phase2<E: PairingEngine + Sync>(opts: &PreparePhase2Opts) -> Result<(
 
     // Load the elements to the Groth16 utility
     let groth16_params = Groth16Params::<E>::new(
-        2usize.pow(opts.phase2_size),
+        opts.phase2_size,
         current_accumulator.tau_powers_g1,
         current_accumulator.tau_powers_g2,
         current_accumulator.alpha_tau_powers_g1,
