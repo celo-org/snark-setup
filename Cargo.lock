@@ -1034,6 +1034,8 @@ name = "phase2-cli"
 version = "0.3.0"
 dependencies = [
  "algebra",
+ "bench-utils",
+ "bls-crypto",
  "epoch-snark",
  "groth16",
  "gumdrop",
