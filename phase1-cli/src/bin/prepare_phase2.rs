@@ -34,13 +34,8 @@ struct PreparePhase2Opts {
     pub proving_system: ProvingSystem,
     #[options(help = "the size of batches to process", default = "256")]
     pub batch_size: usize,
-    #[options(
-        help = "the number of powers used for phase 1 (circuit size will be 2^{power})",
-        default = "21"
-    )]
+    #[options(help = "the number of powers used for phase 1 (circuit size will be 2^{power})")]
     pub power: usize,
-    #[options(help = "the size (in powers) of the phase 2 circuit")]
-    pub phase2_size: usize,
 }
 
 fn prepare_phase2<E: PairingEngine + Sync>(opts: &PreparePhase2Opts) -> Result<()> {
@@ -75,7 +70,7 @@ fn prepare_phase2<E: PairingEngine + Sync>(opts: &PreparePhase2Opts) -> Result<(
 
     // Load the elements to the Groth16 utility
     let groth16_params = Groth16Params::<E>::new(
-        opts.phase2_size,
+        1 << opts.power,
         current_accumulator.tau_powers_g1,
         current_accumulator.tau_powers_g2,
         current_accumulator.alpha_tau_powers_g1,

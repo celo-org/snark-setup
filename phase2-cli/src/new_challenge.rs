@@ -42,7 +42,6 @@ pub fn new_challenge(
         counter.num_constraints(),
         counter.num_witness_variables() + counter.num_instance_variables() + 1,
     );
-    println!("phase 2 size: {}", phase2_size);
 
     let (full_mpc_parameters, query_parameters, all_mpc_parameters) =
         MPCParameters::<BW6_761>::new_from_buffer_chunked(
