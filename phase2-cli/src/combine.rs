@@ -1,8 +1,7 @@
 use phase2::parameters::MPCParameters;
 use setup_utils::{print_hash, CheckForCorrectness, SubgroupCheckMode, UseCompression};
 
-use algebra::{CanonicalDeserialize, CanonicalSerialize, BW6_761};
-use groth16::Parameters;
+use algebra::{CanonicalSerialize, BW6_761};
 
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -35,11 +34,14 @@ pub fn combine(
 
     let mut query_contents =
         std::io::Cursor::new(std::fs::read(initial_query_filename).expect("should have read initial query"));
-    let query_parameters = match INITIAL_IS_COMPRESSED {
-        UseCompression::No => Parameters::deserialize_uncompressed(&mut query_contents),
-        UseCompression::Yes => Parameters::deserialize(&mut query_contents),
-    }
-    .unwrap();
+    let query_parameters = MPCParameters::<BW6_761>::read_groth16_fast(
+        &mut query_contents,
+        INITIAL_IS_COMPRESSED,
+        CheckForCorrectness::No,
+        false,
+        SubgroupCheckMode::Auto,
+    )
+    .expect("should have deserialized initial query params");
 
     let mut all_parameters = vec![];
     for line in response_list_reader.lines() {

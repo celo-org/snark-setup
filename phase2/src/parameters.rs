@@ -14,13 +14,9 @@ use super::keypair::{hash_cs_pubkeys, Keypair, PublicKey};
 use setup_utils::*;
 
 use algebra::{
-    batch_verify_in_subgroup, cfg_iter, AffineCurve, CanonicalDeserialize, CanonicalSerialize, Field, FpParameters,
-    PairingEngine, PrimeField, ProjectiveCurve, SerializationError,
+    AffineCurve, CanonicalDeserialize, CanonicalSerialize, Field, PairingEngine, ProjectiveCurve, SerializationError,
 };
 use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisMode, Variable};
-
-#[cfg(not(feature = "wasm"))]
-use rayon::prelude::*;
 
 use rand::Rng;
 use std::{
@@ -453,31 +449,6 @@ impl<E: PairingEngine> MPCParameters<E> {
         Ok(())
     }
 
-    fn check_subgroup<C: AffineCurve>(
-        elements: &[C],
-        subgroup_check_mode: SubgroupCheckMode,
-    ) -> core::result::Result<(), Error> {
-        const SECURITY_PARAM: usize = 128;
-        const BATCH_SIZE: usize = 1 << 12;
-        let all_in_prime_order_subgroup = match (elements.len() > BATCH_SIZE, subgroup_check_mode) {
-            (true, SubgroupCheckMode::Auto) | (_, SubgroupCheckMode::Batched) => {
-                match batch_verify_in_subgroup(elements, SECURITY_PARAM, &mut rand::thread_rng()) {
-                    Ok(()) => true,
-                    _ => false,
-                }
-            }
-            (false, SubgroupCheckMode::Auto) | (_, SubgroupCheckMode::Direct) => cfg_iter!(elements).all(|p| {
-                p.mul(<<C::ScalarField as PrimeField>::Params as FpParameters>::MODULUS)
-                    .is_zero()
-            }),
-        };
-        if !all_in_prime_order_subgroup {
-            return Err(Error::IncorrectSubgroup);
-        }
-
-        Ok(())
-    }
-
     /// Deserialize these parameters.
     pub fn read<R: Read>(
         mut reader: R,
@@ -499,17 +470,17 @@ impl<E: PairingEngine> MPCParameters<E> {
 
         // In the Full mode, this is already checked
         if check_subgroup_membership && check_correctness != CheckForCorrectness::Full {
-            Self::check_subgroup(&params.a_query, subgroup_check_mode)?;
-            Self::check_subgroup(&params.b_g1_query, subgroup_check_mode)?;
-            Self::check_subgroup(&params.b_g2_query, subgroup_check_mode)?;
-            Self::check_subgroup(&params.h_query, subgroup_check_mode)?;
-            Self::check_subgroup(&params.l_query, subgroup_check_mode)?;
-            Self::check_subgroup(&params.vk.gamma_abc_g1, subgroup_check_mode)?;
-            Self::check_subgroup(
+            check_subgroup(&params.a_query, subgroup_check_mode)?;
+            check_subgroup(&params.b_g1_query, subgroup_check_mode)?;
+            check_subgroup(&params.b_g2_query, subgroup_check_mode)?;
+            check_subgroup(&params.h_query, subgroup_check_mode)?;
+            check_subgroup(&params.l_query, subgroup_check_mode)?;
+            check_subgroup(&params.vk.gamma_abc_g1, subgroup_check_mode)?;
+            check_subgroup(
                 &vec![params.beta_g1, params.delta_g1, params.vk.alpha_g1],
                 subgroup_check_mode,
             )?;
-            Self::check_subgroup(
+            check_subgroup(
                 &vec![params.vk.beta_g2, params.vk.delta_g2, params.vk.gamma_g2],
                 subgroup_check_mode,
             )?;
@@ -534,6 +505,35 @@ impl<E: PairingEngine> MPCParameters<E> {
         check_subgroup_membership: bool,
         subgroup_check_mode: SubgroupCheckMode,
     ) -> Result<MPCParameters<E>> {
+        let params = Self::read_groth16_fast(
+            &mut reader,
+            compressed,
+            check_correctness,
+            check_subgroup_membership,
+            subgroup_check_mode,
+        )?;
+
+        let mut cs_hash = [0u8; 64];
+        reader.read_exact(&mut cs_hash)?;
+
+        let contributions = PublicKey::read_batch(&mut reader)?;
+
+        let mpc_params = MPCParameters::<E> {
+            params,
+            cs_hash,
+            contributions,
+        };
+
+        Ok(mpc_params)
+    }
+
+    pub fn read_groth16_fast<R: Read>(
+        mut reader: R,
+        compressed: UseCompression,
+        check_correctness: CheckForCorrectness,
+        check_subgroup_membership: bool,
+        subgroup_check_mode: SubgroupCheckMode,
+    ) -> Result<Parameters<E>> {
         // vk
         let alpha_g1: E::G1Affine = reader.read_element(compressed, check_correctness)?;
         let beta_g2: E::G2Affine = reader.read_element(compressed, check_correctness)?;
@@ -549,9 +549,6 @@ impl<E: PairingEngine> MPCParameters<E> {
         let b_g2_query: Vec<E::G2Affine> = read_vec(&mut reader, compressed, check_correctness)?;
         let h_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
         let l_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
-        let mut cs_hash = [0u8; 64];
-        reader.read_exact(&mut cs_hash)?;
-        let contributions = PublicKey::read_batch(&mut reader)?;
 
         let params = Parameters::<E> {
             vk: VerifyingKey::<E> {
@@ -572,45 +569,24 @@ impl<E: PairingEngine> MPCParameters<E> {
 
         // In the Full mode, this is already checked
         if check_subgroup_membership && check_correctness != CheckForCorrectness::Full {
-            Self::check_subgroup(&params.a_query, subgroup_check_mode)?;
-            Self::check_subgroup(&params.b_g1_query, subgroup_check_mode)?;
-            Self::check_subgroup(&params.b_g2_query, subgroup_check_mode)?;
-            Self::check_subgroup(&params.h_query, subgroup_check_mode)?;
-            Self::check_subgroup(&params.l_query, subgroup_check_mode)?;
-            Self::check_subgroup(&params.vk.gamma_abc_g1, subgroup_check_mode)?;
-            Self::check_subgroup(
+            check_subgroup(&params.a_query, subgroup_check_mode)?;
+            check_subgroup(&params.b_g1_query, subgroup_check_mode)?;
+            check_subgroup(&params.b_g2_query, subgroup_check_mode)?;
+            check_subgroup(&params.h_query, subgroup_check_mode)?;
+            check_subgroup(&params.l_query, subgroup_check_mode)?;
+            check_subgroup(&params.vk.gamma_abc_g1, subgroup_check_mode)?;
+            check_subgroup(
                 &vec![params.beta_g1, params.delta_g1, params.vk.alpha_g1],
                 subgroup_check_mode,
             )?;
-            Self::check_subgroup(
+            check_subgroup(
                 &vec![params.vk.beta_g2, params.vk.delta_g2, params.vk.gamma_g2],
                 subgroup_check_mode,
             )?;
         }
 
-        let mpc_params = MPCParameters::<E> {
-            params,
-            cs_hash,
-            contributions,
-        };
-
-        Ok(mpc_params)
+        Ok(params)
     }
-}
-
-fn read_vec<G: AffineCurve, R: Read>(
-    mut reader: R,
-    compressed: UseCompression,
-    check_for_correctness: CheckForCorrectness,
-) -> Result<Vec<G>> {
-    let size = match compressed {
-        UseCompression::Yes => G::SERIALIZED_SIZE,
-        UseCompression::No => G::UNCOMPRESSED_SIZE,
-    };
-    let length = u64::deserialize(&mut reader)? as usize;
-    let mut bytes = vec![0u8; length * size];
-    reader.read_exact(&mut bytes)?;
-    bytes.read_batch(compressed, check_for_correctness)
 }
 
 /// This is a cheap helper utility that exists purely

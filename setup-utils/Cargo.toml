@@ -17,6 +17,7 @@ harness = false
 algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "algebra" }
 fft = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "ff-fft", default-features = false }
 r1cs_core = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "r1cs-core" }
+groth16 = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "groth16", features = [] }
 
 blake2 = { version = "0.8.1" }
 blake2s_simd = { version = "0.5.10" }

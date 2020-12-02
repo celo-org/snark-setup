@@ -1373,6 +1373,7 @@ dependencies = [
  "criterion",
  "crossbeam",
  "ff-fft",
+ "groth16",
  "num_cpus",
  "phase1",
  "r1cs-core",
