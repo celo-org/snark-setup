@@ -30,7 +30,7 @@ pub fn verify(
     info!("`challenge` file contains decompressed points and has a hash:");
     print_hash(&challenge_hash);
 
-    let parameters_before = MPCParameters::<BW6_761>::read(
+    let parameters_before = MPCParameters::<BW6_761>::read_fast(
         challenge_contents.as_slice(),
         PREVIOUS_CHALLENGE_IS_COMPRESSED,
         check_input_correctness,
@@ -49,7 +49,7 @@ pub fn verify(
     info!("`response` file contains decompressed points and has a hash:");
     print_hash(&response_hash);
 
-    let parameters_after = MPCParameters::<BW6_761>::read(
+    let parameters_after = MPCParameters::<BW6_761>::read_fast(
         response_contents.as_slice(),
         CONTRIBUTION_IS_COMPRESSED,
         check_output_correctness,

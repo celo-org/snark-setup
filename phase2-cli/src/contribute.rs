@@ -31,7 +31,7 @@ pub fn contribute(
     info!("`challenge` file contains decompressed points and has a hash:");
     print_hash(&challenge_hash);
 
-    let mut parameters = MPCParameters::<BW6_761>::read(
+    let mut parameters = MPCParameters::<BW6_761>::read_fast(
         challenge_contents.as_slice(),
         COMPRESSED_INPUT,
         check_input_correctness,

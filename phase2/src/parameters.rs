@@ -4,7 +4,7 @@ cfg_if! {
     if #[cfg(not(feature = "wasm"))] {
         use super::polynomial::eval;
         use algebra::{ Zero };
-        use groth16::{VerifyingKey};
+        use groth16::{Parameters, VerifyingKey};
         use r1cs_core::SynthesisError;
     }
 }
@@ -17,7 +17,6 @@ use algebra::{
     batch_verify_in_subgroup, cfg_iter, AffineCurve, CanonicalDeserialize, CanonicalSerialize, Field, FpParameters,
     PairingEngine, PrimeField, ProjectiveCurve, SerializationError,
 };
-use groth16::Parameters;
 use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisMode, Variable};
 
 #[cfg(not(feature = "wasm"))]
@@ -527,6 +526,91 @@ impl<E: PairingEngine> MPCParameters<E> {
             contributions,
         })
     }
+
+    pub fn read_fast<R: Read>(
+        mut reader: R,
+        compressed: UseCompression,
+        check_correctness: CheckForCorrectness,
+        check_subgroup_membership: bool,
+        subgroup_check_mode: SubgroupCheckMode,
+    ) -> Result<MPCParameters<E>> {
+        // vk
+        let alpha_g1: E::G1Affine = reader.read_element(compressed, check_correctness)?;
+        let beta_g2: E::G2Affine = reader.read_element(compressed, check_correctness)?;
+        let gamma_g2: E::G2Affine = reader.read_element(compressed, check_correctness)?;
+        let delta_g2: E::G2Affine = reader.read_element(compressed, check_correctness)?;
+        let gamma_abc_g1: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+
+        // rest of the parameters
+        let beta_g1: E::G1Affine = reader.read_element(compressed, check_correctness)?;
+        let delta_g1: E::G1Affine = reader.read_element(compressed, check_correctness)?;
+        let a_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+        let b_g1_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+        let b_g2_query: Vec<E::G2Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+        let h_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+        let l_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+        let mut cs_hash = [0u8; 64];
+        reader.read_exact(&mut cs_hash)?;
+        let contributions = PublicKey::read_batch(&mut reader)?;
+
+        let params = Parameters::<E> {
+            vk: VerifyingKey::<E> {
+                alpha_g1,
+                beta_g2,
+                gamma_g2,
+                delta_g2,
+                gamma_abc_g1,
+            },
+            beta_g1,
+            delta_g1,
+            a_query,
+            b_g1_query,
+            b_g2_query,
+            h_query,
+            l_query,
+        };
+
+        // In the Full mode, this is already checked
+        if check_subgroup_membership && check_correctness != CheckForCorrectness::Full {
+            Self::check_subgroup(&params.a_query, subgroup_check_mode)?;
+            Self::check_subgroup(&params.b_g1_query, subgroup_check_mode)?;
+            Self::check_subgroup(&params.b_g2_query, subgroup_check_mode)?;
+            Self::check_subgroup(&params.h_query, subgroup_check_mode)?;
+            Self::check_subgroup(&params.l_query, subgroup_check_mode)?;
+            Self::check_subgroup(&params.vk.gamma_abc_g1, subgroup_check_mode)?;
+            Self::check_subgroup(
+                &vec![params.beta_g1, params.delta_g1, params.vk.alpha_g1],
+                subgroup_check_mode,
+            )?;
+            Self::check_subgroup(
+                &vec![params.vk.beta_g2, params.vk.delta_g2, params.vk.gamma_g2],
+                subgroup_check_mode,
+            )?;
+        }
+
+        let mpc_params = MPCParameters::<E> {
+            params,
+            cs_hash,
+            contributions,
+        };
+
+        Ok(mpc_params)
+    }
+}
+
+fn read_vec<G: AffineCurve, R: Read>(
+    mut reader: R,
+    compressed: UseCompression,
+    check_for_correctness: CheckForCorrectness,
+) -> Result<Vec<G>> {
+    let size = match compressed {
+        UseCompression::Yes => G::SERIALIZED_SIZE,
+        UseCompression::No => G::UNCOMPRESSED_SIZE,
+    };
+    let length = u64::deserialize(&mut reader)? as usize;
+    let mut bytes = vec![0u8; length * size];
+    reader.read_exact(&mut bytes)?;
+    bytes.read_batch(compressed, check_for_correctness)
 }
 
 /// This is a cheap helper utility that exists purely

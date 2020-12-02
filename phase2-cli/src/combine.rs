@@ -24,7 +24,7 @@ pub fn combine(
         BufReader::new(File::open(response_list_filename).expect("should have opened the response list"));
 
     let full_contents = std::fs::read(initial_full_filename).expect("should have initial full parameters");
-    let full_parameters = MPCParameters::<BW6_761>::read(
+    let full_parameters = MPCParameters::<BW6_761>::read_fast(
         full_contents.as_slice(),
         INITIAL_IS_COMPRESSED,
         CheckForCorrectness::No,
@@ -45,7 +45,7 @@ pub fn combine(
     for line in response_list_reader.lines() {
         let line = line.expect("should have read line");
         let contents = std::fs::read(line).expect("should have read response");
-        let parameters = MPCParameters::<BW6_761>::read(
+        let parameters = MPCParameters::<BW6_761>::read_fast(
             contents.as_slice(),
             CONTRIBUTION_IS_COMPRESSED,
             CheckForCorrectness::No,
