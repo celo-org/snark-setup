@@ -39,9 +39,10 @@ pub fn new_challenge(
     counter.set_mode(SynthesisMode::Setup);
     c.clone().generate_constraints(counter.clone()).unwrap();
     let phase2_size = std::cmp::max(
-        counter.num_constraints() + counter.num_instance_variables(),
-        counter.num_witness_variables() + counter.num_instance_variables() + 1,
-    );
+        counter.num_constraints(),
+        counter.num_witness_variables() + counter.num_instance_variables(),
+    )
+    .next_power_of_two();
 
     let (full_mpc_parameters, query_parameters, all_mpc_parameters) =
         MPCParameters::<BW6_761>::new_from_buffer_chunked(

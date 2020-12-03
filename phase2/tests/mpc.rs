@@ -19,10 +19,21 @@ where
     E: PairingEngine,
     C: Clone + ConstraintSynthesizer<E::Fr>,
 {
-    let powers = 6; // powers of tau
+    // perform the MPC on only the amount of constraints required for the circuit
+    let counter = ConstraintSystem::new_ref();
+    counter.set_mode(SynthesisMode::Setup);
+    c.clone().generate_constraints(counter.clone()).unwrap();
+    let phase2_size = std::cmp::max(
+        counter.num_constraints() + counter.num_instance_variables(),
+        counter.num_witness_variables() + counter.num_instance_variables(),
+    )
+    .next_power_of_two();
+    let powers = (phase2_size as u64).trailing_zeros() as usize;
+
     let batch = 4;
     let params = Phase1Parameters::<E>::new_full(ProvingSystem::Groth16, powers, batch);
     let compressed = UseCompression::Yes;
+
     // make 1 power of tau contribution (assume powers of tau gets calculated properly)
     let (_, output, _, _) = setup_verify(
         compressed,
@@ -35,7 +46,7 @@ where
 
     // prepare only the first 32 powers (for whatever reason)
     let groth_params = Groth16Params::<E>::new(
-        32,
+        1 << powers,
         accumulator.tau_powers_g1,
         accumulator.tau_powers_g2,
         accumulator.alpha_tau_powers_g1,
@@ -43,25 +54,17 @@ where
         accumulator.beta_g2,
     )
     .unwrap();
+
     // write the transcript to a file
     let mut writer = vec![];
     groth_params.write(&mut writer, compressed).unwrap();
-
-    // perform the MPC on only the amount of constraints required for the circuit
-    let counter = ConstraintSystem::new_ref();
-    counter.set_mode(SynthesisMode::Setup);
-    c.clone().generate_constraints(counter.clone()).unwrap();
-    let phase2_size = std::cmp::max(
-        counter.num_constraints(),
-        counter.num_witness_variables() + counter.num_instance_variables() + 1,
-    );
 
     let mut mpc = MPCParameters::<E>::new_from_buffer(
         c,
         writer.as_mut(),
         compressed,
         CheckForCorrectness::Full,
-        32,
+        1 << powers,
         phase2_size,
     )
     .unwrap();
@@ -80,10 +83,21 @@ where
     E: PairingEngine,
     C: Clone + ConstraintSynthesizer<E::Fr>,
 {
-    let powers = 6; // powers of tau
+    // perform the MPC on only the amount of constraints required for the circuit
+    let counter = ConstraintSystem::new_ref();
+    counter.set_mode(SynthesisMode::Setup);
+    c.clone().generate_constraints(counter.clone()).unwrap();
+    let phase2_size = std::cmp::max(
+        counter.num_constraints() + counter.num_instance_variables(),
+        counter.num_witness_variables() + counter.num_instance_variables(),
+    )
+    .next_power_of_two();
+    let powers = (phase2_size as u64).trailing_zeros() as usize;
+
     let batch = 4;
     let params = Phase1Parameters::<E>::new_full(ProvingSystem::Groth16, powers, batch);
     let compressed = UseCompression::Yes;
+
     // make 1 power of tau contribution (assume powers of tau gets calculated properly)
     let (_, output, _, _) = setup_verify(
         compressed,
@@ -96,7 +110,7 @@ where
 
     // prepare only the first 32 powers (for whatever reason)
     let groth_params = Groth16Params::<E>::new(
-        32,
+        1 << powers,
         accumulator.tau_powers_g1,
         accumulator.tau_powers_g2,
         accumulator.alpha_tau_powers_g1,
@@ -108,15 +122,6 @@ where
     let mut writer = vec![];
     groth_params.write(&mut writer, compressed).unwrap();
 
-    // perform the MPC on only the amount of constraints required for the circuit
-    let counter = ConstraintSystem::new_ref();
-    counter.set_mode(SynthesisMode::Setup);
-    c.clone().generate_constraints(counter.clone()).unwrap();
-    let phase2_size = std::cmp::max(
-        counter.num_constraints(),
-        counter.num_witness_variables() + counter.num_instance_variables() + 1,
-    );
-
     let chunk_size = phase2_size / 3;
 
     let (full_mpc_before, queries, mut mpcs) = MPCParameters::<E>::new_from_buffer_chunked(
@@ -124,7 +129,7 @@ where
         writer.as_mut(),
         compressed,
         CheckForCorrectness::Full,
-        32,
+        1 << powers,
         phase2_size,
         chunk_size,
     )
@@ -199,6 +204,6 @@ fn groth_test_curve<E: PairingEngine>() {
         };
 
         let res = verify_proof(&pvk, &proof, &[<E::Fr as PrimeField>::BigInt::from(25).into()]);
-        assert!(res.is_ok());
+        assert!(res.unwrap());
     }
 }

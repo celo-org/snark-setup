@@ -107,6 +107,17 @@ impl<E: PairingEngine> MPCParameters<E> {
         Self::new_chunked(assembly, params, chunk_size)
     }
 
+    #[cfg(not(feature = "wasm"))]
+    fn process_matrix(xt: &[Vec<(E::Fr, usize)>], cs: ConstraintSystemRef<E::Fr>) -> Vec<Vec<(E::Fr, usize)>> {
+        let mut xt_processed = vec![vec![]; cs.num_instance_variables() + cs.num_witness_variables()];
+        for (constraint_num, vars) in xt.iter().enumerate() {
+            for (coeff, var_index) in vars {
+                xt_processed[*var_index].push((*coeff, constraint_num));
+            }
+        }
+        xt_processed
+    }
+
     /// Create new Groth16 parameters (compatible with Zexe) for a
     /// given QAP which has been produced from a circuit. The resulting parameters
     /// are unsafe to use until there are contributions (see `contribute()`).
@@ -117,6 +128,11 @@ impl<E: PairingEngine> MPCParameters<E> {
             let matrices = cs.to_matrices().unwrap();
             (matrices.a, matrices.b, matrices.c)
         };
+
+        let at = Self::process_matrix(&at, cs.clone());
+        let bt = Self::process_matrix(&bt, cs.clone());
+        let ct = Self::process_matrix(&ct, cs.clone());
+
         let (a_g1, b_g1, b_g2, gamma_abc_g1, l) = eval::<E>(
             // Lagrange coeffs for Tau, read in from Phase 1
             &params.coeffs_g1,
@@ -178,6 +194,11 @@ impl<E: PairingEngine> MPCParameters<E> {
             let matrices = cs.to_matrices().unwrap();
             (matrices.a, matrices.b, matrices.c)
         };
+
+        let at = Self::process_matrix(&at, cs.clone());
+        let bt = Self::process_matrix(&bt, cs.clone());
+        let ct = Self::process_matrix(&ct, cs.clone());
+
         let (a_g1, b_g1, b_g2, gamma_abc_g1, l) = eval::<E>(
             // Lagrange coeffs for Tau, read in from Phase 1
             &params.coeffs_g1,

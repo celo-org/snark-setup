@@ -22,14 +22,6 @@ impl<E: PairingEngine> ConstraintSynthesizer<E::Fr> for TestCircuit<E> {
             cs.enforce_constraint(lc!() + x, lc!() + x, lc!() + out)?;
         }
 
-        // add some dummy constraints to make the circuit a bit bigger
-        // we do this so that we can write a failing test for our MPC
-        // where the params are smaller than the circuit size
-        // (7 in this case, since we allocated 3 constraints, plus 4 below)
-        for _ in 0..4 {
-            cs.new_witness_variable(|| self.0.ok_or(SynthesisError::AssignmentMissing))
-                .unwrap();
-        }
         Ok(())
     }
 }
