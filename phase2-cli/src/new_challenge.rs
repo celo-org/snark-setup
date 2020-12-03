@@ -39,7 +39,7 @@ pub fn new_challenge(
     counter.set_mode(SynthesisMode::Setup);
     c.clone().generate_constraints(counter.clone()).unwrap();
     let phase2_size = std::cmp::max(
-        counter.num_constraints(),
+        counter.num_constraints() + counter.num_instance_variables(),
         counter.num_witness_variables() + counter.num_instance_variables() + 1,
     );
 
