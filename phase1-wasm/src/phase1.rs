@@ -1,15 +1,12 @@
-use phase1::{
-    helpers::{curve_from_str, proving_system_from_str, CurveKind},
-    ContributionMode, Phase1, Phase1Parameters, ProvingSystem,
-};
+use phase1::{ContributionMode, Phase1, Phase1Parameters, ProvingSystem};
 use setup_utils::{
-    calculate_hash, derive_rng_from_seed, get_rng, user_system_randomness, BatchExpMode, CheckForCorrectness,
-    UseCompression,
+    calculate_hash,
+    converters::{batch_exp_mode_from_str, curve_from_str, proving_system_from_str, CurveKind},
+    derive_rng_from_seed, get_rng, user_system_randomness, BatchExpMode, CheckForCorrectness, UseCompression,
 };
 
 use algebra::{Bls12_377, PairingEngine, BW6_761};
 
-use phase1::helpers::batch_exp_mode_from_str;
 use rand::Rng;
 use wasm_bindgen::prelude::*;
 

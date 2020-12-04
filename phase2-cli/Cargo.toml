@@ -25,7 +25,6 @@ tracing = { version = "0.1.17" }
 tracing-subscriber = { version = "0.2.3" }
 phase1 = { path = "../phase1" }
 epoch-snark = { git = "https://github.com/celo-org/celo-bls-snark-rs" }
-bls-crypto = { git = "https://github.com/celo-org/celo-bls-snark-rs", features = [ "test-helpers" ] }
 
 [dev-dependencies]
 rand_xorshift = { version = "0.2" }
