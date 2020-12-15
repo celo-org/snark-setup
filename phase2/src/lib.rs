@@ -16,7 +16,7 @@ cfg_if! {
         use itertools::Itertools;
         use parameters::MPCParameters;
         use algebra::{Bls12_377, BW6_761, PairingEngine};
-        use setup_utils::{ get_rng, user_system_randomness };
+        use setup_utils::{BatchExpMode, CheckForCorrectness, get_rng, SubgroupCheckMode, user_system_randomness, UseCompression};
 
         macro_rules! log {
             ($($t:tt)*) => (web_sys::console::log_1(&format_args!($($t)*).to_string().into()))
@@ -30,14 +30,14 @@ cfg_if! {
             let res = match is_inner {
                 true => contribute_challenge(&mut MPCParameters::<Bls12_377>::read(
                     &*params,
-                    UseCompression::Yes,
+                    UseCompression::No,
                     CheckForCorrectness::Full,
                     false,
                     SubgroupCheckMode::Auto,
                 ).unwrap()),
                 false => contribute_challenge(&mut MPCParameters::<BW6_761>::read(
                     &*params,
-                    UseCompression::Yes,
+                    UseCompression::No,
                     CheckForCorrectness::Full,
                     false,
                     SubgroupCheckMode::Auto,
@@ -50,11 +50,11 @@ cfg_if! {
         fn contribute_challenge<E: PairingEngine>(params: &mut MPCParameters<E>) -> Vec<u8> {
             let mut rng = get_rng(&user_system_randomness());
             log!("Contributing...");
-            let hash = params.contribute(&mut rng);
+            let hash = params.contribute(BatchExpMode::Auto, &mut rng);
             log!("Contribution hash: 0x{:02x}", hash.unwrap().iter().format(""));
 
             let mut output: Vec<u8> = vec![];
-            params.write(&mut output).expect("failed to write updated parameters");
+            params.write(&mut output, UseCompression::Yes).expect("failed to write updated parameters");
             log!("Returning parameters");
             return output;
         }
