@@ -992,6 +992,7 @@ dependencies = [
  "phase1",
  "rand",
  "rand_xorshift",
+ "rayon",
  "rustc_version",
  "serde",
  "serde_derive",

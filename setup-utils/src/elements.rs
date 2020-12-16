@@ -5,7 +5,7 @@ use algebra::{
 };
 
 #[cfg(not(feature = "wasm"))]
-use rayon::prelude::*;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use std::fmt;
 
