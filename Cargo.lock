@@ -21,18 +21,29 @@ dependencies = [
 [[package]]
 name = "algebra"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe#5e0a369d33c3b4c45a1b3bde8d62e264fec75f08"
+source = "git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841#f3f9c27d683964e31383327a7418c9f8eb438841"
 dependencies = [
- "algebra-core",
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "paste",
+ "rayon",
+]
+
+[[package]]
+name = "algebra"
+version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe#02ee669fa43059b55918210e025183e572cc249d"
+dependencies = [
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "paste",
+ "rayon",
 ]
 
 [[package]]
 name = "algebra-core"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe#5e0a369d33c3b4c45a1b3bde8d62e264fec75f08"
+source = "git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841#f3f9c27d683964e31383327a7418c9f8eb438841"
 dependencies = [
- "algebra-core-derive",
+ "algebra-core-derive 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "cc",
  "derivative",
  "either",
@@ -40,7 +51,26 @@ dependencies = [
  "num-traits",
  "paste",
  "peekmore",
- "rand 0.7.3",
+ "rand",
+ "rayon",
+ "rustc_version",
+ "unroll",
+]
+
+[[package]]
+name = "algebra-core"
+version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe#02ee669fa43059b55918210e025183e572cc249d"
+dependencies = [
+ "algebra-core-derive 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "cc",
+ "derivative",
+ "either",
+ "itertools 0.9.0",
+ "num-traits",
+ "paste",
+ "peekmore",
+ "rand",
  "rayon",
  "rustc_version",
  "unroll",
@@ -49,7 +79,17 @@ dependencies = [
 [[package]]
 name = "algebra-core-derive"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe#5e0a369d33c3b4c45a1b3bde8d62e264fec75f08"
+source = "git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841#f3f9c27d683964e31383327a7418c9f8eb438841"
+dependencies = [
+ "proc-macro2 1.0.24",
+ "quote 1.0.7",
+ "syn 1.0.45",
+]
+
+[[package]]
+name = "algebra-core-derive"
+version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe#02ee669fa43059b55918210e025183e572cc249d"
 dependencies = [
  "proc-macro2 1.0.24",
  "quote 1.0.7",
@@ -118,10 +158,15 @@ checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 [[package]]
 name = "bench-utils"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe#5e0a369d33c3b4c45a1b3bde8d62e264fec75f08"
+source = "git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841#f3f9c27d683964e31383327a7418c9f8eb438841"
 dependencies = [
  "colored",
 ]
+
+[[package]]
+name = "bench-utils"
+version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe#02ee669fa43059b55918210e025183e572cc249d"
 
 [[package]]
 name = "bitflags"
@@ -137,8 +182,8 @@ checksum = "94cb07b0da6a73955f8fb85d24c466778e70cda767a568229b104f0264089330"
 dependencies = [
  "byte-tools",
  "crypto-mac",
- "digest",
- "opaque-debug",
+ "digest 0.8.1",
+ "opaque-debug 0.2.3",
 ]
 
 [[package]]
@@ -153,12 +198,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "block-buffer"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4152116fd6e9dadb291ae18fc1ec3575ed6d84c29642d97890f4b4a3417297e4"
+dependencies = [
+ "generic-array 0.14.4",
+]
+
+[[package]]
 name = "bls-crypto"
 version = "0.2.0"
 source = "git+https://github.com/celo-org/celo-bls-snark-rs#b8dfb21efcbf8c3d09fcaeb72c211d311f73a83b"
 dependencies = [
- "algebra",
- "bench-utils",
+ "algebra 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "bench-utils 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
  "blake2s_simd",
  "byteorder",
  "clap",
@@ -169,7 +223,7 @@ dependencies = [
  "log",
  "lru",
  "once_cell",
- "rand 0.7.3",
+ "rand",
  "rand_chacha",
  "thiserror",
 ]
@@ -179,12 +233,12 @@ name = "bls-gadgets"
 version = "0.2.0"
 source = "git+https://github.com/celo-org/celo-bls-snark-rs#b8dfb21efcbf8c3d09fcaeb72c211d311f73a83b"
 dependencies = [
- "algebra",
- "algebra-core",
+ "algebra 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
  "bls-crypto",
  "crypto-primitives",
- "r1cs-core",
- "r1cs-std",
+ "r1cs-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "r1cs-std 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
  "tracing",
  "tracing-subscriber",
 ]
@@ -333,6 +387,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
+name = "cpuid-bool"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8aebca1129a03dc6dc2b127edd729435bbc4a37e1d5f4d7513165089ceb02634"
+
+[[package]]
 name = "criterion"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -452,7 +512,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4434400df11d95d556bac068ddfedd482915eb18fe8bea89bc80b6e4b1c179e5"
 dependencies = [
- "generic-array",
+ "generic-array 0.12.3",
  "subtle",
 ]
 
@@ -461,17 +521,17 @@ name = "crypto-primitives"
 version = "0.1.1-alpha.0"
 source = "git+https://github.com/celo-org/zexe#5e0a369d33c3b4c45a1b3bde8d62e264fec75f08"
 dependencies = [
- "algebra-core",
- "bench-utils",
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "bench-utils 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
  "blake2",
  "derivative",
- "digest",
- "ff-fft",
+ "digest 0.8.1",
+ "ff-fft 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
  "gm17",
- "groth16",
- "r1cs-core",
- "r1cs-std",
- "rand 0.7.3",
+ "groth16 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "r1cs-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "r1cs-std 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "rand",
  "rayon",
  "tracing",
 ]
@@ -515,7 +575,16 @@ version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3d0c8c8752312f9713efd397ff63acb9f85585afbf179282e720e7704954dd5"
 dependencies = [
- "generic-array",
+ "generic-array 0.12.3",
+]
+
+[[package]]
+name = "digest"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
+dependencies = [
+ "generic-array 0.14.4",
 ]
 
 [[package]]
@@ -552,17 +621,17 @@ name = "epoch-snark"
 version = "0.2.0"
 source = "git+https://github.com/celo-org/celo-bls-snark-rs#b8dfb21efcbf8c3d09fcaeb72c211d311f73a83b"
 dependencies = [
- "algebra",
- "algebra-core",
+ "algebra 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
  "blake2s_simd",
  "bls-crypto",
  "bls-gadgets",
  "byteorder",
  "crypto-primitives",
- "groth16",
- "r1cs-core",
- "r1cs-std",
- "rand 0.7.3",
+ "groth16 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "r1cs-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "r1cs-std 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "rand",
  "thiserror",
  "tracing",
  "tracing-subscriber",
@@ -571,10 +640,20 @@ dependencies = [
 [[package]]
 name = "ff-fft"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe#5e0a369d33c3b4c45a1b3bde8d62e264fec75f08"
+source = "git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841#f3f9c27d683964e31383327a7418c9f8eb438841"
 dependencies = [
- "algebra-core",
- "rand 0.7.3",
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "rand",
+ "rayon",
+]
+
+[[package]]
+name = "ff-fft"
+version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe#02ee669fa43059b55918210e025183e572cc249d"
+dependencies = [
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "rand",
  "rayon",
 ]
 
@@ -585,24 +664,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1fd087255f739f4f1aeea69f11b72f8080e9c2e7645cd06955dad4a178a49e3"
 
 [[package]]
-name = "fuchsia-cprng"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a06f77d526c1a601b7c4cdd98f54b5eaabffc14d5f2f0296febdc7f357c6d3ba"
-
-[[package]]
-name = "gcc"
-version = "0.3.55"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f5f3913fa0bfe7ee1fd8248b6b9f42a5af4b9d65ec2dd2c3c26132b950ecfc2"
-
-[[package]]
 name = "generic-array"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c68f0274ae0e023facc3c97b2e00f076be70e254bc851d972503b328db79b2ec"
 dependencies = [
  "typenum",
+]
+
+[[package]]
+name = "generic-array"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "501466ecc8a30d1d3b7fc9229b122b2ce8ed6e9d9223f1138d4babb253e51817"
+dependencies = [
+ "typenum",
+ "version_check",
 ]
 
 [[package]]
@@ -642,24 +719,37 @@ name = "gm17"
 version = "0.1.1-alpha.0"
 source = "git+https://github.com/celo-org/zexe#5e0a369d33c3b4c45a1b3bde8d62e264fec75f08"
 dependencies = [
- "algebra-core",
- "bench-utils",
- "ff-fft",
- "r1cs-core",
- "rand 0.7.3",
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "bench-utils 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "ff-fft 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "r1cs-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "rand",
  "rayon",
 ]
 
 [[package]]
 name = "groth16"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe#5e0a369d33c3b4c45a1b3bde8d62e264fec75f08"
+source = "git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841#f3f9c27d683964e31383327a7418c9f8eb438841"
 dependencies = [
- "algebra-core",
- "bench-utils",
- "ff-fft",
- "r1cs-core",
- "rand 0.7.3",
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "bench-utils 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "ff-fft 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "r1cs-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "rand",
+ "rayon",
+]
+
+[[package]]
+name = "groth16"
+version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe#02ee669fa43059b55918210e025183e572cc249d"
+dependencies = [
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "bench-utils 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "ff-fft 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "r1cs-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "rand",
  "rayon",
 ]
 
@@ -813,15 +903,15 @@ name = "marlin"
 version = "0.1.0"
 source = "git+https://github.com/scipr-lab/marlin?rev=b7b4be4#b7b4be42bbe55ae9c19234ec19af88127703b5a9"
 dependencies = [
- "algebra-core",
- "bench-utils",
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "bench-utils 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "derivative",
- "digest",
- "ff-fft",
+ "digest 0.8.1",
+ "ff-fft 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "poly-commit",
- "r1cs-core",
+ "r1cs-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "rand_chacha",
- "rand_core 0.5.1",
+ "rand_core",
  "rayon",
 ]
 
@@ -919,6 +1009,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2839e79665f131bdb5782e51f2c6c9599c133c6098982a54c794358bf432529c"
 
 [[package]]
+name = "opaque-debug"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
+
+[[package]]
 name = "paste"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -950,22 +1046,22 @@ dependencies = [
 name = "phase1"
 version = "0.3.0"
 dependencies = [
- "algebra",
- "algebra-core",
+ "algebra 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "anyhow",
- "bench-utils",
+ "bench-utils 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "blake2",
  "cfg-if 0.1.10",
  "criterion",
  "derivative",
- "ff-fft",
+ "ff-fft 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "itertools 0.8.2",
  "marlin",
  "num-traits",
  "phase1",
  "poly-commit",
- "r1cs-core",
- "rand 0.7.3",
+ "r1cs-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "rand",
  "rayon",
  "rusty-hook",
  "setup-utils",
@@ -977,12 +1073,12 @@ dependencies = [
 name = "phase1-cli"
 version = "0.3.0"
 dependencies = [
- "algebra",
+ "algebra 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "gumdrop",
  "hex 0.4.2",
  "memmap",
  "phase1",
- "rand 0.7.3",
+ "rand",
  "rand_xorshift",
  "rustc_version",
  "setup-utils",
@@ -995,10 +1091,10 @@ dependencies = [
 name = "phase1-wasm"
 version = "0.3.0"
 dependencies = [
- "algebra",
+ "algebra 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "console_error_panic_hook",
  "phase1",
- "rand 0.7.3",
+ "rand",
  "rand_xorshift",
  "rayon",
  "rustc_version",
@@ -1015,19 +1111,19 @@ dependencies = [
 name = "phase2"
 version = "0.3.0"
 dependencies = [
- "algebra",
+ "algebra 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "byteorder",
  "cfg-if 0.1.10",
  "console_error_panic_hook",
  "crossbeam",
- "groth16",
+ "groth16 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "itertools 0.9.0",
  "num_cpus",
  "phase1",
  "phase2",
- "r1cs-core",
- "r1cs-std",
- "rand 0.7.3",
+ "r1cs-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "r1cs-std 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "rand",
  "rayon",
  "rusty-hook",
  "setup-utils",
@@ -1042,17 +1138,17 @@ dependencies = [
 name = "phase2-cli"
 version = "0.3.0"
 dependencies = [
- "algebra",
- "bench-utils",
+ "algebra 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "bench-utils 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "epoch-snark",
- "groth16",
+ "groth16 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "gumdrop",
  "hex 0.4.2",
  "memmap",
  "phase1",
  "phase2",
- "r1cs-core",
- "rand 0.7.3",
+ "r1cs-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "rand",
  "rand_xorshift",
  "rustc_version",
  "setup-utils",
@@ -1082,14 +1178,14 @@ dependencies = [
 [[package]]
 name = "poly-commit"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/scipr-lab/poly-commit?rev=efff1c1#efff1c113bbddd726144bd4ed922301a63b5d334"
+source = "git+https://github.com/celo-org/poly-commit?rev=4feda97c665a983304fabff789c76baadff08201#4feda97c665a983304fabff789c76baadff08201"
 dependencies = [
- "algebra-core",
- "bench-utils",
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "bench-utils 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "derivative",
- "digest",
- "ff-fft",
- "rand_core 0.5.1",
+ "digest 0.8.1",
+ "ff-fft 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "rand_core",
  "rayon",
 ]
 
@@ -1150,9 +1246,19 @@ dependencies = [
 [[package]]
 name = "r1cs-core"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe#5e0a369d33c3b4c45a1b3bde8d62e264fec75f08"
+source = "git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841#f3f9c27d683964e31383327a7418c9f8eb438841"
 dependencies = [
- "algebra-core",
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "r1cs-core"
+version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe#02ee669fa43059b55918210e025183e572cc249d"
+dependencies = [
+ "algebra-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
  "tracing",
  "tracing-subscriber",
 ]
@@ -1160,35 +1266,23 @@ dependencies = [
 [[package]]
 name = "r1cs-std"
 version = "0.1.1-alpha.0"
-source = "git+https://github.com/celo-org/zexe#5e0a369d33c3b4c45a1b3bde8d62e264fec75f08"
+source = "git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841#f3f9c27d683964e31383327a7418c9f8eb438841"
 dependencies = [
- "algebra",
+ "algebra 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "derivative",
- "r1cs-core",
+ "r1cs-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "tracing",
 ]
 
 [[package]]
-name = "rand"
-version = "0.3.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64ac302d8f83c0c1974bf758f6b041c6c8ada916fbb44a609158ca8b064cc76c"
+name = "r1cs-std"
+version = "0.1.1-alpha.0"
+source = "git+https://github.com/celo-org/zexe#02ee669fa43059b55918210e025183e572cc249d"
 dependencies = [
- "libc",
- "rand 0.4.6",
-]
-
-[[package]]
-name = "rand"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "552840b97013b1a26992c11eac34bdd778e464601a4c2054b5f0bff7c6761293"
-dependencies = [
- "fuchsia-cprng",
- "libc",
- "rand_core 0.3.1",
- "rdrand",
- "winapi",
+ "algebra 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "derivative",
+ "r1cs-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe)",
+ "tracing",
 ]
 
 [[package]]
@@ -1200,7 +1294,7 @@ dependencies = [
  "getrandom 0.1.15",
  "libc",
  "rand_chacha",
- "rand_core 0.5.1",
+ "rand_core",
  "rand_hc",
 ]
 
@@ -1211,23 +1305,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4c8ed856279c9737206bf725bf36935d8666ead7aa69b52be55af369d193402"
 dependencies = [
  "ppv-lite86",
- "rand_core 0.5.1",
+ "rand_core",
 ]
-
-[[package]]
-name = "rand_core"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a6fdeb83b075e8266dcc8762c22776f6877a63111121f5f8c7411e5be7eed4b"
-dependencies = [
- "rand_core 0.4.2",
-]
-
-[[package]]
-name = "rand_core"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c33a3c44ca05fa6f1807d8e6743f3824e8509beca625669633be0acbdf509dc"
 
 [[package]]
 name = "rand_core"
@@ -1244,7 +1323,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca3129af7b92a17112d59ad498c6f81eaf463253766b90396d39ea7a39d6613c"
 dependencies = [
- "rand_core 0.5.1",
+ "rand_core",
 ]
 
 [[package]]
@@ -1253,7 +1332,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77d416b86801d23dde1aa643023b775c3a462efc0ed96443add11546cdf1dca8"
 dependencies = [
- "rand_core 0.5.1",
+ "rand_core",
 ]
 
 [[package]]
@@ -1279,15 +1358,6 @@ dependencies = [
  "crossbeam-utils",
  "lazy_static",
  "num_cpus",
-]
-
-[[package]]
-name = "rdrand"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "678054eb77286b51581ba43620cc911abf02758c91f93f479767aed0f90458b2"
-dependencies = [
- "rand_core 0.3.1",
 ]
 
 [[package]]
@@ -1317,25 +1387,6 @@ name = "regex-syntax"
 version = "0.6.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8cab7a364d15cde1e505267766a2d3c4e22a843e1a601f0fa7564c0f82ced11c"
-
-[[package]]
-name = "rust-crypto"
-version = "0.2.36"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f76d05d3993fd5f4af9434e8e436db163a12a9d40e1a58a726f27a01dfd12a2a"
-dependencies = [
- "gcc",
- "libc",
- "rand 0.3.23",
- "rustc-serialize",
- "time",
-]
-
-[[package]]
-name = "rustc-serialize"
-version = "0.3.24"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcf128d1287d2ea9d80910b5f1120d0b8eede3fbf1abe91c40d39ea7d51e6fda"
 
 [[package]]
 name = "rustc_version"
@@ -1442,25 +1493,38 @@ dependencies = [
 name = "setup-utils"
 version = "0.3.0"
 dependencies = [
- "algebra",
+ "algebra 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "blake2",
  "blake2s_simd",
  "cfg-if 0.1.10",
  "criterion",
  "crossbeam",
- "ff-fft",
- "groth16",
+ "ff-fft 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "groth16 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
  "num_cpus",
  "phase1",
- "r1cs-core",
- "rand 0.7.3",
+ "r1cs-core 0.1.1-alpha.0 (git+https://github.com/celo-org/zexe?rev=f3f9c27d683964e31383327a7418c9f8eb438841)",
+ "rand",
  "rand_chacha",
  "rayon",
- "rust-crypto",
  "rusty-hook",
+ "sha2",
  "thiserror",
  "tracing",
  "typenum",
+]
+
+[[package]]
+name = "sha2"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e7aab86fe2149bad8c507606bdb3f4ef5e7b2380eb92350f56122cca72a42a8"
+dependencies = [
+ "block-buffer",
+ "cfg-if 1.0.0",
+ "cpuid-bool",
+ "digest 0.9.0",
+ "opaque-debug 0.3.0",
 ]
 
 [[package]]
@@ -1712,6 +1776,12 @@ name = "vec_map"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
+
+[[package]]
+name = "version_check"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5a972e5669d67ba988ce3dc826706fb0a8b01471c088cb0b6110b805cc36aed"
 
 [[package]]
 name = "walkdir"
