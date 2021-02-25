@@ -22,7 +22,8 @@ pub fn transform_pok_and_correctness<T: Engine + Sync>(
     check_output_correctness: CheckForCorrectness,
     new_challenge_filename: &str,
     new_challenge_hash_filename: &str,
-    subgroup_check_mode: SubgroupCheckMode,
+    subgroup_check: bool,
+    subgroup_check_mode: Option<SubgroupCheckMode>,
     ratio_check: bool,
     parameters: &Phase1Parameters<T>,
 ) {
@@ -177,6 +178,7 @@ pub fn transform_pok_and_correctness<T: Engine + Sync>(
         COMPRESS_NEW_CHALLENGE,
         check_input_correctness,
         check_output_correctness,
+        subgroup_check,
         subgroup_check_mode,
         ratio_check,
         &parameters,
