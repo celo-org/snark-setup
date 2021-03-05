@@ -405,9 +405,11 @@ pub fn check_same_ratio<E: PairingEngine>(
     err: &'static str,
 ) -> Result<()> {
     if g1.0.is_zero() || g1.1.is_zero() || g2.0.is_zero() || g2.1.is_zero() {
+        info!("Found zero element");
         return Err(VerificationError::InvalidRatio(err).into());
     }
     if E::pairing(g1.0, g2.1) != E::pairing(g1.1, g2.0) {
+        info!("Found an invalid pairing check");
         return Err(VerificationError::InvalidRatio(err).into());
     }
     Ok(())
