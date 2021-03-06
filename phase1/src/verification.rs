@@ -527,6 +527,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
         };
 
         debug!("initial elements were computed correctly");
+        info!("Expected total number of elements is {}", &parameters.powers_g1_length);
 
         match parameters.proving_system {
             // preallocate 2 vectors per batch
@@ -534,7 +535,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
             // load `batch_size` chunks on each iteration and perform the transformation
             ProvingSystem::Groth16 => {
                 iter_chunk(&parameters, |start, end| {
-                    debug!("verifying batch from {} to {}", start, end);
+                    info!("verifying batch from {} to {}", start, end);
 
                     let span = info_span!("batch", start, end);
                     let _enter = span.enter();
