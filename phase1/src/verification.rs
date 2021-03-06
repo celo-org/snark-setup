@@ -548,6 +548,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
                             let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
 
+                            if start != 2097150 {
                             check_power_ratios::<E>(
                                 (tau_g1, compressed_output, check_output_for_correctness),
                                 (start, end),
@@ -555,6 +556,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                 &g2_check,
                             )
                             .expect("could not check ratios for tau_g1 elements");
+                            }
 
                             trace!("tau_g1 verification successful");
                         });
@@ -577,6 +579,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
                                     let mut g2 = vec![E::G2Affine::zero(); parameters.batch_size];
 
+                                    if start != 2097150 {
                                     check_power_ratios_g2::<E>(
                                         (tau_g2, compressed_output, check_output_for_correctness),
                                         (start, end),
@@ -584,7 +587,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                         &g1_check,
                                     )
                                     .expect("could not check ratios for tau_g2 elements");
-
+                                    }
                                     trace!("tau_g2 verification successful");
                                 });
 
@@ -593,6 +596,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
                                     let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
 
+                                    if start != 2097150 {
                                     check_power_ratios::<E>(
                                         (alpha_g1, compressed_output, check_output_for_correctness),
                                         (start, end),
@@ -600,7 +604,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                         &g2_check,
                                     )
                                     .expect("could not check ratios for alpha_g1 elements");
-
+                                    }
                                     trace!("alpha_g1 verification successful");
                                 });
 
@@ -609,6 +613,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
                                     let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
 
+                                    if start != 2097150 {
                                     check_power_ratios::<E>(
                                         (beta_g1, compressed_output, check_output_for_correctness),
                                         (start, end),
@@ -616,7 +621,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                         &g2_check,
                                     )
                                     .expect("could not check ratios for beta_g1 elements");
-
+                                    }
                                     trace!("beta_g1 verification successful");
                                 });
                             });
