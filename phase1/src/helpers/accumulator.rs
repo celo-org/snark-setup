@@ -4,6 +4,7 @@ use crate::{helpers::buffers::*, Phase1Parameters, ProvingSystem};
 use cfg_if::cfg_if;
 use setup_utils::{BatchDeserializer, BatchSerializer, Deserializer, Serializer, *};
 
+use tracing::info;
 use zexe_algebra::{AffineCurve, PairingEngine};
 
 #[cfg(not(feature = "wasm"))]
@@ -63,7 +64,12 @@ cfg_if! {
                 compression,
                 check_for_correctness,
             )?;
-            check_same_ratio::<E>(&power_pairs(&elements[..end - start]), check, "Power pairs")?;
+            let length = end-start;
+            for i in 0..length-1 {
+                info!("Checking ratio for element {} in chunk", i);
+                check_same_ratio::<E>(&(elements[i], elements[i+1]), check, "Individual elements")?;
+            }
+            //check_same_ratio::<E>(&power_pairs(&elements[..end - start]), check, "Power pairs")?;
             Ok(())
         }
 
@@ -82,7 +88,12 @@ cfg_if! {
                 compression,
                 check_for_correctness,
             )?;
-            check_same_ratio::<E>(check, &power_pairs(&elements[..end - start]), "Power pairs")?;
+            let length = end-start;
+            for i in 0..length-1 {
+                info!("Checking ratio for element {} in chunk", i);
+                check_same_ratio::<E>(check, &(elements[i], elements[i+1]), "Individual elements")?;
+            }
+//            check_same_ratio::<E>(check, &power_pairs(&elements[..end - start]), "Power pairs")?;
             Ok(())
         }
 
