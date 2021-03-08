@@ -64,12 +64,12 @@ cfg_if! {
                 compression,
                 check_for_correctness,
             )?;
-            /*let length = end-start;
-            for i in 0..length-1 {
+            let length = end-start;
+            for i in 0..length {
                 info!("Checking ratio for element {} in chunk", i);
                 check_same_ratio::<E>(&(elements[i], elements[i+1]), check, "Individual elements")?;
-            }*/
-            check_same_ratio::<E>(&power_pairs(&elements[..end - start]), check, "Power pairs")?;
+            }
+            //check_same_ratio::<E>(&power_pairs(&elements[..end - start]), check, "Power pairs")?;
             Ok(())
         }
 
@@ -88,12 +88,12 @@ cfg_if! {
                 compression,
                 check_for_correctness,
             )?;
-            /*let length = end-start;
-            for i in 0..length-1 {
+            let length = end-start;
+            for i in 0..length {
                 info!("Checking ratio for element {} in chunk", i);
                 check_same_ratio::<E>(check, &(elements[i], elements[i+1]), "Individual elements")?;
-            }*/
-            check_same_ratio::<E>(check, &power_pairs(&elements[..end - start]), "Power pairs")?;
+            }
+            //check_same_ratio::<E>(check, &power_pairs(&elements[..end - start]), "Power pairs")?;
             Ok(())
         }
 
