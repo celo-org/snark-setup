@@ -555,7 +555,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                 &mut g1,
                                 &g2_check,
                             ) {
-                                println!("Failed to check ratio for chunk starting at {}", start);
+                                println!("Failed to check ratio for tau_g1 for chunk starting at {}", start);
                             };
                             //.expect("could not check ratios for tau_g1 elements");
                             //}
@@ -588,7 +588,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                         &mut g2,
                                         &g1_check,
                                     ) {
-                                        println!("Failed to check ratio for chunk starting at {}", start);
+                                        println!("Failed to check ratio for tau_g2 for chunk starting at {}", start);
                                     };
                                     //.expect("could not check ratios for tau_g2 elements");
                                     //}
@@ -607,7 +607,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                         &mut g1,
                                         &g2_check,
                                     ) {
-                                        println!("Failed to check ratio for chunk starting at {}", start);
+                                        println!("Failed to check ratio for alpha_g1 for chunk starting at {}", start);
                                     };
                                     //.expect("could not check ratios for alpha_g1 elements");
                                     //}
@@ -626,7 +626,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                         &mut g1,
                                         &g2_check,
                                     ) {
-                                        println!("Failed to check ratio starting at {}", start);
+                                        println!("Failed to check ratio for beta_g1 for chunk starting at {}", start);
                                     };
                                     //.expect("could not check ratios for beta_g1 elements");
                                     //}
