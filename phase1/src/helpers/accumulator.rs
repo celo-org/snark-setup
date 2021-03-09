@@ -65,7 +65,7 @@ cfg_if! {
                 check_for_correctness,
             )?;
             let length = end-start;
-            for i in 0..length {
+            for i in 0..length-1 {
                 info!("Checking ratio for element {} in chunk", i);
                 check_same_ratio::<E>(&(elements[i], elements[i+1]), check, "Individual elements")?;
             }
@@ -89,7 +89,7 @@ cfg_if! {
                 check_for_correctness,
             )?;
             let length = end-start;
-            for i in 0..length {
+            for i in 0..length-1 {
                 info!("Checking ratio for element {} in chunk", i);
                 check_same_ratio::<E>(check, &(elements[i], elements[i+1]), "Individual elements")?;
             }
