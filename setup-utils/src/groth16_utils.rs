@@ -182,11 +182,14 @@ impl<E: PairingEngine> Groth16Params<E> {
         println!("Read elements");
 
         let position = reader.position() as usize;
+        println!("4");
         let reader = &mut &reader.get_mut()[position..];
 
+        println!("About to split transcript");
         // Split the transcript in the appropriate sections
         let (in_coeffs_g1, in_coeffs_g2, in_alpha_coeffs_g1, in_beta_coeffs_g1, in_h_g1) =
             split_transcript::<E>(reader, phase1_size, num_constraints, compressed);
+        println!("Split transcript");
 
         println!("About to read parameters");
         info!("reading groth16 parameters...");
