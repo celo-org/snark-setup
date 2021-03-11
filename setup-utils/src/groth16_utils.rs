@@ -246,25 +246,31 @@ fn split_transcript<E: PairingEngine>(
     size: usize,
     compressed: UseCompression,
 ) -> SplitBuf {
+    println!("a");
     let g1_size = buffer_size::<E::G1Affine>(compressed);
+println!("b");
     let g2_size = buffer_size::<E::G2Affine>(compressed);
-
+println!("c");
     // N elements per coefficient
     let (coeffs_g1, others) = input.split_at(g1_size * size);
+println!("d");
     let (_, others) = others.split_at((phase1_size - size) * g1_size);
-
+println!("e");
     let (coeffs_g2, others) = others.split_at(g2_size * size);
+println!("f");
     let (_, others) = others.split_at((phase1_size - size) * g2_size);
-
+println!("g");
     let (alpha_coeffs_g1, others) = others.split_at(g1_size * size);
+println!("h");
     let (_, others) = others.split_at((phase1_size - size) * g1_size);
-
+println!("i");
     let (beta_coeffs_g1, others) = others.split_at(g1_size * size);
+println!("j");
     let (_, others) = others.split_at((phase1_size - size) * g1_size);
-
+println!("k");
     // N-1 for the h coeffs
     let (h_coeffs, _) = others.split_at(g1_size * (size - 1));
-
+println!("l");
     (coeffs_g1, coeffs_g2, alpha_coeffs_g1, beta_coeffs_g1, h_coeffs)
 }
 
