@@ -171,10 +171,15 @@ impl<E: PairingEngine> Groth16Params<E> {
         let span = info_span!("Groth16Utils_read");
         let _enter = span.enter();
 
+        println!("About to read elements");
         let mut reader = std::io::Cursor::new(reader);
+        println!("1");
         let alpha_g1 = reader.read_element(compressed, check_input_for_correctness)?;
+        println!("2");
         let beta_g1 = reader.read_element(compressed, check_input_for_correctness)?;
+        println!("3");
         let beta_g2 = reader.read_element(compressed, check_input_for_correctness)?;
+        println!("Read elements");
 
         let position = reader.position() as usize;
         let reader = &mut &reader.get_mut()[position..];
@@ -183,6 +188,7 @@ impl<E: PairingEngine> Groth16Params<E> {
         let (in_coeffs_g1, in_coeffs_g2, in_alpha_coeffs_g1, in_beta_coeffs_g1, in_h_g1) =
             split_transcript::<E>(reader, phase1_size, num_constraints, compressed);
 
+        println!("About to read parameters");
         info!("reading groth16 parameters...");
         // Read all elements in parallel
         // note: '??' is used for getting the result from the threaded operation,
