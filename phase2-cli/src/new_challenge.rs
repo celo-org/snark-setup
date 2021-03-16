@@ -34,13 +34,10 @@ pub fn new_challenge(
             .expect("unable to create a memory map for input")
     };
 
-    info!("Going into validatorsetupdate::empty");
     let c = ValidatorSetUpdate::empty(num_validators, num_epochs, 0, None);
-    info!("Finished validatorsetupdate::empty");
     let counter = ConstraintSystem::<Fr>::new_ref();
     counter.set_mode(SynthesisMode::Setup);
     info!("About to generate constraints");
-    info!("Testing info statements");
     c.clone().generate_constraints(counter.clone()).unwrap();
     info!("Finished generating constraints");
     let phase2_size = std::cmp::max(
