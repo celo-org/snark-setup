@@ -20,7 +20,7 @@ pub fn new_challenge(
     phase1_powers: usize,
     num_validators: usize,
     num_epochs: usize,
-) {
+) -> usize {
     info!("Generating phase 2");
 
     let reader = OpenOptions::new()
@@ -103,4 +103,5 @@ pub fn new_challenge(
     info!("Empty contribution is formed with a hash:");
     print_hash(&contribution_hash);
     info!("Wrote a fresh accumulator to challenge file");
+    all_mpc_parameters.len()
 }
