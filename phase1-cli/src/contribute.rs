@@ -11,6 +11,7 @@ use std::{
 };
 use tracing::info;
 
+// Controls whether the challenge and response are compressed or not
 const COMPRESSED_INPUT: UseCompression = UseCompression::No;
 const COMPRESSED_OUTPUT: UseCompression = UseCompression::Yes;
 

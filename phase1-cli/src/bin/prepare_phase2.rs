@@ -7,7 +7,7 @@ use algebra::{Bls12_377, PairingEngine, BW6_761};
 use gumdrop::Options;
 use memmap::*;
 use std::{fs::OpenOptions, time::Instant};
-use tracing::info;
+use tracing::{info, debug};
 use tracing_subscriber::{
     filter::EnvFilter,
     fmt::{time::ChronoUtc, Subscriber},
@@ -62,8 +62,9 @@ fn prepare_phase2<E: PairingEngine + Sync>(opts: &PreparePhase2Opts) -> Result<(
     // Deserialize the accumulator
     let current_accumulator = Phase1::deserialize(
         &response_readable_map,
+        // Optimizations
         UseCompression::Yes,
-        CheckForCorrectness::Full,
+        CheckForCorrectness::No,
         &parameters,
     )
     .expect("unable to read uncompressed accumulator");
@@ -90,6 +91,8 @@ fn main() -> Result<()> {
         .with_timer(ChronoUtc::rfc3339())
         .with_env_filter(EnvFilter::from_default_env())
         .init();
+    info!("Starting main ");
+    debug!("Starting main ");
 
     let opts = PreparePhase2Opts::parse_args_default_or_exit();
 
