@@ -124,244 +124,81 @@ impl TranscriptVerifier {
     fn run<E: PairingEngine>(&self) -> Result<()> {
         let mut current_parameters = None;
         let mut previous_round: Option<Ceremony> = None;
-        for (round_index, ceremony) in self.transcript.rounds.iter().enumerate() {
-            let round_index = round_index as u64;
-            info!("verifying round {}", round_index);
+        let ceremony = self.transcript.rounds.iter().last().unwrap();
 
-            // These are the participant IDs we discover in the transcript.
-            let mut participant_ids_from_poks = HashSet::new();
+        // These are the participant IDs we discover in the transcript.
+        let mut participant_ids_from_poks = HashSet::new();
 
-            remove_file_if_exists(RESPONSE_LIST_FILENAME)?;
-            let mut response_list_file = File::create(RESPONSE_LIST_FILENAME)?;
+        remove_file_if_exists(RESPONSE_LIST_FILENAME)?;
+        let mut response_list_file = File::create(RESPONSE_LIST_FILENAME)?;
 
-            // // Quick check - make sure the all chunks have the same number of contributions.
-            // // If the coordinator was honest, then each participant would have contributed
-            // // once to each chunk.
-            // if !ceremony
-            //     .chunks
-            //     .iter()
-            //     .all(|c| c.contributions.len() == ceremony.chunks[0].contributions.len())
-            // {
-            //     return Err(
-            //         VerifyTranscriptError::NotAllChunksHaveSameNumberOfContributionsError.into(),
-            //     );
-            // }
-
-            match current_parameters.as_ref() {
-                None => {
-                    current_parameters = Some(ceremony.parameters.clone());
-                }
-                Some(existing_parameters) => {
-                    if existing_parameters != &ceremony.parameters {
-                        return Err(VerifyTranscriptError::ParametersDifferentBetweenRounds(
-                            existing_parameters.clone(),
-                            ceremony.parameters.clone(),
-                        )
-                        .into());
-                    }
+        match current_parameters.as_ref() {
+            None => {
+                current_parameters = Some(ceremony.parameters.clone());
+            }
+            Some(existing_parameters) => {
+                if existing_parameters != &ceremony.parameters {
+                    return Err(VerifyTranscriptError::ParametersDifferentBetweenRounds(
+                        existing_parameters.clone(),
+                        ceremony.parameters.clone(),
+                    )
+                    .into());
                 }
             }
-
-            // if round_index != ceremony.round {
-            //     return Err(VerifyTranscriptError::RoundWrongIndexError(
-            //         round_index,
-            //         ceremony.round,
-            //     )
-            //     .into());
-            // }
-            // for (chunk_index, chunk) in ceremony.chunks.iter().enumerate() {
-            //     let parameters =
-            //         create_parameters_for_chunk::<E>(&ceremony.parameters, chunk_index)?;
-                // let mut current_new_challenge_hash = String::new();
-                // for (i, contribution) in chunk.contributions.iter().enumerate() {
-                //     // Clean up the previous contribution challenge and response.
-                //     remove_file_if_exists(CHALLENGE_FILENAME)?;
-                //     remove_file_if_exists(CHALLENGE_HASH_FILENAME)?;
-                //     remove_file_if_exists(RESPONSE_FILENAME)?;
-                //     remove_file_if_exists(RESPONSE_HASH_FILENAME)?;
-                //     copy_file_if_exists(NEW_CHALLENGE_FILENAME, CHALLENGE_FILENAME)?;
-                //     remove_file_if_exists(NEW_CHALLENGE_FILENAME)?;
-                //     remove_file_if_exists(NEW_CHALLENGE_HASH_FILENAME)?;
-
-                    // if i == 0 {
-                        // if round_index == 0 {
-                        //     // This is the initialization pseudo-contribution, so we verify it was
-                        //     // deterministically created by `new`.
-                        //     let verified_data = contribution.verified_data()?;
-                        //     new_challenge(
-                        //         NEW_CHALLENGE_FILENAME,
-                        //         NEW_CHALLENGE_HASH_FILENAME,
-                        //         &parameters,
-                        //     );
-                        //     let new_challenge_hash_from_file =
-                        //         read_hash_from_file(NEW_CHALLENGE_HASH_FILENAME)?;
-                        //     check_new_challenge_hashes_same(
-                        //         &verified_data.data.new_challenge_hash,
-                        //         &new_challenge_hash_from_file,
-                        //     )?;
-                        //     current_new_challenge_hash =
-                        //         verified_data.data.new_challenge_hash.clone();
-                        // } else {
-                        //     check_new_challenge_hashes_same(
-                        //         &contribution.verified_data()?.data.new_challenge_hash,
-                        //         &previous_round.as_ref().unwrap().chunks[chunk_index]
-                        //             .contributions
-                        //             .iter()
-                        //             .last()
-                        //             .unwrap()
-                        //             .verified_data()?
-                        //             .data
-                        //             .new_challenge_hash,
-                        //     )?;
-
-                        //     let new_challenge_filename =
-                        //         format!("{}_{}", NEW_CHALLNGE_PREFIX_FOR_NEXT_ROUND, chunk_index);
-                        //     copy(&new_challenge_filename, NEW_CHALLENGE_FILENAME)?;
-                        //     remove_file_if_exists(&new_challenge_filename)?;
-                        //     current_new_challenge_hash = contribution
-                        //         .verified_data()?
-                        //         .data
-                        //         .new_challenge_hash
-                        //         .clone();
-                        // }
-                        // continue;
-                    // }
-
-                    // let contributor_id = contribution.contributor_id()?;
-                    // if chunk_index == 0 {
-                    //     participant_ids_from_poks.insert(contributor_id.clone());
-                    // }
-
-                    // // Verify the challenge and response hashes were signed by the participant.
-                    // let contributed_data = contribution.contributed_data()?;
-                    // verify_signed_data(
-                    //     &contributed_data.data,
-                    //     &contributed_data.signature,
-                    //     &contributor_id,
-                    // )?;
-
-                    // // Verify that the challenge the participant attested they worked on is
-                    // // indeed the one we have as the expected computed challenge.
-                    // check_new_challenge_hashes_same(
-                    //     &contributed_data.data.challenge_hash,
-                    //     &current_new_challenge_hash,
-                    // )?;
-
-                    // let verified_data = contribution.verified_data()?;
-                    // let verifier_id = contribution.verifier_id()?;
-                    // // Verify the verifier challenge, response and new challenge hashes
-                    // // were signed by the verifier. This is not strictly necessary, but can help
-                    // // catch a malicious coordinator.
-                    // verify_signed_data(
-                    //     &verified_data.data,
-                    //     &verified_data.signature,
-                    //     &verifier_id,
-                    // )?;
-
-                    // // Check that the verifier attested to work on the same challenge the participant
-                    // // attested to work on, and that the participant produced the same response as the
-                    // // one the verifier verified.
-                    // check_challenge_hashes_same(
-                    //     &contributed_data.data.challenge_hash,
-                    //     &verified_data.data.challenge_hash,
-                    // )?;
-                    // check_response_hashes_same(
-                    //     &contributed_data.data.response_hash,
-                    //     &verified_data.data.response_hash,
-                    // )?;
-
-                    // let contributed_location = contribution.contributed_location()?;
-                    // // Download the response computed by the participant.
-                    // download_file(contributed_location, RESPONSE_FILENAME)?;
-
-                    // // Run verification between challenge and response, and produce the next new
-                    // // challenge.
-                    // transform_pok_and_correctness(
-                    //     CHALLENGE_FILENAME,
-                    //     CHALLENGE_HASH_FILENAME,
-                    //     upgrade_correctness_check_config(
-                    //         DEFAULT_VERIFY_CHECK_INPUT_CORRECTNESS,
-                    //         self.force_correctness_checks,
-                    //     ),
-                    //     RESPONSE_FILENAME,
-                    //     RESPONSE_HASH_FILENAME,
-                    //     upgrade_correctness_check_config(
-                    //         DEFAULT_VERIFY_CHECK_OUTPUT_CORRECTNESS,
-                    //         self.force_correctness_checks,
-                    //     ),
-                    //     NEW_CHALLENGE_FILENAME,
-                    //     NEW_CHALLENGE_HASH_FILENAME,
-                    //     self.subgroup_check_mode,
-                    //     &parameters,
-                    // );
-
-                    // let challenge_hash_from_file = read_hash_from_file(CHALLENGE_HASH_FILENAME)?;
-                    // // Check that the challenge hash is indeed the one the participant and the verifier
-                    // // attested to work on.
-                    // check_challenge_hashes_same(
-                    //     &verified_data.data.challenge_hash,
-                    //     &challenge_hash_from_file,
-                    // )?;
-
-                //     let response_hash_from_file = read_hash_from_file(RESPONSE_HASH_FILENAME)?;
-                //     // Check that the response hash is indeed the one the participant attested they produced
-                //     // and the verifier attested to work on.
-                //     check_response_hashes_same(
-                //         &verified_data.data.response_hash,
-                //         &response_hash_from_file,
-                //     )?;
-
-                //     let new_challenge_hash_from_file =
-                //         read_hash_from_file(NEW_CHALLENGE_HASH_FILENAME)?;
-                //     // Check that the new challenge hash is indeed the one the verifier attested to
-                //     // produce.
-                //     check_new_challenge_hashes_same(
-                //         &verified_data.data.new_challenge_hash,
-                //         &new_challenge_hash_from_file,
-                //     )?;
-
-                //     // Carry the produced new challenge hash to the next contribution.
-                //     current_new_challenge_hash = verified_data.data.new_challenge_hash.clone();
-
-                //     // This is the last contribution which we'll combine with the other last
-                //     // contributions, so add that to the list.
-                //     if i == chunk.contributions.len() - 1 {
-                //         let response_filename =
-                //             format!("{}_{}", RESPONSE_PREFIX_FOR_AGGREGATION, chunk_index);
-                //         copy(RESPONSE_FILENAME, &response_filename)?;
-                //         response_list_file.write(format!("{}\n", response_filename).as_bytes())?;
-                //         let new_challenge_filename =
-                //             format!("{}_{}", NEW_CHALLNGE_PREFIX_FOR_NEXT_ROUND, chunk_index);
-                //         copy(NEW_CHALLENGE_FILENAME, &new_challenge_filename)?;
-                //     }
-                // }
-                // info!("chunk {} verified", chunk.chunk_id);
-            // }
-
-            // drop(response_list_file);
-
-            // info!(
-            //     "participants found in the transcript of round {}:\n{}",
-            //     round_index,
-            //     participant_ids_from_poks
-            //         .iter()
-            //         .cloned()
-            //         .collect::<Vec<_>>()
-            //         .join("\n")
-            // );
-            // let expected_contributor_ids: HashSet<_> =
-                // ceremony.contributor_ids.iter().cloned().collect();
-        //     if expected_contributor_ids != participant_ids_from_poks {
-        //         return Err(VerifyTranscriptError::NotAllParticipantsPresent(
-        //             expected_contributor_ids,
-        //             participant_ids_from_poks,
-        //         )
-        //         .into());
-        //     }
-
-        //     previous_round = Some(ceremony.clone());
-            info!("Verified round {}", round_index);
         }
+
+        for (chunk_index, chunk) in ceremony.chunks.iter().enumerate() {
+            let parameters =
+                create_parameters_for_chunk::<E>(&ceremony.parameters, chunk_index)?;
+            let mut current_new_challenge_hash = String::new();
+            let contribution = chunk.contributions.iter().last().unwrap();
+            // Clean up the previous contribution challenge and response.
+            remove_file_if_exists(CHALLENGE_FILENAME)?;
+            remove_file_if_exists(CHALLENGE_HASH_FILENAME)?;
+            remove_file_if_exists(RESPONSE_FILENAME)?;
+            remove_file_if_exists(RESPONSE_HASH_FILENAME)?;
+            copy_file_if_exists(NEW_CHALLENGE_FILENAME, CHALLENGE_FILENAME)?;
+            remove_file_if_exists(NEW_CHALLENGE_FILENAME)?;
+            remove_file_if_exists(NEW_CHALLENGE_HASH_FILENAME)?;
+
+            let contributor_id = contribution.contributor_id()?;
+            if chunk_index == 0 {
+                participant_ids_from_poks.insert(contributor_id.clone());
+            }
+
+            // Verify the challenge and response hashes were signed by the participant.
+            let contributed_data = contribution.contributed_data()?;
+
+            let contributed_location = contribution.contributed_location()?;
+            // Download the response computed by the participant.
+            download_file(contributed_location, RESPONSE_FILENAME)?;
+
+            // This is the last contribution which we'll combine with the other last
+            // contributions, so add that to the list.
+            let response_filename =
+                format!("{}_{}", RESPONSE_PREFIX_FOR_AGGREGATION, chunk_index);
+            copy(RESPONSE_FILENAME, &response_filename)?;
+            response_list_file.write(format!("{}\n", response_filename).as_bytes())?;
+            let new_challenge_filename =
+                format!("{}_{}", NEW_CHALLNGE_PREFIX_FOR_NEXT_ROUND, chunk_index);
+            copy(NEW_CHALLENGE_FILENAME, &new_challenge_filename)?;
+            info!("chunk {} verified", chunk.chunk_id);
+        }
+
+        drop(response_list_file);
+
+        info!(
+            "participants found in the transcript of round {}:\n{}",
+            round_index,
+            participant_ids_from_poks
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+
+        previous_round = Some(ceremony.clone());
+        info!("Verified round {}", round_index);
 
         info!("all rounds and chunks verified, aggregating");
         remove_file_if_exists(COMBINED_FILENAME)?;
@@ -389,51 +226,6 @@ impl TranscriptVerifier {
             &parameters,
             rng,
         );
-        // let final_hash_computed = hex::decode(&read_hash_from_file(
-        //     COMBINED_VERIFIED_POK_AND_CORRECTNESS_HASH_FILENAME,
-        // )?)?;
-        // let final_hash_expected = hex::decode(self.transcript.final_hash.as_ref().unwrap())?;
-        // if final_hash_computed != final_hash_expected {
-        //     return Err(VerifyTranscriptError::BeaconHashWasDifferentError(
-        //         hex::encode(&final_hash_expected),
-        //         hex::encode(&final_hash_computed),
-        //     )
-        //     .into());
-        // }
-        // info!("applied beacon, verifying");
-        // remove_file_if_exists(COMBINED_HASH_FILENAME)?;
-        // remove_file_if_exists(COMBINED_VERIFIED_POK_AND_CORRECTNESS_HASH_FILENAME)?;
-        // remove_file_if_exists(COMBINED_VERIFIED_POK_AND_CORRECTNESS_NEW_CHALLENGE_FILENAME)?;
-        // remove_file_if_exists(COMBINED_VERIFIED_POK_AND_CORRECTNESS_NEW_CHALLENGE_HASH_FILENAME)?;
-        // // Verify the correctness of the random beacon.
-        // transform_pok_and_correctness(
-        //     COMBINED_FILENAME,
-        //     COMBINED_HASH_FILENAME,
-        //     upgrade_correctness_check_config(
-        //         DEFAULT_VERIFY_CHECK_INPUT_CORRECTNESS,
-        //         self.force_correctness_checks,
-        //     ),
-        //     COMBINED_VERIFIED_POK_AND_CORRECTNESS_FILENAME,
-        //     COMBINED_VERIFIED_POK_AND_CORRECTNESS_HASH_FILENAME,
-        //     upgrade_correctness_check_config(
-        //         DEFAULT_VERIFY_CHECK_OUTPUT_CORRECTNESS,
-        //         self.force_correctness_checks,
-        //     ),
-        //     COMBINED_VERIFIED_POK_AND_CORRECTNESS_NEW_CHALLENGE_FILENAME,
-        //     COMBINED_VERIFIED_POK_AND_CORRECTNESS_NEW_CHALLENGE_HASH_FILENAME,
-        //     self.subgroup_check_mode,
-        //     &parameters,
-        // );
-        // // Verify the consistency of the entire combined contribution, making sure that the
-        // // correct ratios hold between elements.
-        // transform_ratios(
-        //     COMBINED_VERIFIED_POK_AND_CORRECTNESS_NEW_CHALLENGE_FILENAME,
-        //     upgrade_correctness_check_config(
-        //         DEFAULT_VERIFY_CHECK_INPUT_CORRECTNESS,
-        //         self.force_correctness_checks,
-        //     ),
-        //     &parameters,
-        // );
 
         Ok(())
     }
