@@ -408,6 +408,9 @@ pub fn check_same_ratio<E: PairingEngine>(
         info!("Found zero element");
         return Err(VerificationError::InvalidRatio(err).into());
     }
+    let p1 = E::pairing(g1.0, g2.1);
+    let p2 = E::pairing(g1.1, g2.0);
+    info!("Pairing check for values {} and {} using inputs {}, {}, {}, and {}", p1, p2, g1.0, g2.1, g1.1, g2.0);
     if E::pairing(g1.0, g2.1) != E::pairing(g1.1, g2.0) {
         info!("Found an invalid pairing check");
         return Err(VerificationError::InvalidRatio(err).into());

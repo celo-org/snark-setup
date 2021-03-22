@@ -536,6 +536,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
             ProvingSystem::Groth16 => {
                 iter_chunk(&parameters, |start, end| {
                     info!("verifying batch from {} to {}", start, end);
+                    println!("verifying batch from {} to {}", start, end);
 
                     let span = info_span!("batch", start, end);
                     let _enter = span.enter();
