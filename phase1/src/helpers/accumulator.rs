@@ -93,13 +93,14 @@ cfg_if! {
                 check_for_correctness,
             )?;
             let length = end-start;
-            for i in 0..length-1 {
+            i = 0;
+            //for i in 0..length-1 {
                 info!("Checking ratio for element {} in chunk", i);
                 if let Err(e) = check_same_ratio::<E>(check, &(elements[i], elements[i+1]), "Individual elements") {
                     println!("Failed to check ratio for element {}", i);
                     //return Err(e)
                 }
-            }
+            //}
             //check_same_ratio::<E>(check, &power_pairs(&elements[..end - start]), "Power pairs")?;
             Ok(())
         }
