@@ -195,6 +195,7 @@ impl<E: PairingEngine> MPCParameters<E> {
             &(E::G2Affine::prime_subgroup_generator(), after.params.vk.delta_g2),
             "Inconsistent G2 Delta",
             false,
+            "",
         )?;
 
         // None of the previous transformations should change
@@ -263,6 +264,7 @@ impl<E: PairingEngine> MPCParameters<E> {
             &(after.params.vk.delta_g2, before.params.vk.delta_g2), // reversed for inverse
             "H_query ratio check failed",
             false,
+            "",
         )?;
 
         check_same_ratio::<E>(
@@ -270,6 +272,7 @@ impl<E: PairingEngine> MPCParameters<E> {
             &(after.params.vk.delta_g2, before.params.vk.delta_g2), // reversed for inverse
             "L_query ratio check failed",
             false,
+            "",
         )?;
 
         // generate the transcript from the current contributions and the previous cs_hash
@@ -358,6 +361,7 @@ pub fn verify_transcript<E: PairingEngine>(cs_hash: [u8; 64], contributions: &[P
             &(r, pubkey.r_delta),
             "Incorrect signature of knowledge",
             false,
+            "",
         )?;
 
         // Check the change with the previous G1 Delta is consistent
@@ -366,6 +370,7 @@ pub fn verify_transcript<E: PairingEngine>(cs_hash: [u8; 64], contributions: &[P
             &(r, pubkey.r_delta),
             "Inconsistent G1 Delta",
             false,
+            "",
         )?;
         old_delta = pubkey.delta_after;
 

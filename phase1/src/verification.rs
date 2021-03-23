@@ -113,7 +113,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                 ];
 
                 for (a, b, err) in check_ratios {
-                    check_same_ratio::<E>(a, b, err, printPairing)?;
+                    check_same_ratio::<E>(a, b, err, false, "")?;
                 }
                 debug!("key ratios were correctly produced");
             }
@@ -141,7 +141,8 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                     &(before_g1[1], after_g1[1]),
                     tau_single_g2_check,
                     "Before-After: tau_g1",
-                    printPairing,
+                    false,
+                    "",
                 )?;
 
                 (before_g1, after_g1)
@@ -166,7 +167,8 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                     tau_single_g1_check,
                     &(before_g2[1], after_g2[1]),
                     "Before-After: tau_g2",
-                    printPairing,
+                    false,
+                    "",
                 )?;
             }
 
@@ -189,7 +191,8 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                         &(before_g1[0], after_g1[0]),
                         check,
                         "Before-After: alpha_g1[0] / beta_g1[0]",
-                        printPairing,
+                        false,
+                        "",
                     )?;
                 }
             }
@@ -209,7 +212,8 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                         beta_single_g1_check,
                         &(before_beta_g2, after_beta_g2),
                         "Before-After: beta_g2[0]",
-                        printPairing,
+                        false,
+                        "",
                     )?;
                 }
             }
@@ -267,6 +271,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                     &mut g1,
                                     &g2_check,
                                     printPairing,
+                                    "tau g1",
                                 )
                                 .expect("could not check element ratios (tau g1)");
                             }
@@ -327,6 +332,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                             &mut g2[..],
                                             &g1_check,
                                             printPairing,
+                                            "tau g2", 
                                         )
                                         .expect("could not check ratios (tau g2)");
                                     }
@@ -362,6 +368,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                             &mut g1,
                                             &g2_check,
                                             printPairing,
+                                            "alpha g1", 
                                         )
                                         .expect("could not check ratios (alpha g1)");
                                     }
@@ -396,6 +403,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                             &mut g1,
                                             &g2_check,
                                             printPairing,
+                                            "beta g1", 
                                         )
                                         .expect("could not check element ratios (beta g1)");
                                     }
@@ -503,7 +511,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
     pub fn aggregate_verification(
         (output, compressed_output, check_output_for_correctness): (&[u8], UseCompression, CheckForCorrectness),
         parameters: &Phase1Parameters<E>,
-        printPairing: bool, 
+        printPairing: bool,
     ) -> Result<()> {
         let span = info_span!("phase1-aggregate-verification");
         let _enter = span.enter();
@@ -566,6 +574,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                 &mut g1,
                                 &g2_check,
                                 printPairing,
+                                "tau g1",
                             ) {
                                 println!("Failed to check ratio for tau_g1 for chunk starting at {}", start);
                             };
@@ -600,6 +609,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                         &mut g2,
                                         &g1_check,
                                         printPairing,
+                                        "tau g2",
                                     ) {
                                         println!("Failed to check ratio for tau_g2 for chunk starting at {}", start);
                                     };
@@ -620,6 +630,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                         &mut g1,
                                         &g2_check,
                                         printPairing,
+                                        "alpha g1",
                                     ) {
                                         println!("Failed to check ratio for alpha_g1 for chunk starting at {}", start);
                                     };
@@ -640,6 +651,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                         &mut g1,
                                         &g2_check,
                                         printPairing,
+                                        "beta g1",
                                     ) {
                                         println!("Failed to check ratio for beta_g1 for chunk starting at {}", start);
                                     };
@@ -677,6 +689,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                 &mut g1,
                                 &g2_check,
                                 printPairing,
+                                "tau g1", 
                             )
                             .expect("could not check ratios for tau_g1 elements");
 
@@ -704,7 +717,8 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                     &(g1, E::G1Affine::prime_subgroup_generator()),
                                     &(E::G2Affine::prime_subgroup_generator(), g2),
                                     "G1<>G2",
-                                    printPairing,
+                                    false,
+                                    "",
                                 )
                                 .expect("should have checked same ratio");
 
@@ -720,21 +734,24 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                     &(alpha_g1_elements[0], alpha_g1_elements[1]),
                                     &g2_check,
                                     "alpha_g1 ratio 1",
-                                    printPairing,
+                                    false,
+                                    "",
                                 )
                                 .expect("should have checked same ratio");
                                 check_same_ratio::<E>(
                                     &(alpha_g1_elements[1], alpha_g1_elements[2]),
                                     &g2_check,
                                     "alpha_g1 ratio 2",
-                                    printPairing,
+                                    false,
+                                    "",
                                 )
                                 .expect("should have checked same ratio");
                                 check_same_ratio::<E>(
                                     &(alpha_g1_elements[0], g1_alpha_check.0),
                                     &(E::G2Affine::prime_subgroup_generator(), g2),
                                     "alpha consistent",
-                                    printPairing,
+                                    false,
+                                    "",
                                 )
                                 .expect("should have checked same ratio");
                             }
@@ -752,6 +769,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                             &mut g1,
                             &g2_check,
                             printPairing,
+                            "alpha g1",
                         )
                         .expect("could not check ratios for alpha_g1");
 
@@ -765,6 +783,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                             &mut g2,
                             &g1_check,
                             printPairing,
+                            "tau g2", 
                         )
                         .expect("could not check ratios for tau_g2");
 

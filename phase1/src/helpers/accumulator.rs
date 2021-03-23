@@ -58,6 +58,7 @@ cfg_if! {
             elements: &mut [E::G1Affine],
             check: &(E::G2Affine, E::G2Affine),
             printPairing: bool,
+            identifier: &'static str,
         ) -> Result<()> {
             let size = buffer_size::<E::G1Affine>(compression);
             buffer[start * size..end * size].read_batch_preallocated(
@@ -69,7 +70,7 @@ cfg_if! {
             let i = 0;
             //for i in 0..length-1 {
                 info!("Checking ratio for element {} in chunk", i);
-                if let Err(e) = check_same_ratio::<E>(&(elements[i], elements[i+1]), check, "Individual elements", printPairing) {
+                if let Err(e) = check_same_ratio::<E>(&(elements[i], elements[i+1]), check, "Individual elements", printPairing, identifier) {
                     println!("Failed to check ratio for element {}", i);
                     return Err(e)
                 }
@@ -87,6 +88,7 @@ cfg_if! {
             elements: &mut [E::G2Affine],
             check: &(E::G1Affine, E::G1Affine),
             printPairing: bool,
+            identifier: &'static str,
         ) -> Result<()> {
             let size = buffer_size::<E::G2Affine>(compression);
             buffer[start * size..end * size].read_batch_preallocated(
@@ -98,7 +100,7 @@ cfg_if! {
             let i = 0;
             //for i in 0..length-1 {
                 info!("Checking ratio for element {} in chunk", i);
-                if let Err(e) = check_same_ratio::<E>(check, &(elements[i], elements[i+1]), "Individual elements", printPairing) {
+                if let Err(e) = check_same_ratio::<E>(check, &(elements[i], elements[i+1]), "Individual elements", printPairing, identifier) {
                     println!("Failed to check ratio for element {}", i);
                     return Err(e)
                 }
