@@ -25,6 +25,7 @@ pub fn transform_pok_and_correctness<T: Engine + Sync>(
     subgroup_check_mode: SubgroupCheckMode,
     ratio_check: bool,
     parameters: &Phase1Parameters<T>,
+    printPairing: bool,
 ) {
     info!(
         "Will verify and decompress a contribution to accumulator for 2^{} powers of tau",
@@ -180,6 +181,7 @@ pub fn transform_pok_and_correctness<T: Engine + Sync>(
         subgroup_check_mode,
         ratio_check,
         &parameters,
+        printPairing,
     );
 
     info!("Verification succeeded!");

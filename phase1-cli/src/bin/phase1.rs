@@ -96,6 +96,7 @@ fn execute_cmd<E: Engine>(opts: Phase1Opts) {
                 opts.subgroup_check_mode,
                 !opts.skip_ratio_check,
                 &parameters,
+                false,
             );
         }
         Command::VerifyAndTransformRatios(opt) => {

@@ -62,6 +62,7 @@ pub fn transform_ratios<T: Engine + Sync>(
     let res = Phase1::aggregate_verification(
         (&response_readable_map, UseCompression::No, check_input_correctness),
         &parameters,
+        true,
     );
 
     if let Err(e) = res {
