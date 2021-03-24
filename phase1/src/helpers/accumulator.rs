@@ -115,6 +115,7 @@ cfg_if! {
             (buffer, compression): (&[u8], UseCompression),
             (start, end): (usize, usize),
             elements: &mut [C],
+            subgroup_check: bool,
             subgroup_check_mode: SubgroupCheckMode,
         ) -> Result<()> {
             let size = buffer_size::<C>(compression);
@@ -123,30 +124,33 @@ cfg_if! {
                 compression,
                 CheckForCorrectness::OnlyNonZero,
             )?;
-            const SECURITY_PARAM: usize = 128;
-            const BATCH_SIZE: usize = 1 << 12;
-            let now = std::time::Instant::now();
-            let all_in_prime_order_subgroup = match (elements.len() > BATCH_SIZE, subgroup_check_mode) {
-                (true, SubgroupCheckMode::Auto) | (_, SubgroupCheckMode::Batched) => {
-                    match batch_verify_in_subgroup(elements, SECURITY_PARAM, &mut rand::thread_rng()) {
-                        Ok(()) => true,
-                        _ => false,
-                    }
-                }
-                (false, SubgroupCheckMode::Auto) | (_, SubgroupCheckMode::Direct) => {
-                    cfg_iter!(elements).enumerate().all(|(i, p)| {
-                        let res = p.mul(<<C::ScalarField as PrimeField>::Params as FpParameters>::MODULUS)
-                            .is_zero();
-                        if !res {
-                            warn!("Wasn't in subgroup {} index {}", p, i)
+            
+            if subgroup_check {
+                const SECURITY_PARAM: usize = 128;
+                const BATCH_SIZE: usize = 1 << 12;
+                let now = std::time::Instant::now();
+                let all_in_prime_order_subgroup = match (elements.len() > BATCH_SIZE, subgroup_check_mode) {
+                    (true, SubgroupCheckMode::Auto) | (_, SubgroupCheckMode::Batched) => {
+                        match batch_verify_in_subgroup(elements, SECURITY_PARAM, &mut rand::thread_rng()) {
+                            Ok(()) => true,
+                            _ => false,
                         }
-                        res
-                    })
+                    }
+                    (false, SubgroupCheckMode::Auto) | (_, SubgroupCheckMode::Direct) => {
+                        cfg_iter!(elements).enumerate().all(|(i, p)| {
+                            let res = p.mul(<<C::ScalarField as PrimeField>::Params as FpParameters>::MODULUS)
+                                .is_zero();
+                            if !res {
+                                warn!("Wasn't in subgroup {} index {}", p, i)
+                            }
+                            res
+                        })
+                    }
+                };
+                debug!("Subgroup verification for {} elems: {}us", end - start, now.elapsed().as_micros());
+                if !all_in_prime_order_subgroup {
+                    return Err(Error::IncorrectSubgroup);
                 }
-            };
-            debug!("Subgroup verification for {} elems: {}us", end - start, now.elapsed().as_micros());
-            if !all_in_prime_order_subgroup {
-                return Err(Error::IncorrectSubgroup);
             }
             Ok(())
         }
