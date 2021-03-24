@@ -65,12 +65,16 @@ cfg_if! {
                 check_for_correctness,
             )?;
             let length = end-start;
+            let mut failed = false;
             for i in 0..length-1 {
                 info!("Checking ratio for element {} in chunk", i);
                 if let Err(e) = check_same_ratio::<E>(&(elements[i], elements[i+1]), check, "Individual elements") {
                     println!("Failed to check ratio for element {}", i);
-                    return Err(e)
+                    failed = true;
                 }
+            }
+            if failed {
+                return Err(VerificationError::InvalidRatio("Individual elements").into());
             }
             //check_same_ratio::<E>(&power_pairs(&elements[..end - start]), check, "Power pairs")?;
             Ok(())
@@ -92,12 +96,16 @@ cfg_if! {
                 check_for_correctness,
             )?;
             let length = end-start;
+            let mut failed = false;
             for i in 0..length-1 {
                 info!("Checking ratio for element {} in chunk", i);
                 if let Err(e) = check_same_ratio::<E>(check, &(elements[i], elements[i+1]), "Individual elements") {
                     println!("Failed to check ratio for element {}", i);
-                    return Err(e)
+                    failed = true;
                 }
+            }
+            if failed {
+                return Err(VerificationError::InvalidRatio("Individual elements").into());
             }
             //check_same_ratio::<E>(check, &power_pairs(&elements[..end - start]), "Power pairs")?;
             Ok(())
