@@ -79,19 +79,23 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                 ),
             }
         };
-        println!(
-            "DEBOOG PUBLIC KEY: chunk_index={}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
-            parameters.chunk_index,
-            key.tau_g1.0,
-            key.tau_g1.1,
-            key.alpha_g1.0,
-            key.alpha_g1.1,
-            key.beta_g1.0,
-            key.beta_g1.1,
-            key.tau_g2,
-            key.alpha_g2,
-            key.beta_g2
-        );
+        if printPairing {
+            println!(
+                "DEBOOG PUBLIC KEY: chunk_index={}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
+                parameters.chunk_index,
+                key.tau_g1.0,
+                key.tau_g1.1,
+                key.alpha_g1.0,
+                key.alpha_g1.1,
+                key.beta_g1.0,
+                key.beta_g1.1,
+                key.tau_g2,
+                key.alpha_g2,
+                key.beta_g2
+            );
+        }
+
+        return Ok(());
         if parameters.contribution_mode == ContributionMode::Full || parameters.chunk_index == 0 {
             // Run proof of knowledge checks if contribution mode is on full, or this is the first chunk index.
             // Split the input buffer into its components.
