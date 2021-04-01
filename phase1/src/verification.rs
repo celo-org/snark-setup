@@ -79,7 +79,19 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                 ),
             }
         };
-
+        println!(
+            "DEBOOG PUBLIC KEY: chunk_index={}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
+            parameters.chunk_index,
+            key.tau_g1.0,
+            key.tau_g1.1,
+            key.alpha_g1.0,
+            key.alpha_g1.1,
+            key.beta_g1.0,
+            key.beta_g1.1,
+            key.tau_g2,
+            key.alpha_g2,
+            key.beta_g2
+        );
         if parameters.contribution_mode == ContributionMode::Full || parameters.chunk_index == 0 {
             // Run proof of knowledge checks if contribution mode is on full, or this is the first chunk index.
             // Split the input buffer into its components.
@@ -257,15 +269,15 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
                             let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
 
-                                check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G1Affine>(
-                                    (tau_g1, compressed_output),
-                                    (start_chunk, end_chunk),
-                                    &mut g1,
-                                    subgroup_check,
-                                    subgroup_check_mode
-                                        .expect("subgroup check mode not passed in when running subgroup check"),
-                                )
-                                .expect("could not check element are non zero and in prime order subgroup (tau g1)");
+                            check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G1Affine>(
+                                (tau_g1, compressed_output),
+                                (start_chunk, end_chunk),
+                                &mut g1,
+                                subgroup_check,
+                                subgroup_check_mode
+                                    .expect("subgroup check mode not passed in when running subgroup check"),
+                            )
+                            .expect("could not check element are non zero and in prime order subgroup (tau g1)");
 
                             if ratio_check {
                                 check_power_ratios::<E>(
@@ -318,16 +330,17 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
                                     let mut g2 = vec![E::G2Affine::zero(); parameters.batch_size];
 
-                                        check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G2Affine>(
-                                            (tau_g2, compressed_output),
-                                            (start_chunk, end_chunk),
-                                            &mut g2,
-                                            subgroup_check,
-                                            subgroup_check_mode.expect("subgroup check mode not passed in when running subgroup check"),
-                                        )
-                                        .expect(
-                                            "could not check elements are non zero and in prime order subgroup (tau g2)",
-                                        );
+                                    check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G2Affine>(
+                                        (tau_g2, compressed_output),
+                                        (start_chunk, end_chunk),
+                                        &mut g2,
+                                        subgroup_check,
+                                        subgroup_check_mode
+                                            .expect("subgroup check mode not passed in when running subgroup check"),
+                                    )
+                                    .expect(
+                                        "could not check elements are non zero and in prime order subgroup (tau g2)",
+                                    );
 
                                     if ratio_check {
                                         check_power_ratios_g2::<E>(
@@ -336,7 +349,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                             &mut g2[..],
                                             &g1_check,
                                             printPairing,
-                                            "tau g2", 
+                                            "tau g2",
                                         )
                                         .expect("could not check ratios (tau g2)");
                                     }
@@ -355,16 +368,17 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
                                     let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
 
-                                        check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G1Affine>(
-                                            (alpha_g1, compressed_output),
-                                            (start_chunk, end_chunk),
-                                            &mut g1,
-                                            subgroup_check,
-                                            subgroup_check_mode.expect("subgroup check mode not passed in when running subgroup check"),
-                                        )
-                                        .expect(
-                                            "could not check elements are non zero and in prime order subgroup (alpha g1)",
-                                        );
+                                    check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G1Affine>(
+                                        (alpha_g1, compressed_output),
+                                        (start_chunk, end_chunk),
+                                        &mut g1,
+                                        subgroup_check,
+                                        subgroup_check_mode
+                                            .expect("subgroup check mode not passed in when running subgroup check"),
+                                    )
+                                    .expect(
+                                        "could not check elements are non zero and in prime order subgroup (alpha g1)",
+                                    );
 
                                     if ratio_check {
                                         check_power_ratios::<E>(
@@ -373,7 +387,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                             &mut g1,
                                             &g2_check,
                                             printPairing,
-                                            "alpha g1", 
+                                            "alpha g1",
                                         )
                                         .expect("could not check ratios (alpha g1)");
                                     }
@@ -392,16 +406,17 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
                                     let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
 
-                                        check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G1Affine>(
-                                            (beta_g1, compressed_output),
-                                            (start_chunk, end_chunk),
-                                            &mut g1,
-                                            subgroup_check,
-                                            subgroup_check_mode.expect("subgroup check mode not passed in when running subgroup check"),
-                                        )
-                                        .expect(
-                                            "could not check element are non zero and in prime order subgroup (beta g1)",
-                                        );
+                                    check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G1Affine>(
+                                        (beta_g1, compressed_output),
+                                        (start_chunk, end_chunk),
+                                        &mut g1,
+                                        subgroup_check,
+                                        subgroup_check_mode
+                                            .expect("subgroup check mode not passed in when running subgroup check"),
+                                    )
+                                    .expect(
+                                        "could not check element are non zero and in prime order subgroup (beta g1)",
+                                    );
 
                                     if ratio_check {
                                         check_power_ratios::<E>(
@@ -410,7 +425,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                             &mut g1,
                                             &g2_check,
                                             printPairing,
-                                            "beta g1", 
+                                            "beta g1",
                                         )
                                         .expect("could not check element ratios (beta g1)");
                                     }
@@ -435,15 +450,15 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
                             let mut g1 = vec![E::G1Affine::zero(); parameters.batch_size];
 
-                                check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G1Affine>(
-                                    (tau_g1, compressed_output),
-                                    (start_chunk, end_chunk),
-                                    &mut g1,
-                                    subgroup_check,
-                                    subgroup_check_mode
-                                        .expect("subgroup check mode not passed in when running subgroup check"),
-                                )
-                                .expect("could not check ratios for tau_g1 elements");
+                            check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G1Affine>(
+                                (tau_g1, compressed_output),
+                                (start_chunk, end_chunk),
+                                &mut g1,
+                                subgroup_check,
+                                subgroup_check_mode
+                                    .expect("subgroup check mode not passed in when running subgroup check"),
+                            )
+                            .expect("could not check ratios for tau_g1 elements");
 
                             let size = buffer_size::<E::G1Affine>(compressed_new_challenge);
                             new_challenge_tau_g1[start_chunk * size..end_chunk * size]
@@ -464,15 +479,15 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                 let start_chunk = 0;
                                 let end_chunk = num_alpha_powers + 3 * parameters.total_size_in_log2;
 
-                                    check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G1Affine>(
-                                        (alpha_g1, compressed_output),
-                                        (start_chunk, end_chunk),
-                                        &mut g1,
-                                        subgroup_check,
-                                        subgroup_check_mode
-                                            .expect("subgroup check mode not passed in when running subgroup check"),
-                                    )
-                                    .expect("could not check ratios for tau_g1 elements");
+                                check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G1Affine>(
+                                    (alpha_g1, compressed_output),
+                                    (start_chunk, end_chunk),
+                                    &mut g1,
+                                    subgroup_check,
+                                    subgroup_check_mode
+                                        .expect("subgroup check mode not passed in when running subgroup check"),
+                                )
+                                .expect("could not check ratios for tau_g1 elements");
 
                                 let size = buffer_size::<E::G1Affine>(compressed_new_challenge);
                                 new_challenge_alpha_g1[start_chunk * size..end_chunk * size]
@@ -486,15 +501,15 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
 
                                 let mut g2 = vec![E::G2Affine::zero(); parameters.batch_size];
 
-                                    check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G2Affine>(
-                                        (tau_g2, compressed_output),
-                                        (start_chunk, end_chunk),
-                                        &mut g2,
-                                        subgroup_check,
-                                        subgroup_check_mode
-                                            .expect("subgroup check mode not passed in when running subgroup check"),
-                                    )
-                                    .expect("could not check element are non zero and in prime order subgroup");
+                                check_elements_are_nonzero_and_in_prime_order_subgroup::<E::G2Affine>(
+                                    (tau_g2, compressed_output),
+                                    (start_chunk, end_chunk),
+                                    &mut g2,
+                                    subgroup_check,
+                                    subgroup_check_mode
+                                        .expect("subgroup check mode not passed in when running subgroup check"),
+                                )
+                                .expect("could not check element are non zero and in prime order subgroup");
 
                                 let size = buffer_size::<E::G2Affine>(compressed_new_challenge);
                                 new_challenge_tau_g2[start_chunk * size..end_chunk * size]
@@ -702,7 +717,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                 &mut g1,
                                 &g2_check,
                                 printPairing,
-                                "tau g1", 
+                                "tau g1",
                             )
                             .expect("could not check ratios for tau_g1 elements");
 
@@ -796,7 +811,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                             &mut g2,
                             &g1_check,
                             printPairing,
-                            "tau g2", 
+                            "tau g2",
                         )
                         .expect("could not check ratios for tau_g2");
 

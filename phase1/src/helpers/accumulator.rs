@@ -124,7 +124,7 @@ cfg_if! {
                 compression,
                 CheckForCorrectness::OnlyNonZero,
             )?;
-            
+
             if subgroup_check {
                 const SECURITY_PARAM: usize = 128;
                 const BATCH_SIZE: usize = 1 << 12;
