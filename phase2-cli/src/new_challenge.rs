@@ -50,7 +50,7 @@ pub fn new_challenge(
         MPCParameters::<BW6_761>::new_from_buffer_chunked(
             c,
             &mut phase1_readable_map,
-            UseCompression::Yes,
+            UseCompression::No,
             CheckForCorrectness::No,
             1 << phase1_powers,
             phase2_size,
