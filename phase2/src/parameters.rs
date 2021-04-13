@@ -556,20 +556,33 @@ impl<E: PairingEngine> MPCParameters<E> {
         subgroup_check_mode: SubgroupCheckMode,
     ) -> Result<Parameters<E>> {
         // vk
+        println("Entering read_groth16_fast");
         let alpha_g1: E::G1Affine = reader.read_element(compressed, check_correctness)?;
+        println("1");
         let beta_g2: E::G2Affine = reader.read_element(compressed, check_correctness)?;
+    println("2");
         let gamma_g2: E::G2Affine = reader.read_element(compressed, check_correctness)?;
+    println("3");
         let delta_g2: E::G2Affine = reader.read_element(compressed, check_correctness)?;
+    println("4");
         let gamma_abc_g1: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+    println("5");
 
         // rest of the parameters
         let beta_g1: E::G1Affine = reader.read_element(compressed, check_correctness)?;
+    println("6");
         let delta_g1: E::G1Affine = reader.read_element(compressed, check_correctness)?;
+    println("7");
         let a_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+    println("8");
         let b_g1_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+    println("9");
         let b_g2_query: Vec<E::G2Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+    println("10");
         let h_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+    println("11");
         let l_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+    println("12");
 
         let params = Parameters::<E> {
             vk: VerifyingKey::<E> {
