@@ -27,7 +27,7 @@ pub fn combine(
     let full_parameters = MPCParameters::<BW6_761>::read_fast(
         full_contents.as_slice(),
         INITIAL_IS_COMPRESSED,
-        CheckForCorrectness::No,
+        CheckForCorrectness::Full,
         false,
         SubgroupCheckMode::Auto,
     )
@@ -39,7 +39,7 @@ pub fn combine(
     let query_parameters = MPCParameters::<BW6_761>::read_groth16_fast(
         &mut query_contents,
         INITIAL_IS_COMPRESSED,
-        CheckForCorrectness::No,
+        CheckForCorrectness::Full,
         false,
         SubgroupCheckMode::Auto,
     )
