@@ -23,10 +23,11 @@ pub fn combine(
         BufReader::new(File::open(response_list_filename).expect("should have opened the response list"));
 
     let full_contents = std::fs::read(initial_full_filename).expect("should have initial full parameters");
+    println!("About to read full file");
     let full_parameters = MPCParameters::<BW6_761>::read_fast(
         full_contents.as_slice(),
         INITIAL_IS_COMPRESSED,
-        CheckForCorrectness::No,
+        CheckForCorrectness::Full,
         false,
         SubgroupCheckMode::Auto,
     )
@@ -34,10 +35,11 @@ pub fn combine(
 
     let mut query_contents =
         std::io::Cursor::new(std::fs::read(initial_query_filename).expect("should have read initial query"));
+    println!("About to read query file");
     let query_parameters = MPCParameters::<BW6_761>::read_groth16_fast(
         &mut query_contents,
         INITIAL_IS_COMPRESSED,
-        CheckForCorrectness::No,
+        CheckForCorrectness::Full,
         false,
         SubgroupCheckMode::Auto,
     )
@@ -47,10 +49,11 @@ pub fn combine(
     for line in response_list_reader.lines() {
         let line = line.expect("should have read line");
         let contents = std::fs::read(line).expect("should have read response");
+        println!("About to read response: {:?}", line);
         let parameters = MPCParameters::<BW6_761>::read_fast(
             contents.as_slice(),
             CONTRIBUTION_IS_COMPRESSED,
-            CheckForCorrectness::No,
+            CheckForCorrectness::Full,
             false,
             SubgroupCheckMode::Auto,
         )
