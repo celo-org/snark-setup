@@ -27,7 +27,7 @@ pub fn combine(
     let full_parameters = MPCParameters::<BW6_761>::read_fast(
         full_contents.as_slice(),
         INITIAL_IS_COMPRESSED,
-        CheckForCorrectness::Full,
+        CheckForCorrectness::No,
         false,
         SubgroupCheckMode::Auto,
     )
