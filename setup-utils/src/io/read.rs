@@ -76,7 +76,7 @@ impl<R: Read> Deserializer for R {
             return Err(Error::PointAtInfinity);
         }
 
-        println!("Read element");
+        //println!("Read element");
         Ok(point)
     }
 
