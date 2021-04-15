@@ -27,6 +27,7 @@ pub fn eval<E: PairingEngine>(
     Vec<E::G1Affine>,
 ) {
     // calculate the evaluated polynomials
+    println!("Printing coeffs_g1 in eval: {:?}", coeffs_g1);
     let a_g1 = dot_product_vec(at, coeffs_g1);
     let b_g1 = dot_product_vec(bt, coeffs_g1);
     let b_g2 = dot_product_vec(bt, coeffs_g2);
@@ -42,7 +43,7 @@ pub fn eval<E: PairingEngine>(
     let gamma_abc_g1 = gamma_abc_g1.iter().map(|p| p.into_affine()).collect();
     let l = l.iter().map(|p| p.into_affine()).collect();
 
-    println!("About to return a_g1 from eval: {:?}", a_g1);
+//    println!("About to return a_g1 from eval: {:?}", a_g1);
     (a_g1, b_g1, b_g2, gamma_abc_g1, l)
 }
 
