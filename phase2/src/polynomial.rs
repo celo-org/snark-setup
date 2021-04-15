@@ -28,7 +28,7 @@ pub fn eval<E: PairingEngine>(
 ) {
     // calculate the evaluated polynomials
     //println!("Printing coeffs_g1 in eval: {:?}", coeffs_g1);
-    println!("Printing at in eval: {:?}", at);
+    //println!("Printing at in eval: {:?}", at);
     let a_g1 = dot_product_vec(at, coeffs_g1);
     let b_g1 = dot_product_vec(bt, coeffs_g1);
     let b_g2 = dot_product_vec(bt, coeffs_g2);
@@ -44,7 +44,7 @@ pub fn eval<E: PairingEngine>(
     let gamma_abc_g1 = gamma_abc_g1.iter().map(|p| p.into_affine()).collect();
     let l = l.iter().map(|p| p.into_affine()).collect();
 
-//    println!("About to return a_g1 from eval: {:?}", a_g1);
+    //    println!("About to return a_g1 from eval: {:?}", a_g1);
     (a_g1, b_g1, b_g2, gamma_abc_g1, l)
 }
 
@@ -71,6 +71,7 @@ fn dot_product_ext<E: PairingEngine>(
 /// This is a NxN * Nx1 -> Nx1 matrix multiplication basically
 fn dot_product_vec<C: AffineCurve>(input: &[Vec<(C::ScalarField, usize)>], coeffs: &[C]) -> Vec<C::Projective> {
     let mut ret = input.par_iter().map(|row| dot_product(row, coeffs)).collect::<Vec<_>>();
+    println!("Printing ret in dot_product_vec: {:?}", ret);
     // Batch normalize
     C::Projective::batch_normalization(&mut ret);
     ret
