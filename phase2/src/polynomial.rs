@@ -27,7 +27,8 @@ pub fn eval<E: PairingEngine>(
     Vec<E::G1Affine>,
 ) {
     // calculate the evaluated polynomials
-    println!("Printing coeffs_g1 in eval: {:?}", coeffs_g1);
+    //println!("Printing coeffs_g1 in eval: {:?}", coeffs_g1);
+    println!("Printing at in eval: {:?}", at);
     let a_g1 = dot_product_vec(at, coeffs_g1);
     let b_g1 = dot_product_vec(bt, coeffs_g1);
     let b_g2 = dot_product_vec(bt, coeffs_g2);
