@@ -30,6 +30,7 @@ pub fn eval<E: PairingEngine>(
     //println!("Printing coeffs_g1 in eval: {:?}", coeffs_g1);
     //println!("Printing at in eval: {:?}", at);
     let a_g1 = dot_product_vec(at, coeffs_g1);
+    panic!("stop here");
     let b_g1 = dot_product_vec(bt, coeffs_g1);
     let b_g2 = dot_product_vec(bt, coeffs_g2);
     let ext = dot_product_ext::<E>((at, beta_coeffs_g1), (bt, alpha_coeffs_g1), (ct, coeffs_g1));
@@ -82,17 +83,15 @@ fn dot_product_vec<C: AffineCurve>(input: &[Vec<(C::ScalarField, usize)>], coeff
 /// `coeffs` vector offset by `num_inputs`
 #[allow(clippy::redundant_closure)]
 fn dot_product<C: AffineCurve>(input: &[(C::ScalarField, usize)], coeffs: &[C]) -> C::Projective {
-    let result = input
-        .into_par_iter()
-        .fold(
-            || C::Projective::zero(),
-            |mut sum, &(coeff, ind)| {
-                sum += &coeffs[ind].mul(coeff);
-                sum
-            },
-        );
-        println!("Dot product before sum: {:?}", result);
-        result.sum()
+    let result = input.into_par_iter().fold(
+        || C::Projective::zero(),
+        |mut sum, &(coeff, ind)| {
+            sum += &coeffs[ind].mul(coeff);
+            sum
+        },
+    );
+    println!("Dot product before sum: {:?}", result);
+    result.sum()
 }
 
 #[cfg(test)]
