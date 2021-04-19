@@ -21,7 +21,6 @@ pub fn new_challenge(
     num_validators: usize,
     num_epochs: usize,
 ) -> usize {
-    println!("Generating phase 2");
     info!("Generating phase 2");
 
     let reader = OpenOptions::new()
