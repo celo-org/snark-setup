@@ -194,8 +194,11 @@ impl<E: PairingEngine> MPCParameters<E> {
             let matrices = cs.to_matrices().unwrap();
             (matrices.a, matrices.b, matrices.c)
         };
+        println!("Matrix for at: {:?}", at);
 
         let at = Self::process_matrix(&at, cs.clone());
+        println!("Processed matrix for at: {:?}", at);
+        panic!("We're done here");
         let bt = Self::process_matrix(&bt, cs.clone());
         let ct = Self::process_matrix(&ct, cs.clone());
 
