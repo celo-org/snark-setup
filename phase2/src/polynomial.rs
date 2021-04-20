@@ -83,6 +83,7 @@ fn dot_product_vec<C: AffineCurve>(input: &[Vec<(C::ScalarField, usize)>], coeff
 /// `coeffs` vector offset by `num_inputs`
 #[allow(clippy::redundant_closure)]
 fn dot_product<C: AffineCurve>(input: &[(C::ScalarField, usize)], coeffs: &[C]) -> C::Projective {
+    println!("Input for dot product is: {:?}", input);
     let result = input.into_par_iter().fold(
         || C::Projective::zero(),
         |mut sum, &(coeff, ind)| {
