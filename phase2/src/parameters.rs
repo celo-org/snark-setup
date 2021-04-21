@@ -573,11 +573,11 @@ impl<E: PairingEngine> MPCParameters<E> {
         println!("6");
         let delta_g1: E::G1Affine = reader.read_element(compressed, check_correctness)?;
         println!("7");
-        let a_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+        let a_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, CheckForCorrectness::No)?;
         println!("8");
-        let b_g1_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+        let b_g1_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, CheckForCorrectness::No)?;
         println!("9");
-        let b_g2_query: Vec<E::G2Affine> = read_vec(&mut reader, compressed, check_correctness)?;
+        let b_g2_query: Vec<E::G2Affine> = read_vec(&mut reader, compressed, CheckForCorrectness::No)?;
         println!("10");
         let h_query: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
         println!("11");
