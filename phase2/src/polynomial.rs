@@ -30,7 +30,6 @@ pub fn eval<E: PairingEngine>(
     //println!("Printing coeffs_g1 in eval: {:?}", coeffs_g1);
     //println!("Printing at in eval: {:?}", at);
     let a_g1 = dot_product_vec(at, coeffs_g1);
-    panic!("stop here");
     let b_g1 = dot_product_vec(bt, coeffs_g1);
     let b_g2 = dot_product_vec(bt, coeffs_g2);
     let ext = dot_product_ext::<E>((at, beta_coeffs_g1), (bt, alpha_coeffs_g1), (ct, coeffs_g1));
@@ -46,6 +45,7 @@ pub fn eval<E: PairingEngine>(
     let l = l.iter().map(|p| p.into_affine()).collect();
 
     //    println!("About to return a_g1 from eval: {:?}", a_g1);
+    println!("About to return b_g1 from eval: {:?}", b_g1);
     (a_g1, b_g1, b_g2, gamma_abc_g1, l)
 }
 
