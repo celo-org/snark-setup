@@ -45,7 +45,7 @@ pub fn eval<E: PairingEngine>(
     let l = l.iter().map(|p| p.into_affine()).collect();
 
     //    println!("About to return a_g1 from eval: {:?}", a_g1);
-    println!("About to return c_g1 from eval: {:?}", c_g1);
+    println!("About to return b_g2 from eval: {:?}", b_g2);
     (a_g1, b_g1, b_g2, gamma_abc_g1, l)
 }
 
