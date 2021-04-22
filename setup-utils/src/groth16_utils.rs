@@ -173,7 +173,7 @@ impl<E: PairingEngine> Groth16Params<E> {
 
         //println!("About to read elements");
         let mut reader = std::io::Cursor::new(reader);
-       // println!("1");
+        // println!("1");
         let alpha_g1 = reader.read_element(compressed, check_input_for_correctness)?;
         //println!("2");
         let beta_g1 = reader.read_element(compressed, check_input_for_correctness)?;
