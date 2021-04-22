@@ -171,27 +171,27 @@ impl<E: PairingEngine> Groth16Params<E> {
         let span = info_span!("Groth16Utils_read");
         let _enter = span.enter();
 
-        println!("About to read elements");
+        //println!("About to read elements");
         let mut reader = std::io::Cursor::new(reader);
-        println!("1");
+       // println!("1");
         let alpha_g1 = reader.read_element(compressed, check_input_for_correctness)?;
-        println!("2");
+        //println!("2");
         let beta_g1 = reader.read_element(compressed, check_input_for_correctness)?;
-        println!("3");
+        //println!("3");
         let beta_g2 = reader.read_element(compressed, check_input_for_correctness)?;
-        println!("Read elements");
+        //println!("Read elements");
 
         let position = reader.position() as usize;
-        println!("4");
+        //println!("4");
         let reader = &mut &reader.get_mut()[position..];
 
-        println!("About to split transcript");
+        //println!("About to split transcript");
         // Split the transcript in the appropriate sections
         let (in_coeffs_g1, in_coeffs_g2, in_alpha_coeffs_g1, in_beta_coeffs_g1, in_h_g1) =
             split_transcript::<E>(reader, phase1_size, num_constraints, compressed);
-        println!("Split transcript");
+        //println!("Split transcript");
 
-        println!("About to read parameters");
+        //println!("About to read parameters");
         info!("reading groth16 parameters...");
         // Read all elements in parallel
         // note: '??' is used for getting the result from the threaded operation,
@@ -246,31 +246,31 @@ fn split_transcript<E: PairingEngine>(
     size: usize,
     compressed: UseCompression,
 ) -> SplitBuf {
-    println!("a");
+    //println!("a");
     let g1_size = buffer_size::<E::G1Affine>(compressed);
-    println!("b");
+    //println!("b");
     let g2_size = buffer_size::<E::G2Affine>(compressed);
-    println!("c");
+    //println!("c");
     // N elements per coefficient
     let (coeffs_g1, others) = input.split_at(g1_size * size);
-    println!("d");
+    //println!("d");
     let (_, others) = others.split_at((phase1_size - size) * g1_size);
-    println!("e");
+    //println!("e");
     let (coeffs_g2, others) = others.split_at(g2_size * size);
-    println!("f");
+    //println!("f");
     let (_, others) = others.split_at((phase1_size - size) * g2_size);
-    println!("g");
+    //println!("g");
     let (alpha_coeffs_g1, others) = others.split_at(g1_size * size);
-    println!("h");
+    //println!("h");
     let (_, others) = others.split_at((phase1_size - size) * g1_size);
-    println!("i");
+    //println!("i");
     let (beta_coeffs_g1, others) = others.split_at(g1_size * size);
-    println!("j");
+    //println!("j");
     let (_, others) = others.split_at((phase1_size - size) * g1_size);
-    println!("k");
+    //println!("k");
     // N-1 for the h coeffs
     let (h_coeffs, _) = others.split_at(g1_size * (size - 1));
-    println!("l");
+    //println!("l");
     (coeffs_g1, coeffs_g2, alpha_coeffs_g1, beta_coeffs_g1, h_coeffs)
 }
 
