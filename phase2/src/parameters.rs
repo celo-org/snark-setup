@@ -564,7 +564,7 @@ impl<E: PairingEngine> MPCParameters<E> {
         let gamma_g2: E::G2Affine = reader.read_element(compressed, check_correctness)?;
         //println!("3");
         let delta_g2: E::G2Affine = reader.read_element(compressed, check_correctness)?;
-       // println!("4");
+        // println!("4");
         let gamma_abc_g1: Vec<E::G1Affine> = read_vec(&mut reader, compressed, check_correctness)?;
         //println!("5");
 
