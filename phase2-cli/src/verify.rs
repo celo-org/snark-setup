@@ -7,7 +7,7 @@ use std::io::Write;
 use tracing::info;
 
 const PREVIOUS_CHALLENGE_IS_COMPRESSED: UseCompression = UseCompression::No;
-const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
+const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::No;
 
 pub fn verify(
     challenge_filename: &str,
