@@ -10,7 +10,7 @@ use memmap::*;
 use std::{fs::OpenOptions, io::Write};
 use tracing::info;
 
-const COMPRESS_NEW_CHALLENGE: UseCompression = UseCompression::No;
+const COMPRESS_NEW_CHALLENGE: UseCompression = UseCompression::Yes;
 
 pub fn new_challenge(
     challenge_filename: &str,

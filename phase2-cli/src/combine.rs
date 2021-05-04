@@ -7,9 +7,9 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use tracing::info;
 
-const INITIAL_IS_COMPRESSED: UseCompression = UseCompression::No;
+const INITIAL_IS_COMPRESSED: UseCompression = UseCompression::Yes;
 const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
-const COMBINED_IS_COMPRESSED: UseCompression = UseCompression::No;
+const COMBINED_IS_COMPRESSED: UseCompression = UseCompression::Yes;
 
 pub fn combine(
     initial_query_filename: &str,
