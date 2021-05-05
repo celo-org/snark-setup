@@ -3,10 +3,10 @@ use setup_utils::{calculate_hash, print_hash, CheckForCorrectness, SubgroupCheck
 
 use algebra::BW6_761;
 
-use std::io::Write;
-use std::fs::OpenOptions;
-use tracing::info;
 use memmap::MmapOptions;
+use std::fs::OpenOptions;
+use std::io::Write;
+use tracing::info;
 
 const PREVIOUS_CHALLENGE_IS_COMPRESSED: UseCompression = UseCompression::Yes;
 const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
@@ -19,9 +19,9 @@ pub fn verify(
     response_filename: &str,
     response_hash_filename: &str,
     check_output_correctness: CheckForCorrectness,
-    subgroup_check_mode: SubgroupCheckMode,
     new_challenge_filename: &str,
     new_challenge_hash_filename: &str,
+    subgroup_check_mode: SubgroupCheckMode,
 ) {
     info!("Verifying phase 2");
 
@@ -62,13 +62,13 @@ pub fn verify(
         subgroup_check_mode,
     )
     .expect("should have read parameters");
-   
+
     let writer = OpenOptions::new()
         .read(true)
         .write(true)
         .create_new(true)
         .open(new_challenge_filename)
-        .expect("unable to create new challenge file in this directory"); 
+        .expect("unable to create new challenge file in this directory");
     parameters_after.write(writer, NEW_CHALLENGE_IS_COMPRESSED);
 
     // Read new challenge to create hash
