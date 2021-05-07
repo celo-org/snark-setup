@@ -1,4 +1,4 @@
-use phase2::parameters::MPCParameters;
+use phase2::parameters::{MPCParameters, verify_transcript};
 use setup_utils::{print_hash, CheckForCorrectness, SubgroupCheckMode, UseCompression};
 
 use algebra::{CanonicalSerialize, BW6_761};
@@ -16,6 +16,7 @@ pub fn combine(
     initial_full_filename: &str,
     response_list_filename: &str,
     combined_filename: &str,
+    combine_initial: bool, 
 ) {
     info!("Combining phase 2");
 
@@ -63,9 +64,14 @@ pub fn combine(
     let combined =
         MPCParameters::<BW6_761>::combine(&query_parameters, &all_parameters).expect("should have combined parameters");
 
-    let contributions_hash = full_parameters
-        .verify(&combined)
-        .expect("should have verified successfully");
+    let contributions_hash = if combine_initial {
+        verify_transcript(full_parameters.cs_hash, &combined.contributions).expect("should have verified successfully")
+    } else {
+        full_parameters
+            .verify(&combined)
+            .expect("should have verified successfully")
+    };
+
     info!("Contributions hashes:");
     for contribution_hash in contributions_hash {
         print_hash(&contribution_hash[..]);

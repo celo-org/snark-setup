@@ -73,6 +73,7 @@ fn execute_cmd<E: Engine>(opts: Phase2Opts) {
                 &opt.initial_full_fname,
                 &opt.response_list_fname,
                 &opt.combined_fname,
+                false,
             );
         }
     };
