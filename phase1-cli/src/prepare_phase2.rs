@@ -1,18 +1,10 @@
 use phase1::{parameters::*, Phase1};
-use setup_utils::converters::{curve_from_str, proving_system_from_str, CurveKind, ProvingSystem};
 use setup_utils::{CheckForCorrectness, Groth16Params, Result, UseCompression};
 
 use algebra::PairingEngine as Engine;
-use algebra::{Bls12_377, PairingEngine, BW6_761};
 
-use gumdrop::Options;
 use memmap::*;
-use std::{fs::OpenOptions, time::Instant};
-use tracing::info;
-use tracing_subscriber::{
-    filter::EnvFilter,
-    fmt::{time::ChronoUtc, Subscriber},
-};
+use std::fs::OpenOptions;
 
 const INPUT_IS_COMPRESSED: UseCompression = UseCompression::No;
 const OUTPUT_IS_COMPRESSED: UseCompression = UseCompression::No;
