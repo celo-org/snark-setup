@@ -1,13 +1,12 @@
-use phase1::{parameters::*, Phase1};
+use phase1::parameters::*;
 use phase1_cli::prepare_phase2;
 use setup_utils::converters::{curve_from_str, proving_system_from_str, CurveKind, ProvingSystem};
-use setup_utils::{CheckForCorrectness, Groth16Params, Result, UseCompression};
+use setup_utils::Result;
 
-use algebra::{Bls12_377, PairingEngine, BW6_761};
+use algebra::{Bls12_377, BW6_761};
 
 use gumdrop::Options;
-use memmap::*;
-use std::{fs::OpenOptions, time::Instant};
+use std::time::Instant;
 use tracing::info;
 use tracing_subscriber::{
     filter::EnvFilter,

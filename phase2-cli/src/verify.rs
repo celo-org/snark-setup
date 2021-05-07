@@ -3,11 +3,14 @@ use setup_utils::{calculate_hash, print_hash, CheckForCorrectness, SubgroupCheck
 
 use algebra::BW6_761;
 
+use memmap::MmapOptions;
+use std::fs::OpenOptions;
 use std::io::Write;
 use tracing::info;
 
 const PREVIOUS_CHALLENGE_IS_COMPRESSED: UseCompression = UseCompression::No;
-const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::No;
+const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
+const NEW_CHALLENGE_IS_COMPRESSED: UseCompression = UseCompression::No;
 
 pub fn verify(
     challenge_filename: &str,
@@ -16,6 +19,8 @@ pub fn verify(
     response_filename: &str,
     response_hash_filename: &str,
     check_output_correctness: CheckForCorrectness,
+    new_challenge_filename: &str,
+    new_challenge_hash_filename: &str,
     subgroup_check_mode: SubgroupCheckMode,
 ) {
     info!("Verifying phase 2");
@@ -57,6 +62,31 @@ pub fn verify(
         subgroup_check_mode,
     )
     .expect("should have read parameters");
+
+    let writer = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create_new(true)
+        .open(new_challenge_filename)
+        .expect("unable to create new challenge file in this directory");
+    parameters_after.write(writer, NEW_CHALLENGE_IS_COMPRESSED).expect("unable to write new challenge file");
+
+    // Read new challenge to create hash
+    let new_challenge_reader = OpenOptions::new()
+        .read(true)
+        .open(new_challenge_filename)
+        .expect("unable open challenge file in this directory");
+    let new_challenge_readable_map = unsafe {
+        MmapOptions::new()
+            .map(&new_challenge_reader)
+            .expect("unable to create a memory map for input")
+    };
+
+    let new_challenge_hash = calculate_hash(&new_challenge_readable_map);
+    std::fs::File::create(new_challenge_hash_filename)
+        .expect("unable to open new challenge hash file")
+        .write_all(new_challenge_hash.as_slice())
+        .expect("unable to write new challenge hash");
 
     parameters_before
         .verify(&parameters_after)

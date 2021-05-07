@@ -62,6 +62,8 @@ fn execute_cmd<E: Engine>(opts: Phase2Opts) {
                 &opt.response_fname,
                 &opt.response_hash_fname,
                 CheckForCorrectness::OnlyNonZero,
+                &opt.new_challenge_fname,
+                &opt.new_challenge_hash_fname,
                 opts.subgroup_check_mode,
             );
         }

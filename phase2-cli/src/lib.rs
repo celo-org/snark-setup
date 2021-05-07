@@ -138,6 +138,13 @@ pub struct VerifyOpts {
     pub response_fname: String,
     #[options(help = "the response file hash", default = "response.verified.hash")]
     pub response_hash_fname: String,
+    #[options(
+        help = "the provided new challenge file which will be written to",
+        default = "response"
+    )]
+    pub new_challenge_fname: String,
+    #[options(help = "the new challenge file hash", default = "response.verified.hash")]
+    pub new_challenge_hash_fname: String,
 }
 
 #[derive(Debug, Options, Clone)]
