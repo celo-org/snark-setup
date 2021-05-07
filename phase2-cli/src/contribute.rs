@@ -7,7 +7,7 @@ use rand::Rng;
 use std::io::Write;
 use tracing::info;
 
-const COMPRESSED_INPUT: UseCompression = UseCompression::Yes;
+const COMPRESSED_INPUT: UseCompression = UseCompression::No;
 const COMPRESSED_OUTPUT: UseCompression = UseCompression::Yes;
 
 pub fn contribute(
