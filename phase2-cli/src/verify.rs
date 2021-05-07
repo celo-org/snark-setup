@@ -9,7 +9,7 @@ use std::io::Write;
 use tracing::info;
 
 const PREVIOUS_CHALLENGE_IS_COMPRESSED: UseCompression = UseCompression::No;
-const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
+const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::No;
 const NEW_CHALLENGE_IS_COMPRESSED: UseCompression = UseCompression::No;
 
 pub fn verify(
@@ -69,7 +69,9 @@ pub fn verify(
         .create_new(true)
         .open(new_challenge_filename)
         .expect("unable to create new challenge file in this directory");
-    parameters_after.write(writer, NEW_CHALLENGE_IS_COMPRESSED).expect("unable to write new challenge file");
+    parameters_after
+        .write(writer, NEW_CHALLENGE_IS_COMPRESSED)
+        .expect("unable to write new challenge file");
 
     // Read new challenge to create hash
     let new_challenge_reader = OpenOptions::new()
