@@ -51,7 +51,7 @@ pub fn new_challenge(
             c,
             &mut phase1_readable_map,
             UseCompression::No,
-            CheckForCorrectness::Full,
+            CheckForCorrectness::No,
             1 << phase1_powers,
             phase2_size,
             chunk_size,
