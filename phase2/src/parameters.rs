@@ -11,14 +11,15 @@ cfg_if! {
 
 use super::keypair::{hash_cs_pubkeys, Keypair, PublicKey};
 
+use crate::load_circuit::Matrices;
 use setup_utils::*;
+
+use rand::Rng;
 
 use algebra::{
     AffineCurve, CanonicalDeserialize, CanonicalSerialize, Field, PairingEngine, ProjectiveCurve, SerializationError,
 };
-use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisMode, Variable};
 
-use rand::Rng;
 use std::{
     fmt,
     io::{self, Read, Write},
@@ -61,18 +62,15 @@ impl<E: PairingEngine + PartialEq> PartialEq for MPCParameters<E> {
 
 impl<E: PairingEngine> MPCParameters<E> {
     #[cfg(not(feature = "wasm"))]
-    pub fn new_from_buffer<C>(
-        circuit: C,
+    pub fn new_from_buffer(
+        circuit: Matrices<E>,
         transcript: &mut [u8],
         compressed: UseCompression,
         check_input_for_correctness: CheckForCorrectness,
         phase1_size: usize,
         phase2_size: usize,
-    ) -> Result<MPCParameters<E>>
-    where
-        C: ConstraintSynthesizer<E::Fr>,
-    {
-        let assembly = circuit_to_qap::<E, _>(circuit)?;
+    ) -> Result<MPCParameters<E>> {
+        // let assembly = circuit_to_qap::<E, _>(circuit)?;
         let params = Groth16Params::<E>::read(
             transcript,
             compressed,
@@ -80,23 +78,20 @@ impl<E: PairingEngine> MPCParameters<E> {
             phase1_size,
             phase2_size,
         )?;
-        Self::new(assembly, params)
+        Self::new(circuit, params)
     }
 
     #[cfg(not(feature = "wasm"))]
-    pub fn new_from_buffer_chunked<C>(
-        circuit: C,
+    pub fn new_from_buffer_chunked(
+        circuit: Matrices<E>,
         transcript: &mut [u8],
         compressed: UseCompression,
         check_input_for_correctness: CheckForCorrectness,
         phase1_size: usize,
         phase2_size: usize,
         chunk_size: usize,
-    ) -> Result<(MPCParameters<E>, Parameters<E>, Vec<MPCParameters<E>>)>
-    where
-        C: ConstraintSynthesizer<E::Fr>,
-    {
-        let assembly = circuit_to_qap::<E, _>(circuit)?;
+    ) -> Result<(MPCParameters<E>, Parameters<E>, Vec<MPCParameters<E>>)> {
+        // let assembly = circuit_to_qap::<E, _>(circuit)?;
         let params = Groth16Params::<E>::read(
             transcript,
             compressed,
@@ -104,12 +99,12 @@ impl<E: PairingEngine> MPCParameters<E> {
             phase1_size,
             phase2_size,
         )?;
-        Self::new_chunked(assembly, params, chunk_size)
+        Self::new_chunked(circuit, params, chunk_size)
     }
 
     #[cfg(not(feature = "wasm"))]
-    fn process_matrix(xt: &[Vec<(E::Fr, usize)>], cs: ConstraintSystemRef<E::Fr>) -> Vec<Vec<(E::Fr, usize)>> {
-        let mut xt_processed = vec![vec![]; cs.num_instance_variables() + cs.num_witness_variables()];
+    fn process_matrix(xt: &[Vec<(E::Fr, usize)>], cs: Matrices<E>) -> Vec<Vec<(E::Fr, usize)>> {
+        let mut xt_processed = vec![vec![]; cs.num_instance_variables + cs.num_witness_variables];
         for (constraint_num, vars) in xt.iter().enumerate() {
             for (coeff, var_index) in vars {
                 xt_processed[*var_index].push((*coeff, constraint_num));
@@ -122,16 +117,11 @@ impl<E: PairingEngine> MPCParameters<E> {
     /// given QAP which has been produced from a circuit. The resulting parameters
     /// are unsafe to use until there are contributions (see `contribute()`).
     #[cfg(not(feature = "wasm"))]
-    pub fn new(cs: ConstraintSystemRef<E::Fr>, params: Groth16Params<E>) -> Result<MPCParameters<E>> {
+    pub fn new(cs: Matrices<E>, params: Groth16Params<E>) -> Result<MPCParameters<E>> {
         // Evaluate the QAP against the coefficients created from phase 1
-        let (at, bt, ct) = {
-            let matrices = cs.to_matrices().unwrap();
-            (matrices.a, matrices.b, matrices.c)
-        };
-
-        let at = Self::process_matrix(&at, cs.clone());
-        let bt = Self::process_matrix(&bt, cs.clone());
-        let ct = Self::process_matrix(&ct, cs.clone());
+        let at = Self::process_matrix(&cs.a, cs.clone());
+        let bt = Self::process_matrix(&cs.b, cs.clone());
+        let ct = Self::process_matrix(&cs.c, cs.clone());
 
         let (a_g1, b_g1, b_g2, gamma_abc_g1, l) = eval::<E>(
             // Lagrange coeffs for Tau, read in from Phase 1
@@ -144,7 +134,7 @@ impl<E: PairingEngine> MPCParameters<E> {
             &bt,
             &ct,
             // Helper
-            cs.num_instance_variables(),
+            cs.num_instance_variables,
         );
 
         // Reject unconstrained elements, so that
@@ -185,19 +175,15 @@ impl<E: PairingEngine> MPCParameters<E> {
 
     #[cfg(not(feature = "wasm"))]
     pub fn new_chunked(
-        cs: ConstraintSystemRef<E::Fr>,
+        cs: Matrices<E>,
         params: Groth16Params<E>,
         chunk_size: usize,
     ) -> Result<(MPCParameters<E>, Parameters<E>, Vec<MPCParameters<E>>)> {
         // Evaluate the QAP against the coefficients created from phase 1
-        let (at, bt, ct) = {
-            let matrices = cs.to_matrices().unwrap();
-            (matrices.a, matrices.b, matrices.c)
-        };
 
-        let at = Self::process_matrix(&at, cs.clone());
-        let bt = Self::process_matrix(&bt, cs.clone());
-        let ct = Self::process_matrix(&ct, cs.clone());
+        let at = Self::process_matrix(&cs.a, cs.clone());
+        let bt = Self::process_matrix(&cs.b, cs.clone());
+        let ct = Self::process_matrix(&cs.c, cs.clone());
 
         let (a_g1, b_g1, b_g2, gamma_abc_g1, l) = eval::<E>(
             // Lagrange coeffs for Tau, read in from Phase 1
@@ -210,7 +196,7 @@ impl<E: PairingEngine> MPCParameters<E> {
             &bt,
             &ct,
             // Helper
-            cs.num_instance_variables(),
+            cs.num_instance_variables,
         );
 
         // Reject unconstrained elements, so that
@@ -699,6 +685,7 @@ fn hash_params<E: PairingEngine>(params: &Parameters<E>) -> Result<[u8; 64]> {
 }
 
 /// Converts an R1CS circuit to QAP form
+/*
 pub fn circuit_to_qap<Zexe: PairingEngine, C: ConstraintSynthesizer<Zexe::Fr>>(
     circuit: C,
 ) -> Result<ConstraintSystemRef<Zexe::Fr>> {
@@ -719,6 +706,7 @@ pub fn circuit_to_qap<Zexe: PairingEngine, C: ConstraintSynthesizer<Zexe::Fr>>(
 
     Ok(cs)
 }
+*/
 
 #[cfg(test)]
 mod tests {

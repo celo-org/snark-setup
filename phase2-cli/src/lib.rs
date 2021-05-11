@@ -106,6 +106,8 @@ pub struct NewOpts {
     pub num_validators: usize,
     #[options(help = "number of epochs")]
     pub num_epochs: usize,
+    #[options(help = "circuit file name", default = "circuit.constraints")]
+    pub circuit_fname: String,
 }
 
 // Options for the Contribute command
