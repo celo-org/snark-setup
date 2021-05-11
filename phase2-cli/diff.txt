@@ -1,0 +1,385 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 6de3784..c7cd691 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -10,6 +10,7 @@ members = [
+ 
+ [patch.'https://github.com/scipr-lab/zexe']
+ algebra_core = { git = "https://github.com/celo-org/zexe", package = "algebra-core", default-features = false, features = ["derive"] }
++algebra_core_derive = { git = "https://github.com/celo-org/zexe", package = "algebra-core-derive", default-features = false, features = [] }
+ algebra = { git = "https://github.com/celo-org/zexe", package = "algebra", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
+ crypto-primitives = { git = "https://github.com/celo-org/zexe", package = "crypto-primitives", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
+ fft = { git = "https://github.com/celo-org/zexe", package = "ff-fft", default-features = false, features = ["ed_on_bls12_381", "bls12_381", "bls12_377"] }
+diff --git a/phase2-cli/src/bin/phase2.rs b/phase2-cli/src/bin/phase2.rs
+index 02257f6..ce8230f 100644
+--- a/phase2-cli/src/bin/phase2.rs
++++ b/phase2-cli/src/bin/phase2.rs
+@@ -33,8 +33,7 @@ fn execute_cmd<E: Engine>(opts: Phase2Opts) {
+                 opts.chunk_size,
+                 &opt.phase1_fname,
+                 opt.phase1_powers,
+-                opt.num_validators,
+-                opt.num_epochs,
++                &opt.circuit_fname,
+             );
+         }
+         Command::Contribute(opt) => {
+diff --git a/phase2-cli/src/combine.rs b/phase2-cli/src/combine.rs
+index dda8ef7..01570d7 100644
+--- a/phase2-cli/src/combine.rs
++++ b/phase2-cli/src/combine.rs
+@@ -8,7 +8,7 @@ use std::io::{BufRead, BufReader};
+ use tracing::info;
+ 
+ const INITIAL_IS_COMPRESSED: UseCompression = UseCompression::No;
+-const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
++const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::No;
+ const COMBINED_IS_COMPRESSED: UseCompression = UseCompression::No;
+ 
+ pub fn combine(
+diff --git a/phase2-cli/src/contribute.rs b/phase2-cli/src/contribute.rs
+index 98ff8d4..7b33ba8 100644
+--- a/phase2-cli/src/contribute.rs
++++ b/phase2-cli/src/contribute.rs
+@@ -8,7 +8,7 @@ use std::io::Write;
+ use tracing::info;
+ 
+ const COMPRESSED_INPUT: UseCompression = UseCompression::No;
+-const COMPRESSED_OUTPUT: UseCompression = UseCompression::Yes;
++const COMPRESSED_OUTPUT: UseCompression = UseCompression::No;
+ 
+ pub fn contribute(
+     challenge_filename: &str,
+diff --git a/phase2-cli/src/lib.rs b/phase2-cli/src/lib.rs
+index 3d8ecdd..7527309 100644
+--- a/phase2-cli/src/lib.rs
++++ b/phase2-cli/src/lib.rs
+@@ -106,6 +106,8 @@ pub struct NewOpts {
+     pub num_validators: usize,
+     #[options(help = "number of epochs")]
+     pub num_epochs: usize,
++    #[options(help = "circuit file name", default = "circuit.constraints")]
++    pub circuit_fname: String,
+ }
+ 
+ // Options for the Contribute command
+diff --git a/phase2-cli/src/new_challenge.rs b/phase2-cli/src/new_challenge.rs
+index 483f829..4e38143 100644
+--- a/phase2-cli/src/new_challenge.rs
++++ b/phase2-cli/src/new_challenge.rs
+@@ -1,13 +1,10 @@
++use phase2::load_circuit::Matrices;
+ use phase2::parameters::MPCParameters;
+ use setup_utils::{calculate_hash, print_hash, CheckForCorrectness, UseCompression};
+ 
+-use algebra::{bw6_761::Fr, CanonicalSerialize, BW6_761};
+-use r1cs_core::ConstraintSynthesizer;
+-use r1cs_core::{ConstraintSystem, SynthesisMode};
+-
+-use epoch_snark::ValidatorSetUpdate;
++use algebra::{CanonicalDeserialize, CanonicalSerialize, BW6_761};
+ use memmap::*;
+-use std::{fs::OpenOptions, io::Write};
++use std::{fs::File, fs::OpenOptions, io::Read, io::Write};
+ use tracing::info;
+ 
+ const COMPRESS_NEW_CHALLENGE: UseCompression = UseCompression::No;
+@@ -18,11 +15,21 @@ pub fn new_challenge(
+     chunk_size: usize,
+     phase1_filename: &str,
+     phase1_powers: usize,
+-    num_validators: usize,
+-    num_epochs: usize,
++    circuit_filename: &str,
+ ) -> usize {
+     info!("Generating phase 2");
+ 
++    // let mut file = File::open("test.contraints").unwrap();
++    let mut file = File::open(circuit_filename).unwrap();
++    let mut buffer = Vec::<u8>::new();
++    file.read_to_end(&mut buffer).unwrap();
++    let m = Matrices::<BW6_761>::deserialize(&*buffer).unwrap();
++
++    info!("Loaded circuit with {} constraints", m.num_constraints);
++
++    let phase2_size =
++        std::cmp::max(m.num_constraints, m.num_witness_variables + m.num_instance_variables).next_power_of_two();
++
+     let reader = OpenOptions::new()
+         .read(true)
+         .write(true)
+@@ -34,21 +41,9 @@ pub fn new_challenge(
+             .expect("unable to create a memory map for input")
+     };
+ 
+-    let c = ValidatorSetUpdate::empty(num_validators, num_epochs, 0, None);
+-    let counter = ConstraintSystem::<Fr>::new_ref();
+-    counter.set_mode(SynthesisMode::Setup);
+-    info!("About to generate constraints");
+-    c.clone().generate_constraints(counter.clone()).unwrap();
+-    info!("Finished generating constraints");
+-    let phase2_size = std::cmp::max(
+-        counter.num_constraints(),
+-        counter.num_witness_variables() + counter.num_instance_variables(),
+-    )
+-    .next_power_of_two();
+-
+     let (full_mpc_parameters, query_parameters, all_mpc_parameters) =
+         MPCParameters::<BW6_761>::new_from_buffer_chunked(
+-            c,
++            m,
+             &mut phase1_readable_map,
+             UseCompression::No,
+             CheckForCorrectness::No,
+diff --git a/phase2-cli/src/verify.rs b/phase2-cli/src/verify.rs
+index 570e1e3..8c6c21e 100644
+--- a/phase2-cli/src/verify.rs
++++ b/phase2-cli/src/verify.rs
+@@ -9,7 +9,7 @@ use std::io::Write;
+ use tracing::info;
+ 
+ const PREVIOUS_CHALLENGE_IS_COMPRESSED: UseCompression = UseCompression::No;
+-const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
++const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::No;
+ const NEW_CHALLENGE_IS_COMPRESSED: UseCompression = UseCompression::No;
+ 
+ pub fn verify(
+diff --git a/phase2/Cargo.toml b/phase2/Cargo.toml
+index 08d69b3..5351507 100644
+--- a/phase2/Cargo.toml
++++ b/phase2/Cargo.toml
+@@ -19,7 +19,7 @@ required-features = ["phase2/testing"]
+ [dependencies]
+ setup-utils = { path = "../setup-utils", default-features = false }
+ 
+-algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "algebra", features = ["bls12_377", "bls12_381", "bw6_761"] }
++algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "algebra", features = ["bls12_377", "bls12_381", "bw6_761", "derive"] }
+ groth16 = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "groth16", features = [] }
+ r1cs_core = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "r1cs-core" }
+ 
+diff --git a/phase2/src/lib.rs b/phase2/src/lib.rs
+index 6cf5280..26d16b7 100644
+--- a/phase2/src/lib.rs
++++ b/phase2/src/lib.rs
+@@ -8,6 +8,8 @@ pub mod parameters;
+ #[cfg(not(feature = "wasm"))]
+ mod polynomial;
+ 
++pub mod load_circuit;
++
+ pub mod chunked_groth16;
+ 
+ cfg_if! {
+diff --git a/phase2/src/load_circuit.rs b/phase2/src/load_circuit.rs
+new file mode 100644
+index 0000000..c92994f
+--- /dev/null
++++ b/phase2/src/load_circuit.rs
+@@ -0,0 +1,38 @@
++use algebra::{CanonicalDeserialize, CanonicalSerialize, PairingEngine, SerializationError};
++use r1cs_core::Matrix;
++use setup_utils::Error;
++use std::io::{Read, Write};
++
++// For serialization of the constraint system
++#[derive(Debug, PartialEq, CanonicalDeserialize, CanonicalSerialize, Clone)]
++pub struct Matrices<E: PairingEngine> {
++    /// The number of variables that are "public instances" to the constraint
++    /// system.
++    pub num_instance_variables: usize,
++    /// The number of variables that are "private witnesses" to the constraint
++    /// system.
++    pub num_witness_variables: usize,
++    /// The number of constraints in the constraint system.
++    pub num_constraints: usize,
++    /// The number of non_zero entries in the A matrix.
++    pub a_num_non_zero: usize,
++    /// The number of non_zero entries in the B matrix.
++    pub b_num_non_zero: usize,
++    /// The number of non_zero entries in the C matrix.
++    pub c_num_non_zero: usize,
++    /// The A constraint matrix. This is empty when
++    /// `self.mode == SynthesisMode::Prove { construct_matrices = false }`.
++    pub a: Matrix<E::Fr>,
++    /// The B constraint matrix. This is empty when
++    /// `self.mode == SynthesisMode::Prove { construct_matrices = false }`.
++    pub b: Matrix<E::Fr>,
++    /// The C constraint matrix. This is empty when
++    /// `self.mode == SynthesisMode::Prove { construct_matrices = false }`.
++    pub c: Matrix<E::Fr>,
++}
++
++impl<E: PairingEngine> Matrices<E> {
++    pub fn read(input_map: &[u8]) -> Result<Self, Error> {
++        Ok(Matrices::deserialize(&mut &input_map[..])?)
++    }
++}
+diff --git a/phase2/src/parameters.rs b/phase2/src/parameters.rs
+index 9cb150f..eb8c9d4 100644
+--- a/phase2/src/parameters.rs
++++ b/phase2/src/parameters.rs
+@@ -11,14 +11,15 @@ cfg_if! {
+ 
+ use super::keypair::{hash_cs_pubkeys, Keypair, PublicKey};
+ 
++use crate::load_circuit::Matrices;
+ use setup_utils::*;
+ 
++use rand::Rng;
++
+ use algebra::{
+     AffineCurve, CanonicalDeserialize, CanonicalSerialize, Field, PairingEngine, ProjectiveCurve, SerializationError,
+ };
+-use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisMode, Variable};
+ 
+-use rand::Rng;
+ use std::{
+     fmt,
+     io::{self, Read, Write},
+@@ -61,18 +62,15 @@ impl<E: PairingEngine + PartialEq> PartialEq for MPCParameters<E> {
+ 
+ impl<E: PairingEngine> MPCParameters<E> {
+     #[cfg(not(feature = "wasm"))]
+-    pub fn new_from_buffer<C>(
+-        circuit: C,
++    pub fn new_from_buffer(
++        circuit: Matrices<E>,
+         transcript: &mut [u8],
+         compressed: UseCompression,
+         check_input_for_correctness: CheckForCorrectness,
+         phase1_size: usize,
+         phase2_size: usize,
+-    ) -> Result<MPCParameters<E>>
+-    where
+-        C: ConstraintSynthesizer<E::Fr>,
+-    {
+-        let assembly = circuit_to_qap::<E, _>(circuit)?;
++    ) -> Result<MPCParameters<E>> {
++        // let assembly = circuit_to_qap::<E, _>(circuit)?;
+         let params = Groth16Params::<E>::read(
+             transcript,
+             compressed,
+@@ -80,23 +78,20 @@ impl<E: PairingEngine> MPCParameters<E> {
+             phase1_size,
+             phase2_size,
+         )?;
+-        Self::new(assembly, params)
++        Self::new(circuit, params)
+     }
+ 
+     #[cfg(not(feature = "wasm"))]
+-    pub fn new_from_buffer_chunked<C>(
+-        circuit: C,
++    pub fn new_from_buffer_chunked(
++        circuit: Matrices<E>,
+         transcript: &mut [u8],
+         compressed: UseCompression,
+         check_input_for_correctness: CheckForCorrectness,
+         phase1_size: usize,
+         phase2_size: usize,
+         chunk_size: usize,
+-    ) -> Result<(MPCParameters<E>, Parameters<E>, Vec<MPCParameters<E>>)>
+-    where
+-        C: ConstraintSynthesizer<E::Fr>,
+-    {
+-        let assembly = circuit_to_qap::<E, _>(circuit)?;
++    ) -> Result<(MPCParameters<E>, Parameters<E>, Vec<MPCParameters<E>>)> {
++        // let assembly = circuit_to_qap::<E, _>(circuit)?;
+         let params = Groth16Params::<E>::read(
+             transcript,
+             compressed,
+@@ -104,12 +99,12 @@ impl<E: PairingEngine> MPCParameters<E> {
+             phase1_size,
+             phase2_size,
+         )?;
+-        Self::new_chunked(assembly, params, chunk_size)
++        Self::new_chunked(circuit, params, chunk_size)
+     }
+ 
+     #[cfg(not(feature = "wasm"))]
+-    fn process_matrix(xt: &[Vec<(E::Fr, usize)>], cs: ConstraintSystemRef<E::Fr>) -> Vec<Vec<(E::Fr, usize)>> {
+-        let mut xt_processed = vec![vec![]; cs.num_instance_variables() + cs.num_witness_variables()];
++    fn process_matrix(xt: &[Vec<(E::Fr, usize)>], cs: Matrices<E>) -> Vec<Vec<(E::Fr, usize)>> {
++        let mut xt_processed = vec![vec![]; cs.num_instance_variables + cs.num_witness_variables];
+         for (constraint_num, vars) in xt.iter().enumerate() {
+             for (coeff, var_index) in vars {
+                 xt_processed[*var_index].push((*coeff, constraint_num));
+@@ -122,16 +117,11 @@ impl<E: PairingEngine> MPCParameters<E> {
+     /// given QAP which has been produced from a circuit. The resulting parameters
+     /// are unsafe to use until there are contributions (see `contribute()`).
+     #[cfg(not(feature = "wasm"))]
+-    pub fn new(cs: ConstraintSystemRef<E::Fr>, params: Groth16Params<E>) -> Result<MPCParameters<E>> {
++    pub fn new(cs: Matrices<E>, params: Groth16Params<E>) -> Result<MPCParameters<E>> {
+         // Evaluate the QAP against the coefficients created from phase 1
+-        let (at, bt, ct) = {
+-            let matrices = cs.to_matrices().unwrap();
+-            (matrices.a, matrices.b, matrices.c)
+-        };
+-
+-        let at = Self::process_matrix(&at, cs.clone());
+-        let bt = Self::process_matrix(&bt, cs.clone());
+-        let ct = Self::process_matrix(&ct, cs.clone());
++        let at = Self::process_matrix(&cs.a, cs.clone());
++        let bt = Self::process_matrix(&cs.b, cs.clone());
++        let ct = Self::process_matrix(&cs.c, cs.clone());
+ 
+         let (a_g1, b_g1, b_g2, gamma_abc_g1, l) = eval::<E>(
+             // Lagrange coeffs for Tau, read in from Phase 1
+@@ -144,7 +134,7 @@ impl<E: PairingEngine> MPCParameters<E> {
+             &bt,
+             &ct,
+             // Helper
+-            cs.num_instance_variables(),
++            cs.num_instance_variables,
+         );
+ 
+         // Reject unconstrained elements, so that
+@@ -185,19 +175,15 @@ impl<E: PairingEngine> MPCParameters<E> {
+ 
+     #[cfg(not(feature = "wasm"))]
+     pub fn new_chunked(
+-        cs: ConstraintSystemRef<E::Fr>,
++        cs: Matrices<E>,
+         params: Groth16Params<E>,
+         chunk_size: usize,
+     ) -> Result<(MPCParameters<E>, Parameters<E>, Vec<MPCParameters<E>>)> {
+         // Evaluate the QAP against the coefficients created from phase 1
+-        let (at, bt, ct) = {
+-            let matrices = cs.to_matrices().unwrap();
+-            (matrices.a, matrices.b, matrices.c)
+-        };
+ 
+-        let at = Self::process_matrix(&at, cs.clone());
+-        let bt = Self::process_matrix(&bt, cs.clone());
+-        let ct = Self::process_matrix(&ct, cs.clone());
++        let at = Self::process_matrix(&cs.a, cs.clone());
++        let bt = Self::process_matrix(&cs.b, cs.clone());
++        let ct = Self::process_matrix(&cs.c, cs.clone());
+ 
+         let (a_g1, b_g1, b_g2, gamma_abc_g1, l) = eval::<E>(
+             // Lagrange coeffs for Tau, read in from Phase 1
+@@ -210,7 +196,7 @@ impl<E: PairingEngine> MPCParameters<E> {
+             &bt,
+             &ct,
+             // Helper
+-            cs.num_instance_variables(),
++            cs.num_instance_variables,
+         );
+ 
+         // Reject unconstrained elements, so that
+@@ -699,6 +685,7 @@ fn hash_params<E: PairingEngine>(params: &Parameters<E>) -> Result<[u8; 64]> {
+ }
+ 
+ /// Converts an R1CS circuit to QAP form
++/*
+ pub fn circuit_to_qap<Zexe: PairingEngine, C: ConstraintSynthesizer<Zexe::Fr>>(
+     circuit: C,
+ ) -> Result<ConstraintSystemRef<Zexe::Fr>> {
+@@ -719,6 +706,7 @@ pub fn circuit_to_qap<Zexe: PairingEngine, C: ConstraintSynthesizer<Zexe::Fr>>(
+ 
+     Ok(cs)
+ }
++*/
+ 
+ #[cfg(test)]
+ mod tests {
