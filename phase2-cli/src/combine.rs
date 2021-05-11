@@ -1,4 +1,4 @@
-use phase2::parameters::{MPCParameters, verify_transcript};
+use phase2::parameters::{verify_transcript, MPCParameters};
 use setup_utils::{print_hash, CheckForCorrectness, SubgroupCheckMode, UseCompression};
 
 use algebra::{CanonicalSerialize, BW6_761};
@@ -8,7 +8,7 @@ use std::io::{BufRead, BufReader};
 use tracing::info;
 
 const INITIAL_IS_COMPRESSED: UseCompression = UseCompression::No;
-const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::No;
+const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
 const COMBINED_IS_COMPRESSED: UseCompression = UseCompression::No;
 
 pub fn combine(
@@ -16,7 +16,7 @@ pub fn combine(
     initial_full_filename: &str,
     response_list_filename: &str,
     combined_filename: &str,
-    combine_initial: bool, 
+    combine_initial: bool,
 ) {
     info!("Combining phase 2");
 
@@ -27,7 +27,7 @@ pub fn combine(
     let full_parameters = MPCParameters::<BW6_761>::read_fast(
         full_contents.as_slice(),
         INITIAL_IS_COMPRESSED,
-        CheckForCorrectness::Full,
+        CheckForCorrectness::No,
         false,
         SubgroupCheckMode::Auto,
     )
@@ -45,11 +45,9 @@ pub fn combine(
     .expect("should have deserialized initial query params");
 
     let mut all_parameters = vec![];
-    let mut i = 0;
     for line in response_list_reader.lines() {
         let line = line.expect("should have read line");
         let contents = std::fs::read(line).expect("should have read response");
-        i += 1;
         let parameters = MPCParameters::<BW6_761>::read_fast(
             contents.as_slice(),
             CONTRIBUTION_IS_COMPRESSED,
