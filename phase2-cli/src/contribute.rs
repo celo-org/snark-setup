@@ -8,7 +8,7 @@ use std::io::Write;
 use tracing::info;
 
 const COMPRESSED_INPUT: UseCompression = UseCompression::No;
-const COMPRESSED_OUTPUT: UseCompression = UseCompression::Yes;
+const COMPRESSED_OUTPUT: UseCompression = UseCompression::No;
 
 pub fn contribute(
     challenge_filename: &str,
