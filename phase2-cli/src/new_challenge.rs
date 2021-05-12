@@ -92,7 +92,7 @@ pub fn new_challenge(
             .write_all(&serialized_chunk)
             .expect("unable to write serialized mpc parameters");
         challenge_list_file
-            .write(format!("{}.{}", challenge_filename, i).as_bytes())
+            .write(format!("{}.{}\n", challenge_filename, i).as_bytes())
             .expect("unable to write challenge list");
     }
 
