@@ -98,6 +98,8 @@ pub struct NewOpts {
     pub challenge_fname: String,
     #[options(help = "the new challenge file hash", default = "challenge.verified.hash")]
     pub challenge_hash_fname: String,
+    #[options(help = "the list of challenge files", default = "challenge.verified.hash")]
+    pub challenge_list_fname: String,
     #[options(help = "phase 1 file name", default = "phase1")]
     pub phase1_fname: String,
     #[options(help = "phase 1 powers")]

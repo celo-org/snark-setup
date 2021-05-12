@@ -30,6 +30,7 @@ fn execute_cmd<E: Engine>(opts: Phase2Opts) {
             new_challenge(
                 &opt.challenge_fname,
                 &opt.challenge_hash_fname,
+                &opt.challenge_list_fname,
                 opts.chunk_size,
                 &opt.phase1_fname,
                 opt.phase1_powers,

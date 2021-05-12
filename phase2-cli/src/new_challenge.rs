@@ -12,6 +12,7 @@ const COMPRESS_NEW_CHALLENGE: UseCompression = UseCompression::No;
 pub fn new_challenge(
     challenge_filename: &str,
     challenge_hash_filename: &str,
+    challenge_list_filename: &str,
     chunk_size: usize,
     phase1_filename: &str,
     phase1_powers: usize,
@@ -78,6 +79,9 @@ pub fn new_challenge(
         .write_all(&serialized_query_parameters)
         .expect("unable to write serialized mpc parameters");
 
+    let mut challenge_list_file =
+        std::fs::File::create(challenge_list_filename).expect("unable to open new challenge list file");
+
     for (i, chunk) in all_mpc_parameters.iter().enumerate() {
         let mut serialized_chunk = vec![];
         chunk
@@ -87,6 +91,9 @@ pub fn new_challenge(
             .expect("unable to open new challenge hash file")
             .write_all(&serialized_chunk)
             .expect("unable to write serialized mpc parameters");
+        challenge_list_file
+            .write(format!("{}.{}", challenge_filename, i).as_bytes())
+            .expect("unable to write challenge list");
     }
 
     std::fs::File::create(challenge_hash_filename)
