@@ -44,13 +44,18 @@ pub fn combine(
     )
     .expect("should have deserialized initial query params");
 
+    let parameters_compressed = if combine_initial {
+        INITIAL_IS_COMPRESSED
+    } else {
+        CONTRIBUTION_IS_COMPRESSED
+    };
     let mut all_parameters = vec![];
     for line in response_list_reader.lines() {
         let line = line.expect("should have read line");
         let contents = std::fs::read(line).expect("should have read response");
         let parameters = MPCParameters::<BW6_761>::read_fast(
             contents.as_slice(),
-            CONTRIBUTION_IS_COMPRESSED,
+            parameters_compressed,
             CheckForCorrectness::No,
             false,
             SubgroupCheckMode::Auto,

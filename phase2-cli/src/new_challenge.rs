@@ -19,7 +19,6 @@ pub fn new_challenge(
 ) -> usize {
     info!("Generating phase 2");
 
-    // let mut file = File::open("test.contraints").unwrap();
     let mut file = File::open(circuit_filename).unwrap();
     let mut buffer = Vec::<u8>::new();
     file.read_to_end(&mut buffer).unwrap();
