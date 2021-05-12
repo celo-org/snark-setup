@@ -10,6 +10,7 @@ use tracing::info;
 
 const PREVIOUS_CHALLENGE_IS_COMPRESSED: UseCompression = UseCompression::No;
 const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
+const FULL_CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::No;
 const NEW_CHALLENGE_IS_COMPRESSED: UseCompression = UseCompression::No;
 
 pub fn verify(
@@ -22,6 +23,7 @@ pub fn verify(
     new_challenge_filename: &str,
     new_challenge_hash_filename: &str,
     subgroup_check_mode: SubgroupCheckMode,
+    verifying_full_contribution: bool,
 ) {
     info!("Verifying phase 2");
 
@@ -54,9 +56,14 @@ pub fn verify(
     info!("`response` file contains decompressed points and has a hash:");
     print_hash(&response_hash);
 
+    let after_compressed = if verifying_full_contribution {
+        FULL_CONTRIBUTION_IS_COMPRESSED
+    } else {
+        CONTRIBUTION_IS_COMPRESSED
+    };
     let parameters_after = MPCParameters::<BW6_761>::read_fast(
         response_contents.as_slice(),
-        CONTRIBUTION_IS_COMPRESSED,
+        after_compressed,
         check_output_correctness,
         true,
         subgroup_check_mode,
