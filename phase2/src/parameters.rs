@@ -119,10 +119,14 @@ impl<E: PairingEngine> MPCParameters<E> {
     #[cfg(not(feature = "wasm"))]
     pub fn new(cs: Matrices<E>, params: Groth16Params<E>) -> Result<MPCParameters<E>> {
         // Evaluate the QAP against the coefficients created from phase 1
+        println!("About to eval at");
         let at = Self::process_matrix(&cs.a, cs.clone());
+        println!("About to eval bt");
         let bt = Self::process_matrix(&cs.b, cs.clone());
+        println!("About to eval ct");
         let ct = Self::process_matrix(&cs.c, cs.clone());
 
+        println!("About to eval lots of stuff");
         let (a_g1, b_g1, b_g2, gamma_abc_g1, l) = eval::<E>(
             // Lagrange coeffs for Tau, read in from Phase 1
             &params.coeffs_g1,
@@ -136,6 +140,7 @@ impl<E: PairingEngine> MPCParameters<E> {
             // Helper
             cs.num_instance_variables,
         );
+        println!("Evaled lots of stuff");
 
         // Reject unconstrained elements, so that
         // the L query is always fully dense.
