@@ -30,6 +30,7 @@ pub fn new_challenge(
     let phase2_size =
         std::cmp::max(m.num_constraints, m.num_witness_variables + m.num_instance_variables).next_power_of_two();
 
+    println!("a");
     let reader = OpenOptions::new()
         .read(true)
         .write(true)
@@ -41,6 +42,7 @@ pub fn new_challenge(
             .expect("unable to create a memory map for input")
     };
 
+    println!("b");
     let (full_mpc_parameters, query_parameters, all_mpc_parameters) =
         MPCParameters::<BW6_761>::new_from_buffer_chunked(
             m,
@@ -53,11 +55,13 @@ pub fn new_challenge(
         )
         .unwrap();
 
+    println!("c");
     let mut serialized_mpc_parameters = vec![];
     full_mpc_parameters
         .write(&mut serialized_mpc_parameters, COMPRESS_NEW_CHALLENGE)
         .unwrap();
 
+    println!("d");
     let mut serialized_query_parameters = vec![];
     match COMPRESS_NEW_CHALLENGE {
         UseCompression::No => query_parameters.serialize_uncompressed(&mut serialized_query_parameters),
@@ -65,6 +69,7 @@ pub fn new_challenge(
     }
     .unwrap();
 
+    println!("e");
     let contribution_hash = {
         std::fs::File::create(format!("{}.full", challenge_filename))
             .expect("unable to open new challenge hash file")
@@ -74,14 +79,17 @@ pub fn new_challenge(
         calculate_hash(&serialized_mpc_parameters)
     };
 
+    println!("f");
     std::fs::File::create(format!("{}.query", challenge_filename))
         .expect("unable to open new challenge hash file")
         .write_all(&serialized_query_parameters)
         .expect("unable to write serialized mpc parameters");
 
+    println!("g");
     let mut challenge_list_file =
         std::fs::File::create(challenge_list_filename).expect("unable to open new challenge list file");
 
+    println!("h");
     for (i, chunk) in all_mpc_parameters.iter().enumerate() {
         let mut serialized_chunk = vec![];
         chunk
@@ -96,6 +104,7 @@ pub fn new_challenge(
             .expect("unable to write challenge list");
     }
 
+    println!("i");
     std::fs::File::create(challenge_hash_filename)
         .expect("unable to open new challenge hash file")
         .write_all(contribution_hash.as_slice())
