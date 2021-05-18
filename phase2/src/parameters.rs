@@ -14,11 +14,10 @@ use super::keypair::{hash_cs_pubkeys, Keypair, PublicKey};
 use crate::load_circuit::Matrices;
 use setup_utils::*;
 
-use rand::Rng;
-
 use algebra::{
     AffineCurve, CanonicalDeserialize, CanonicalSerialize, Field, PairingEngine, ProjectiveCurve, SerializationError,
 };
+use rand::Rng;
 
 use std::{
     fmt,
@@ -91,7 +90,6 @@ impl<E: PairingEngine> MPCParameters<E> {
         phase2_size: usize,
         chunk_size: usize,
     ) -> Result<(MPCParameters<E>, Parameters<E>, Vec<MPCParameters<E>>)> {
-        // let assembly = circuit_to_qap::<E, _>(circuit)?;
         let params = Groth16Params::<E>::read(
             transcript,
             compressed,

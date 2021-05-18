@@ -19,7 +19,7 @@ required-features = ["phase2/testing"]
 [dependencies]
 setup-utils = { path = "../setup-utils", default-features = false }
 
-algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "algebra", features = ["bls12_377", "bls12_381", "bw6_761", "derive"] }
+algebra = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "algebra", features = ["bls12_377", "bls12_381", "bw6_761"] }
 groth16 = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "groth16", features = [] }
 r1cs_core = { git = "https://github.com/scipr-lab/zexe", version = "0.1.1-alpha.0", package = "r1cs-core" }
 

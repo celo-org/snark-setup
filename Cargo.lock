@@ -1083,26 +1083,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "phase1-wasm"
-version = "0.3.0"
-dependencies = [
- "algebra",
- "console_error_panic_hook",
- "phase1",
- "rand",
- "rand_xorshift",
- "rayon",
- "rustc_version",
- "serde",
- "serde_derive",
- "setup-utils",
- "tracing",
- "tracing-subscriber",
- "wasm-bindgen",
- "wasm-bindgen-test",
-]
-
-[[package]]
 name = "phase2"
 version = "0.3.0"
 dependencies = [
