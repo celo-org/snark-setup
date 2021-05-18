@@ -216,6 +216,7 @@ impl<E: PairingEngine> MPCParameters<E> {
                 return Err(SynthesisError::UnconstrainedVariable.into());
             }
         }
+        println!("Rejected unconstrained elements");
 
         let vk = VerifyingKey {
             alpha_g1: params.alpha_g1,
@@ -226,6 +227,7 @@ impl<E: PairingEngine> MPCParameters<E> {
             delta_g2: E::G2Affine::prime_subgroup_generator(),
             gamma_abc_g1,
         };
+        println!("Build vk");
         let params = Parameters {
             vk,
             beta_g1: params.beta_g1,
@@ -236,6 +238,7 @@ impl<E: PairingEngine> MPCParameters<E> {
             h_query: params.h_g1,
             l_query: l,
         };
+        println!("Built params");
 
         let query_parameters = Parameters::<E> {
             vk: params.vk.clone(),
@@ -247,7 +250,9 @@ impl<E: PairingEngine> MPCParameters<E> {
             h_query: vec![],
             l_query: vec![],
         };
+        println!("Built query params");
         let cs_hash = hash_params(&params)?;
+        println!("Computed cs hash");
         let full_mpc = MPCParameters {
             params: params.clone(),
             cs_hash,
@@ -259,6 +264,7 @@ impl<E: PairingEngine> MPCParameters<E> {
         let max_query = std::cmp::max(params.h_query.len(), params.l_query.len());
         let num_chunks = (max_query + chunk_size - 1) / chunk_size;
         for i in 0..num_chunks {
+            println!("Working on chunk {}", i);
             let chunk_start = i * chunk_size;
             let chunk_end = (i + 1) * chunk_size;
             let h_query_for_chunk = if chunk_start < params.h_query.len() {
@@ -287,6 +293,7 @@ impl<E: PairingEngine> MPCParameters<E> {
             };
             chunks.push(chunk_params);
         }
+        println!("Created chunks");
         Ok((full_mpc, query_parameters, chunks))
     }
 
