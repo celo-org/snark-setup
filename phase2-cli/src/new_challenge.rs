@@ -2,11 +2,11 @@ use phase2::load_circuit::Matrices;
 use phase2::parameters::MPCParameters;
 use setup_utils::{calculate_hash, print_hash, CheckForCorrectness, UseCompression};
 
+use crate::COMPRESS_CONTRIBUTE_INPUT;
 use algebra::{CanonicalDeserialize, CanonicalSerialize, BW6_761};
 use memmap::*;
 use std::{fs::File, fs::OpenOptions, io::Read, io::Write};
 use tracing::info;
-use crate::COMPRESS_CONTRIBUTE_INPUT;
 
 pub fn new_challenge(
     challenge_filename: &str,

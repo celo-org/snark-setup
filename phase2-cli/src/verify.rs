@@ -3,11 +3,11 @@ use setup_utils::{calculate_hash, print_hash, CheckForCorrectness, SubgroupCheck
 
 use algebra::BW6_761;
 
+use crate::{COMBINED_IS_COMPRESSED, COMPRESS_CONTRIBUTE_INPUT, COMPRESS_CONTRIBUTE_OUTPUT};
 use memmap::MmapOptions;
 use std::fs::OpenOptions;
 use std::io::Write;
 use tracing::info;
-use crate::{COMBINED_IS_COMPRESSED, COMPRESS_CONTRIBUTE_INPUT, COMPRESS_CONTRIBUTE_OUTPUT};
 
 pub fn verify(
     challenge_filename: &str,

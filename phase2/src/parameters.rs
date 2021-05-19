@@ -101,7 +101,7 @@ impl<E: PairingEngine> MPCParameters<E> {
     }
 
     #[cfg(not(feature = "wasm"))]
-    fn process_matrix(xt: &[Vec<(E::Fr, usize)>], cs: Matrices<E>) -> Vec<Vec<(E::Fr, usize)>> {
+    fn process_matrix(xt: &[Vec<(E::Fr, usize)>], cs: &Matrices<E>) -> Vec<Vec<(E::Fr, usize)>> {
         let mut xt_processed = vec![vec![]; cs.num_instance_variables + cs.num_witness_variables];
         for (constraint_num, vars) in xt.iter().enumerate() {
             for (coeff, var_index) in vars {
@@ -117,9 +117,9 @@ impl<E: PairingEngine> MPCParameters<E> {
     #[cfg(not(feature = "wasm"))]
     pub fn new(cs: Matrices<E>, params: Groth16Params<E>) -> Result<MPCParameters<E>> {
         // Evaluate the QAP against the coefficients created from phase 1
-        let at = Self::process_matrix(&cs.a, cs.clone());
-        let bt = Self::process_matrix(&cs.b, cs.clone());
-        let ct = Self::process_matrix(&cs.c, cs.clone());
+        let at = Self::process_matrix(&cs.a, &cs);
+        let bt = Self::process_matrix(&cs.b, &cs);
+        let ct = Self::process_matrix(&cs.c, &cs);
 
         let (a_g1, b_g1, b_g2, gamma_abc_g1, l) = eval::<E>(
             // Lagrange coeffs for Tau, read in from Phase 1
@@ -179,9 +179,9 @@ impl<E: PairingEngine> MPCParameters<E> {
     ) -> Result<(MPCParameters<E>, Parameters<E>, Vec<MPCParameters<E>>)> {
         // Evaluate the QAP against the coefficients created from phase 1
 
-        let at = Self::process_matrix(&cs.a, cs.clone());
-        let bt = Self::process_matrix(&cs.b, cs.clone());
-        let ct = Self::process_matrix(&cs.c, cs.clone());
+        let at = Self::process_matrix(&cs.a, &cs);
+        let bt = Self::process_matrix(&cs.b, &cs);
+        let ct = Self::process_matrix(&cs.c, &cs);
 
         let (a_g1, b_g1, b_g2, gamma_abc_g1, l) = eval::<E>(
             // Lagrange coeffs for Tau, read in from Phase 1

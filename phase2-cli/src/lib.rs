@@ -22,7 +22,7 @@ use setup_utils::{
         batch_exp_mode_from_str, contribution_mode_from_str, curve_from_str, proving_system_from_str,
         subgroup_check_mode_from_str,
     },
-    BatchExpMode, UseCompression, SubgroupCheckMode,
+    BatchExpMode, SubgroupCheckMode, UseCompression,
 };
 use std::default::Default;
 
