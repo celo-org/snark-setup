@@ -682,30 +682,6 @@ fn hash_params<E: PairingEngine>(params: &Parameters<E>) -> Result<[u8; 64]> {
     Ok(cs_hash)
 }
 
-/// Converts an R1CS circuit to QAP form
-/*
-pub fn circuit_to_qap<Zexe: PairingEngine, C: ConstraintSynthesizer<Zexe::Fr>>(
-    circuit: C,
-) -> Result<ConstraintSystemRef<Zexe::Fr>> {
-    // This is a Groth16 keypair assembly
-    let cs = ConstraintSystem::new_ref();
-    cs.set_mode(SynthesisMode::Setup);
-
-    // Synthesize the circuit.
-    circuit
-        .generate_constraints(cs.clone())
-        .expect("constraint generation should not fail");
-    // Input constraints to ensure full density of IC query
-    // x * 0 = 0
-    for i in 0..cs.num_instance_variables() {
-        cs.enforce_constraint(lc!() + Variable::Instance(i), lc!(), lc!())?;
-    }
-    cs.inline_all_lcs();
-
-    Ok(cs)
-}
-*/
-
 #[cfg(test)]
 mod tests {
     use super::*;
