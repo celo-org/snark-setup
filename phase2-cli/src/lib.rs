@@ -22,9 +22,13 @@ use setup_utils::{
         batch_exp_mode_from_str, contribution_mode_from_str, curve_from_str, proving_system_from_str,
         subgroup_check_mode_from_str,
     },
-    BatchExpMode, SubgroupCheckMode,
+    BatchExpMode, UseCompression, SubgroupCheckMode,
 };
 use std::default::Default;
+
+pub const COMPRESS_CONTRIBUTE_INPUT: UseCompression = UseCompression::No;
+pub const COMPRESS_CONTRIBUTE_OUTPUT: UseCompression = UseCompression::Yes;
+pub const COMBINED_IS_COMPRESSED: UseCompression = UseCompression::No;
 
 #[derive(Debug, Options, Clone)]
 pub struct Phase2Opts {

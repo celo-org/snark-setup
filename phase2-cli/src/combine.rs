@@ -7,9 +7,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use tracing::info;
 
-const INITIAL_IS_COMPRESSED: UseCompression = UseCompression::No;
-const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
-const COMBINED_IS_COMPRESSED: UseCompression = UseCompression::No;
+use crate::{COMPRESS_CONTRIBUTE_INPUT, COMPRESS_CONTRIBUTE_OUTPUT, COMBINED_IS_COMPRESSED};
 
 pub fn combine(
     initial_query_filename: &str,
@@ -26,7 +24,7 @@ pub fn combine(
     let full_contents = std::fs::read(initial_full_filename).expect("should have initial full parameters");
     let full_parameters = MPCParameters::<BW6_761>::read_fast(
         full_contents.as_slice(),
-        INITIAL_IS_COMPRESSED,
+        UseCompression::No,
         CheckForCorrectness::No,
         false,
         SubgroupCheckMode::Auto,
@@ -37,7 +35,7 @@ pub fn combine(
         std::io::Cursor::new(std::fs::read(initial_query_filename).expect("should have read initial query"));
     let query_parameters = MPCParameters::<BW6_761>::read_groth16_fast(
         &mut query_contents,
-        INITIAL_IS_COMPRESSED,
+        UseCompression::No,
         CheckForCorrectness::No,
         false,
         SubgroupCheckMode::Auto,
@@ -45,9 +43,9 @@ pub fn combine(
     .expect("should have deserialized initial query params");
 
     let parameters_compressed = if combine_initial {
-        INITIAL_IS_COMPRESSED
+        COMPRESS_CONTRIBUTE_INPUT
     } else {
-        CONTRIBUTION_IS_COMPRESSED
+        COMPRESS_CONTRIBUTE_OUTPUT
     };
     let mut all_parameters = vec![];
     for line in response_list_reader.lines() {

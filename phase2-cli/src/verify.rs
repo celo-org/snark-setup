@@ -1,5 +1,5 @@
 use phase2::parameters::MPCParameters;
-use setup_utils::{calculate_hash, print_hash, CheckForCorrectness, SubgroupCheckMode, UseCompression};
+use setup_utils::{calculate_hash, print_hash, CheckForCorrectness, SubgroupCheckMode};
 
 use algebra::BW6_761;
 
@@ -7,11 +7,7 @@ use memmap::MmapOptions;
 use std::fs::OpenOptions;
 use std::io::Write;
 use tracing::info;
-
-const PREVIOUS_CHALLENGE_IS_COMPRESSED: UseCompression = UseCompression::No;
-const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
-const FULL_CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::No;
-const NEW_CHALLENGE_IS_COMPRESSED: UseCompression = UseCompression::No;
+use crate::{COMBINED_IS_COMPRESSED, COMPRESS_CONTRIBUTE_INPUT, COMPRESS_CONTRIBUTE_OUTPUT};
 
 pub fn verify(
     challenge_filename: &str,
@@ -39,7 +35,7 @@ pub fn verify(
 
     let parameters_before = MPCParameters::<BW6_761>::read_fast(
         challenge_contents.as_slice(),
-        PREVIOUS_CHALLENGE_IS_COMPRESSED,
+        COMPRESS_CONTRIBUTE_INPUT,
         check_input_correctness,
         true,
         subgroup_check_mode,
@@ -57,9 +53,9 @@ pub fn verify(
     print_hash(&response_hash);
 
     let after_compressed = if verifying_full_contribution {
-        FULL_CONTRIBUTION_IS_COMPRESSED
+        COMBINED_IS_COMPRESSED
     } else {
-        CONTRIBUTION_IS_COMPRESSED
+        COMPRESS_CONTRIBUTE_OUTPUT
     };
     let parameters_after = MPCParameters::<BW6_761>::read_fast(
         response_contents.as_slice(),
@@ -77,7 +73,7 @@ pub fn verify(
         .open(new_challenge_filename)
         .expect("unable to create new challenge file in this directory");
     parameters_after
-        .write(writer, NEW_CHALLENGE_IS_COMPRESSED)
+        .write(writer, COMPRESS_CONTRIBUTE_INPUT)
         .expect("unable to write new challenge file");
 
     // Read new challenge to create hash

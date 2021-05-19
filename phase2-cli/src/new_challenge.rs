@@ -6,8 +6,7 @@ use algebra::{CanonicalDeserialize, CanonicalSerialize, BW6_761};
 use memmap::*;
 use std::{fs::File, fs::OpenOptions, io::Read, io::Write};
 use tracing::info;
-
-const COMPRESS_NEW_CHALLENGE: UseCompression = UseCompression::No;
+use crate::COMPRESS_CONTRIBUTE_INPUT;
 
 pub fn new_challenge(
     challenge_filename: &str,
@@ -55,11 +54,11 @@ pub fn new_challenge(
 
     let mut serialized_mpc_parameters = vec![];
     full_mpc_parameters
-        .write(&mut serialized_mpc_parameters, COMPRESS_NEW_CHALLENGE)
+        .write(&mut serialized_mpc_parameters, COMPRESS_CONTRIBUTE_INPUT)
         .unwrap();
 
     let mut serialized_query_parameters = vec![];
-    match COMPRESS_NEW_CHALLENGE {
+    match COMPRESS_CONTRIBUTE_INPUT {
         UseCompression::No => query_parameters.serialize_uncompressed(&mut serialized_query_parameters),
         UseCompression::Yes => query_parameters.serialize(&mut serialized_query_parameters),
     }
@@ -85,7 +84,7 @@ pub fn new_challenge(
     for (i, chunk) in all_mpc_parameters.iter().enumerate() {
         let mut serialized_chunk = vec![];
         chunk
-            .write(&mut serialized_chunk, COMPRESS_NEW_CHALLENGE)
+            .write(&mut serialized_chunk, COMPRESS_CONTRIBUTE_INPUT)
             .expect("unable to write chunk");
         std::fs::File::create(format!("{}.{}", challenge_filename, i))
             .expect("unable to open new challenge hash file")
