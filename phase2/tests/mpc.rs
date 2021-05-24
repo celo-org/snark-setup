@@ -5,12 +5,13 @@ use phase1::{
     parameters::Phase1Parameters,
     Phase1, ProvingSystem,
 };
+use phase2::load_circuit::Matrices;
 use phase2::{
     chunked_groth16::verify,
     helpers::testing::TestCircuit,
     parameters::{MPCParameters, Phase2ContributionMode},
 };
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisMode};
+use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystem, SynthesisMode, Variable};
 use rand::{thread_rng, Rng};
 use setup_utils::{derive_rng_from_seed, BatchExpMode, Groth16Params, UseCompression};
 
@@ -23,6 +24,13 @@ where
     let counter = ConstraintSystem::new_ref();
     counter.set_mode(SynthesisMode::Setup);
     c.clone().generate_constraints(counter.clone()).unwrap();
+    for i in 0..counter.num_instance_variables() {
+        counter
+            .enforce_constraint(lc!() + Variable::Instance(i), lc!(), lc!())
+            .expect("Constraint generation failed");
+    }
+    counter.inline_all_lcs();
+
     let phase2_size = std::cmp::max(
         counter.num_constraints() + counter.num_instance_variables(),
         counter.num_witness_variables() + counter.num_instance_variables(),
@@ -59,8 +67,21 @@ where
     let mut writer = vec![];
     groth_params.write(&mut writer, compressed).unwrap();
 
+    let m = counter.to_matrices().unwrap();
+    let matrices = Matrices {
+        num_instance_variables: m.num_instance_variables,
+        num_witness_variables: m.num_witness_variables,
+        num_constraints: m.num_constraints,
+        a_num_non_zero: m.a_num_non_zero,
+        b_num_non_zero: m.b_num_non_zero,
+        c_num_non_zero: m.c_num_non_zero,
+        a: m.a,
+        b: m.b,
+        c: m.c,
+    };
+
     let mut mpc = MPCParameters::<E>::new_from_buffer(
-        c,
+        matrices,
         writer.as_mut(),
         compressed,
         CheckForCorrectness::Full,
@@ -122,10 +143,23 @@ where
     let mut writer = vec![];
     groth_params.write(&mut writer, compressed).unwrap();
 
+    let m = counter.to_matrices().unwrap();
+    let matrices = Matrices {
+        num_instance_variables: m.num_instance_variables,
+        num_witness_variables: m.num_witness_variables,
+        num_constraints: m.num_constraints,
+        a_num_non_zero: m.a_num_non_zero,
+        b_num_non_zero: m.b_num_non_zero,
+        c_num_non_zero: m.c_num_non_zero,
+        a: m.a,
+        b: m.b,
+        c: m.c,
+    };
+
     let chunk_size = phase2_size / 3;
 
     let (full_mpc_before, queries, mut mpcs) = MPCParameters::<E>::new_from_buffer_chunked(
-        c,
+        matrices,
         writer.as_mut(),
         compressed,
         CheckForCorrectness::Full,

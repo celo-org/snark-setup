@@ -17,6 +17,7 @@ use setup_utils::*;
 use algebra::{
     AffineCurve, CanonicalDeserialize, CanonicalSerialize, Field, PairingEngine, ProjectiveCurve, SerializationError,
 };
+use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisMode, Variable};
 use rand::Rng;
 
 use std::{
@@ -69,7 +70,6 @@ impl<E: PairingEngine> MPCParameters<E> {
         phase1_size: usize,
         phase2_size: usize,
     ) -> Result<MPCParameters<E>> {
-        // let assembly = circuit_to_qap::<E, _>(circuit)?;
         let params = Groth16Params::<E>::read(
             transcript,
             compressed,
@@ -671,6 +671,25 @@ pub fn verify_transcript<E: PairingEngine>(cs_hash: [u8; 64], contributions: &[P
     Ok(result)
 }
 
+pub fn circuit_to_qap<Zexe: PairingEngine, C: ConstraintSynthesizer<Zexe::Fr>>(
+    circuit: C,
+) -> Result<ConstraintSystemRef<Zexe::Fr>> {
+    // This is a Groth16 keypair assembly
+    let cs = ConstraintSystem::new_ref();
+    cs.set_mode(SynthesisMode::Setup);
+    // Synthesize the circuit.
+    circuit
+        .generate_constraints(cs.clone())
+        .expect("constraint generation should not fail");
+    // Input constraints to ensure full density of IC query
+    // x * 0 = 0
+    for i in 0..cs.num_instance_variables() {
+        cs.enforce_constraint(lc!() + Variable::Instance(i), lc!(), lc!())?;
+    }
+    cs.inline_all_lcs();
+    Ok(cs)
+}
+
 #[allow(unused)]
 fn hash_params<E: PairingEngine>(params: &Parameters<E>) -> Result<[u8; 64]> {
     let sink = io::sink();
@@ -874,8 +893,20 @@ mod tests {
 
         // this circuit requires 7 constraints, so a ceremony with size 8 is sufficient
         let c = TestCircuit::<E>(None);
-        let assembly = circuit_to_qap::<E, _>(c).unwrap();
+        let cs = circuit_to_qap::<E, _>(c).unwrap();
+        let m = cs.to_matrices().unwrap();
+        let matrices = Matrices {
+            a: m.a,
+            b: m.b,
+            c: m.c,
+            a_num_non_zero: m.a_num_non_zero,
+            b_num_non_zero: m.b_num_non_zero,
+            c_num_non_zero: m.c_num_non_zero,
+            num_instance_variables: m.num_instance_variables,
+            num_witness_variables: m.num_witness_variables,
+            num_constraints: m.num_constraints,
+        };
 
-        MPCParameters::new(assembly, groth_params).unwrap()
+        MPCParameters::new(matrices, groth_params).unwrap()
     }
 }
