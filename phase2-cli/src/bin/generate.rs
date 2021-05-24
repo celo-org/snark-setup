@@ -1,4 +1,4 @@
-use anyhow::Result;
+/*use anyhow::Result;
 use ark_bls12_377::Bls12_377;
 use ark_bls12_377::Fq;
 use ark_relations::lc;
@@ -102,4 +102,4 @@ fn main() -> Result<()> {
     );
 
     Ok(())
-}
+}*/
