@@ -62,14 +62,6 @@ where
     let mut writer = vec![];
     groth_params.write(&mut writer, compressed).unwrap();
 
-    //let cs = ConstraintSystem::new_ref();
-    //cs.set_mode(SynthesisMode::Setup);
-    //c.clone().generate_constraints(cs.clone()).unwrap();
-    /*for i in 0..counter.num_instance_variables() {
-        counter.enforce_constraint(lc!() + Variable::Instance(i), lc!(), lc!()).unwrap();
-    }
-    counter.inline_all_lcs();*/
-
     let m = circuit_to_qap::<E, C>(c.clone()).unwrap();
 
     let m = m.to_matrices().unwrap();
