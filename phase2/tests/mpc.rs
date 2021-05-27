@@ -6,12 +6,12 @@ use phase1::{
     Phase1, ProvingSystem,
 };
 use phase2::load_circuit::Matrices;
+use phase2::parameters::circuit_to_qap;
 use phase2::{
     chunked_groth16::verify,
     helpers::testing::TestCircuit,
     parameters::{MPCParameters, Phase2ContributionMode},
 };
-use phase2::parameters::circuit_to_qap;
 use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystem, SynthesisMode, Variable};
 use rand::{thread_rng, Rng};
 use setup_utils::{derive_rng_from_seed, BatchExpMode, Groth16Params, UseCompression};
@@ -70,7 +70,7 @@ where
     }
     counter.inline_all_lcs();*/
 
-    let m = circuit_to_qap::<E,C>(c.clone()).unwrap();
+    let m = circuit_to_qap::<E, C>(c.clone()).unwrap();
 
     let m = m.to_matrices().unwrap();
     let matrices = Matrices {
@@ -147,8 +147,8 @@ where
     // write the transcript to a file
     let mut writer = vec![];
     groth_params.write(&mut writer, compressed).unwrap();
-    
-    let m = circuit_to_qap::<E,C>(c.clone()).unwrap();
+
+    let m = circuit_to_qap::<E, C>(c.clone()).unwrap();
 
     let m = m.to_matrices().unwrap();
     let matrices = Matrices {
