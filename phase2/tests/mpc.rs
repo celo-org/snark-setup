@@ -11,6 +11,7 @@ use phase2::{
     helpers::testing::TestCircuit,
     parameters::{MPCParameters, Phase2ContributionMode},
 };
+use phase2::parameters::circuit_to_qap;
 use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystem, SynthesisMode, Variable};
 use rand::{thread_rng, Rng};
 use setup_utils::{derive_rng_from_seed, BatchExpMode, Groth16Params, UseCompression};
@@ -24,12 +25,6 @@ where
     let counter = ConstraintSystem::new_ref();
     counter.set_mode(SynthesisMode::Setup);
     c.clone().generate_constraints(counter.clone()).unwrap();
-    for i in 0..counter.num_instance_variables() {
-        counter
-            .enforce_constraint(lc!() + Variable::Instance(i), lc!(), lc!())
-            .expect("Constraint generation failed");
-    }
-    counter.inline_all_lcs();
 
     let phase2_size = std::cmp::max(
         counter.num_constraints() + counter.num_instance_variables(),
@@ -67,7 +62,17 @@ where
     let mut writer = vec![];
     groth_params.write(&mut writer, compressed).unwrap();
 
-    let m = counter.to_matrices().unwrap();
+    //let cs = ConstraintSystem::new_ref();
+    //cs.set_mode(SynthesisMode::Setup);
+    //c.clone().generate_constraints(cs.clone()).unwrap();
+    /*for i in 0..counter.num_instance_variables() {
+        counter.enforce_constraint(lc!() + Variable::Instance(i), lc!(), lc!()).unwrap();
+    }
+    counter.inline_all_lcs();*/
+
+    let m = circuit_to_qap::<E,C>(c.clone()).unwrap();
+
+    let m = m.to_matrices().unwrap();
     let matrices = Matrices {
         num_instance_variables: m.num_instance_variables,
         num_witness_variables: m.num_witness_variables,
@@ -142,8 +147,10 @@ where
     // write the transcript to a file
     let mut writer = vec![];
     groth_params.write(&mut writer, compressed).unwrap();
+    
+    let m = circuit_to_qap::<E,C>(c.clone()).unwrap();
 
-    let m = counter.to_matrices().unwrap();
+    let m = m.to_matrices().unwrap();
     let matrices = Matrices {
         num_instance_variables: m.num_instance_variables,
         num_witness_variables: m.num_witness_variables,
