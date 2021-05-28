@@ -12,7 +12,7 @@ use phase2::{
     helpers::testing::TestCircuit,
     parameters::{MPCParameters, Phase2ContributionMode},
 };
-use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystem, SynthesisMode, Variable};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisMode};
 use rand::{thread_rng, Rng};
 use setup_utils::{derive_rng_from_seed, BatchExpMode, Groth16Params, UseCompression};
 
