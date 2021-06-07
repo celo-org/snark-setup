@@ -2,8 +2,8 @@
 /// to Phase 2-compatible Lagrange Coefficients.
 use crate::{buffer_size, CheckForCorrectness, Deserializer, Result, Serializer, UseCompression};
 
-use zexe_algebra::{AffineCurve, PairingEngine, PrimeField, ProjectiveCurve};
-use zexe_fft::{
+use algebra::{AffineCurve, PairingEngine, PrimeField, ProjectiveCurve};
+use fft::{
     cfg_into_iter, cfg_iter,
     domain::{radix2::Radix2EvaluationDomain, EvaluationDomain},
 };
@@ -239,23 +239,17 @@ fn split_transcript<E: PairingEngine>(
 ) -> SplitBuf {
     let g1_size = buffer_size::<E::G1Affine>(compressed);
     let g2_size = buffer_size::<E::G2Affine>(compressed);
-
     // N elements per coefficient
     let (coeffs_g1, others) = input.split_at(g1_size * size);
     let (_, others) = others.split_at((phase1_size - size) * g1_size);
-
     let (coeffs_g2, others) = others.split_at(g2_size * size);
     let (_, others) = others.split_at((phase1_size - size) * g2_size);
-
     let (alpha_coeffs_g1, others) = others.split_at(g1_size * size);
     let (_, others) = others.split_at((phase1_size - size) * g1_size);
-
     let (beta_coeffs_g1, others) = others.split_at(g1_size * size);
     let (_, others) = others.split_at((phase1_size - size) * g1_size);
-
     // N-1 for the h coeffs
     let (h_coeffs, _) = others.split_at(g1_size * (size - 1));
-
     (coeffs_g1, coeffs_g2, alpha_coeffs_g1, beta_coeffs_g1, h_coeffs)
 }
 
@@ -271,7 +265,7 @@ mod tests {
         Phase1, Phase1Parameters, ProvingSystem,
     };
 
-    use zexe_algebra::Bls12_377;
+    use algebra::Bls12_377;
 
     fn read_write_curve<E: PairingEngine>(powers: usize, prepared_phase1_size: usize, compressed: UseCompression) {
         fn compat(compression: UseCompression) -> UseCompressionPhase1 {
