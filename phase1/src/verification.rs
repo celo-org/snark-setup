@@ -32,8 +32,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
         compressed_new_challenge: UseCompression,
         check_input_for_correctness: CheckForCorrectness,
         check_output_for_correctness: CheckForCorrectness,
-        subgroup_check: bool,
-        subgroup_check_mode: Option<SubgroupCheckMode>,
+        subgroup_check_mode: SubgroupCheckMode,
         ratio_check: bool,
         parameters: &'a Phase1Parameters<E>,
     ) -> Result<()> {
@@ -252,9 +251,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                     (tau_g1, compressed_output),
                                     (start_chunk, end_chunk),
                                     &mut g1,
-                                    subgroup_check,
-                                    subgroup_check_mode
-                                        .expect("subgroup check mode not passed in when running subgroup check"),
+                                    subgroup_check_mode,
                                 )
                                 .expect("could not check element are non zero and in prime order subgroup (tau g1)");
 
@@ -311,8 +308,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                             (tau_g2, compressed_output),
                                             (start_chunk, end_chunk),
                                             &mut g2,
-                                            subgroup_check,
-                                            subgroup_check_mode.expect("subgroup check mode not passed in when running subgroup check"),
+                                            subgroup_check_mode,
                                         )
                                         .expect(
                                             "could not check elements are non zero and in prime order subgroup (tau g2)",
@@ -346,8 +342,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                             (alpha_g1, compressed_output),
                                             (start_chunk, end_chunk),
                                             &mut g1,
-                                            subgroup_check,
-                                            subgroup_check_mode.expect("subgroup check mode not passed in when running subgroup check"),
+                                            subgroup_check_mode,
                                         )
                                         .expect(
                                             "could not check elements are non zero and in prime order subgroup (alpha g1)",
@@ -381,8 +376,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                             (beta_g1, compressed_output),
                                             (start_chunk, end_chunk),
                                             &mut g1,
-                                            subgroup_check,
-                                            subgroup_check_mode.expect("subgroup check mode not passed in when running subgroup check"),
+                                            subgroup_check_mode,
                                         )
                                         .expect(
                                             "could not check element are non zero and in prime order subgroup (beta g1)",
@@ -422,9 +416,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                     (tau_g1, compressed_output),
                                     (start_chunk, end_chunk),
                                     &mut g1,
-                                    subgroup_check,
-                                    subgroup_check_mode
-                                        .expect("subgroup check mode not passed in when running subgroup check"),
+                                    subgroup_check_mode,
                                 )
                                 .expect("could not check ratios for tau_g1 elements");
 
@@ -451,9 +443,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                         (alpha_g1, compressed_output),
                                         (start_chunk, end_chunk),
                                         &mut g1,
-                                        subgroup_check,
-                                        subgroup_check_mode
-                                            .expect("subgroup check mode not passed in when running subgroup check"),
+                                        subgroup_check_mode,
                                     )
                                     .expect("could not check ratios for tau_g1 elements");
 
@@ -473,9 +463,7 @@ impl<'a, E: PairingEngine + Sync> Phase1<'a, E> {
                                         (tau_g2, compressed_output),
                                         (start_chunk, end_chunk),
                                         &mut g2,
-                                        subgroup_check,
-                                        subgroup_check_mode
-                                            .expect("subgroup check mode not passed in when running subgroup check"),
+                                        subgroup_check_mode,
                                     )
                                     .expect("could not check element are non zero and in prime order subgroup");
 
