@@ -100,7 +100,7 @@ cfg_if! {
                 compression,
                 CheckForCorrectness::OnlyNonZero,
             )?;
-            
+
             const SECURITY_PARAM: usize = 128;
             const BATCH_SIZE: usize = 1 << 12;
             let now = std::time::Instant::now();
