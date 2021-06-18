@@ -12,7 +12,7 @@ use std::{
 use tracing::info;
 
 const COMPRESSED_INPUT: UseCompression = UseCompression::No;
-const COMPRESSED_OUTPUT: UseCompression = UseCompression::Yes;
+const COMPRESSED_OUTPUT: UseCompression = UseCompression::No;
 
 pub fn contribute<T: Engine + Sync>(
     challenge_filename: &str,

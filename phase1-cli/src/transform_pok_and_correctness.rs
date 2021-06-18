@@ -10,7 +10,7 @@ use std::{
 use tracing::info;
 
 const PREVIOUS_CHALLENGE_IS_COMPRESSED: UseCompression = UseCompression::No;
-const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
+const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::No;
 const COMPRESS_NEW_CHALLENGE: UseCompression = UseCompression::No;
 
 pub fn transform_pok_and_correctness<T: Engine + Sync>(

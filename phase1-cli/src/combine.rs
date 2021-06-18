@@ -10,7 +10,7 @@ use std::{
 };
 use tracing::info;
 
-const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::Yes;
+const CONTRIBUTION_IS_COMPRESSED: UseCompression = UseCompression::No;
 const COMPRESS_NEW_COMBINED: UseCompression = UseCompression::No;
 
 pub fn combine<T: Engine + Sync>(
