@@ -28,6 +28,7 @@ pub fn combine<T: Engine + Sync>(
         let line = line.expect("should have read line");
         let parameters =
             parameters.into_chunk_parameters(parameters.contribution_mode, chunk_index, parameters.chunk_size);
+        println!("line is: {}", line);
         let response_reader = OpenOptions::new()
             .read(true)
             .open(line)
